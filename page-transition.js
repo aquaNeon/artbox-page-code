@@ -654,6 +654,10 @@
   }
 
   function prepareForTransition(parent, current, next) {
+    // Belt and braces: both pages must share the perspective parent, so
+    // never animate a next that beforeEnter did not manage to move.
+    if (next.parentElement !== parent) parent.appendChild(next);
+
     const wrapper = document.createElement('div');
     wrapper.className = 'page-transition__wrapper';
 
@@ -797,7 +801,25 @@
     leaveDone = new Promise((resolve) => { resolveLeave = resolve; });
   });
 
+  /* Barba appends the incoming container to [data-barba="wrapper"], which
+     here is body. The published markup nests the container inside
+     .page_wrap, so the first load is fine and every navigation after it
+     leaves the page one level too high. That breaks three things at once:
+     .page_wrap holds the perspective, so a container outside it gets no
+     3D and never scales down; the transition backdrop lives inside
+     .page_wrap at z-index 0, so a container in body covers it; and once
+     the inline styles are cleared the static container loses to the
+     positioned z-index 0 footer, which then paints over the page.
+
+     Move it back before anything measures or mounts against it. */
+  function reparentContainer(container) {
+    const pageWrap = document.querySelector('.page_wrap');
+    if (!pageWrap || !container || container.parentElement === pageWrap) return;
+    pageWrap.appendChild(container);
+  }
+
   barba.hooks.beforeEnter((data) => {
+    reparentContainer(data.next.container);
     gsap.set(data.next.container, { position: 'fixed', top: 0, left: 0, right: 0 });
     if (lenis?.stop) lenis.stop();
     initBeforeEnterFunctions(data.next.container);
