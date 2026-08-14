@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-14-h';
+  const BUILD = '2026-08-14-i';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -720,13 +720,18 @@
          whole document, dropping the vanishing point way below the fold.
          Pin it to the middle of the viewport instead. */
       perspectiveOrigin: `50% ${window.innerHeight / 2 - offsetY}px`,
-      transformStyle: 'preserve-3d',
-      overflow: 'clip'
+      transformStyle: 'preserve-3d'
     });
 
+    /* No overflow:clip on any of these three. A non-visible overflow makes
+       the element the scrollport that position:sticky descendants resolve
+       against, so every sticky section in the page stuck to the top of a
+       100vh box at once and the whole page composited onto itself. The
+       clip-path below does the clipping without that side effect;
+       html.is-transitioning handles the scrollbars. */
     gsap.set(wrapper, {
       position: 'fixed', top: -offsetY, left: -offsetX,
-      width: '100%', height: '100vh', overflow: 'clip',
+      width: '100%', height: '100vh',
       zIndex: 2, transformStyle: 'preserve-3d', willChange: 'transform',
       clipPath: 'rect(0% 100% 100% 0% round 0em)'
     });
@@ -738,7 +743,7 @@
 
     gsap.set(next, {
       position: 'fixed', top: -offsetY, left: -offsetX,
-      width: '100%', height: '100vh', overflow: 'clip',
+      width: '100%', height: '100vh',
       zIndex: 1, transformStyle: 'preserve-3d',
       willChange: 'transform, opacity', backfaceVisibility: 'hidden',
       xPercent: 175, z: '-100vw', autoAlpha: 1,

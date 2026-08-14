@@ -26,8 +26,15 @@ html.is-transitioning .footer_wrap {
   visibility: hidden;
 }
 
+/* Replaces the overflow:clip that used to sit on .page_wrap and both
+   transition layers. Clipping there turned them into scrollports, which
+   made every position:sticky section resolve against a 100vh box and
+   composite onto itself. Suppressing scroll on the root instead keeps the
+   pages' own sticky behaviour intact, since the root is the scrollport
+   either way. */
 html.is-transitioning {
   cursor: wait;
+  overflow: hidden;
 }
 
 /* Backing for the outgoing page while it is lifted out of flow. Inherits
