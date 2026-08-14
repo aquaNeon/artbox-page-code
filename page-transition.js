@@ -637,14 +637,47 @@
     const scrollY = window.scrollY || 0;
     window.scrollTo(0, 0);
 
+    /* The perspective set below turns parent into the containing block
+       for every fixed child here, so their 0,0 is parent's padding box
+       and not the viewport. Parent starts under the persistent nav, which
+       is exactly how far the whole transition used to sag. Measure the
+       gap after the scroll reset and cancel it out. */
+    const rect = parent.getBoundingClientRect();
+    const offsetX = rect.left;
+    const offsetY = rect.top;
+
+    /* Sits behind both pages so the 3D gap has something of its own to
+       show. Without it the gap exposed parent's page background, which
+       left no way to colour the transition separately. */
+    const backdrop = document.createElement('div');
+    backdrop.className = 'page-transition__backdrop';
+    const bg = next.dataset.transitionBg;
+    if (bg) {
+      const value = bg.trim();
+      backdrop.style.setProperty(
+        '--transition-bg',
+        value.startsWith('--') ? `var(${value})` : value
+      );
+    }
+    parent.insertBefore(backdrop, wrapper);
+
+    gsap.set(backdrop, {
+      position: 'fixed', top: -offsetY, left: -offsetX,
+      width: '100%', height: '100vh', zIndex: 0
+    });
+
     gsap.set(parent, {
       perspective: '100vw',
+      /* Default 50% 50% resolves against parent, which is as tall as the
+         whole document, dropping the vanishing point way below the fold.
+         Pin it to the middle of the viewport instead. */
+      perspectiveOrigin: `50% ${window.innerHeight / 2 - offsetY}px`,
       transformStyle: 'preserve-3d',
       overflow: 'clip'
     });
 
     gsap.set(wrapper, {
-      position: 'fixed', top: 0, left: 0, right: 0,
+      position: 'fixed', top: -offsetY, left: -offsetX,
       width: '100%', height: '100vh', overflow: 'clip',
       zIndex: 2, transformStyle: 'preserve-3d', willChange: 'transform',
       clipPath: 'rect(0% 100% 100% 0% round 0em)'
@@ -656,7 +689,7 @@
     });
 
     gsap.set(next, {
-      position: 'fixed', top: 0, left: 0, right: 0,
+      position: 'fixed', top: -offsetY, left: -offsetX,
       width: '100%', height: '100vh', overflow: 'clip',
       zIndex: 1, transformStyle: 'preserve-3d',
       willChange: 'transform, opacity', backfaceVisibility: 'hidden',
@@ -664,17 +697,20 @@
       clipPath: 'rect(0% 100% 100% 0% round 1.5em)'
     });
 
-    return { wrapper, scrollY };
+    return { wrapper, backdrop, scrollY };
   }
 
   function runPageLeaveAnimation(current, next) {
     const parent = current.parentElement || document.body;
-    const { wrapper } = prepareForTransition(parent, current, next);
+    const { wrapper, backdrop } = prepareForTransition(parent, current, next);
 
     const tl = gsap.timeline({
       onComplete: () => {
         wrapper.remove();
-        gsap.set(parent, { clearProps: 'perspective,transformStyle,overflow' });
+        backdrop.remove();
+        gsap.set(parent, {
+          clearProps: 'perspective,perspectiveOrigin,transformStyle,overflow'
+        });
         gsap.set(next, {
           clearProps: 'position,inset,width,height,zIndex,transformStyle,willChange,backfaceVisibility,transform'
         });

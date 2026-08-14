@@ -68,11 +68,29 @@ resolving against the viewport.
 | `data-barba="container"` | `main.page_main` | The swapped element |
 | `data-barba-namespace` | `main.page_main` | Template identity |
 | `data-nav-transparent` | `main.page_main` | Copied to the persistent nav as `data-transparent`; defaults to `true` |
+| `data-transition-bg` | `main.page_main` | Colour of the 3D gap while navigating *to* this page. Accepts a literal (`#111`, `black`) or a variable name (`--swatch--brand`) |
 | `data-barba-update` | nav links | `class` and `aria-current` are synced from the incoming page |
 | `data-barba-prevent` | any link | Opt that link out of the transition |
 
 Links are also skipped automatically for `target="_blank"`, `download`,
 `mailto:`/`tel:`, and same-page `#` hashes.
+
+## Transition background
+
+The colour visible in the gap between the two pages comes from
+`.page-transition__backdrop`, a div that exists only for the duration of a
+navigation. It is separate from the page background on purpose — changing it
+does not affect `.page_wrap`.
+
+Site-wide, set the variable on a global class or on `body`:
+
+```css
+--transition-bg: #0b0b0b;
+```
+
+Per template, put `data-transition-bg` on the Barba container; it wins over the
+site-wide value for navigations landing on that page. Unset, it falls back to
+`--_theme---background--bg-primary`, which is what the gap showed before.
 
 ## Modules
 

@@ -31,3 +31,12 @@ html.is-transitioning {
 .page-transition__wrapper {
   background: var(--_theme---background--bg-primary);
 }
+
+/* Only ever on screen mid-transition, filling the 3D gap between the
+   outgoing and incoming page. Set --transition-bg to colour it without
+   touching the page background; falls back to the page background so an
+   unset value looks like it did before. */
+.page-transition__backdrop {
+  background: var(--transition-bg, var(--_theme---background--bg-primary));
+  pointer-events: none;
+}
