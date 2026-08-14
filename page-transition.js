@@ -509,8 +509,15 @@
      changes the scrollable height. Lenis and ScrollTrigger both cache that
      height, and during a transition every layer is position:fixed, so the
      document briefly measures as almost nothing. Re-measure on the frame
-     after the margin lands, or the last footer-height of scroll is gone. */
+     after the margin lands, or the last footer-height of scroll is gone.
+
+     Never mid-transition though. sync:true resolves enter() at timeline
+     position 0, so afterEnter fires while the leave is still playing, and
+     resizing Lenis under a running animation visibly disturbs it. The
+     after hook drops is-transitioning before its own sync, so the
+     re-measure still happens, just once the motion is done. */
   function refreshScrollHeight() {
+    if (document.documentElement.classList.contains('is-transitioning')) return;
     requestAnimationFrame(() => {
       if (hasLenis && lenis) lenis.resize();
       if (hasScrollTrigger) ScrollTrigger.refresh();
