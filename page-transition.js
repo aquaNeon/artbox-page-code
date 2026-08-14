@@ -505,12 +505,27 @@
      PERSISTENT: FOOTER REVEAL
      ============================================================ */
 
+  /* The margin below is what the fixed footer is revealed through, so it
+     changes the scrollable height. Lenis and ScrollTrigger both cache that
+     height, and during a transition every layer is position:fixed, so the
+     document briefly measures as almost nothing. Re-measure on the frame
+     after the margin lands, or the last footer-height of scroll is gone. */
+  function refreshScrollHeight() {
+    requestAnimationFrame(() => {
+      if (hasLenis && lenis) lenis.resize();
+      if (hasScrollTrigger) ScrollTrigger.refresh();
+    });
+  }
+
   const FooterReveal = (function () {
     const footer = document.querySelector('.footer_wrap');
     const page = document.querySelector('.page_wrap');
     if (!footer || !page) return { sync() {}, collapse() {} };
 
-    const sync = () => { page.style.marginBottom = `${footer.offsetHeight}px`; };
+    const sync = () => {
+      page.style.marginBottom = `${footer.offsetHeight}px`;
+      refreshScrollHeight();
+    };
     const collapse = () => { page.style.marginBottom = '0px'; };
 
     new ResizeObserver(() => {
