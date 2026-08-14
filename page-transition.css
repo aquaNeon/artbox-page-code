@@ -42,6 +42,6 @@ html.is-transitioning {
    of the page background. Override site-wide with --transition-bg, or per
    template with data-transition-bg on the Barba container. */
 .page-transition__backdrop {
-  background: var(--transition-bg, #000);
+  background: var(--transition-bg, #191915);
   pointer-events: none;
 }

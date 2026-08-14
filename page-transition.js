@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-14-g';
+  const BUILD = '2026-08-14-h';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -674,7 +674,7 @@
 
     // Belt and braces: both pages must share the perspective parent, so
     // never animate a next that beforeEnter did not manage to move.
-    if (next.parentElement !== parent) parent.appendChild(next);
+    if (next.parentElement !== parent) parent.insertBefore(next, current);
 
     const wrapper = document.createElement('div');
     wrapper.className = 'page-transition__wrapper';
@@ -848,14 +848,19 @@
      positioned z-index 0 footer, which then paints over the page.
 
      Move it back before anything measures or mounts against it. */
-  function reparentContainer(container) {
-    const pageWrap = document.querySelector('.page_wrap');
-    if (!pageWrap || !container || container.parentElement === pageWrap) return;
-    pageWrap.appendChild(container);
+  function reparentContainer(next, current) {
+    const parent = current?.parentElement || document.querySelector('.page_wrap');
+    if (!parent || !next || next.parentElement === parent) return;
+    /* insertBefore, not appendChild. .page_wrap holds siblings besides the
+       container, so appending dropped the incoming page to the bottom of
+       that stack and changed how it layered against them. Take the slot
+       the outgoing page is in and document order is preserved. */
+    if (current && current.parentElement === parent) parent.insertBefore(next, current);
+    else parent.appendChild(next);
   }
 
   barba.hooks.beforeEnter((data) => {
-    reparentContainer(data.next.container);
+    reparentContainer(data.next.container, data.current?.container);
     gsap.set(data.next.container, { position: 'fixed', top: 0, left: 0, right: 0 });
     if (lenis?.stop) lenis.stop();
     initBeforeEnterFunctions(data.next.container);
