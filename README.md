@@ -134,5 +134,15 @@ delete them in the Designer or they run twice on first load.
 
 ## Before launch
 
-- Set `debug: false` in the `barba.init` config.
-- Consider `integrity` / `crossorigin` on the third-party CDN script tags.
+- Set `debug: false` in the `barba.init` config, and drop the two
+  `[page-transition]` console lines.
+- **Replace both `raw.githack.com/.../main/` URLs with commit-pinned
+  `rawcdn.githack.com/.../<full-sha>/` ones.** A mutable branch ref means
+  whatever is on `main` executes on the live site, and it cannot be protected
+  with SRI because the hash changes on every push. Shipping the dev URL is the
+  one thing in this repo that is genuinely unsafe.
+- Add `integrity="sha384-..." crossorigin="anonymous"` to the pinned tags once
+  they are immutable. Generate with:
+  `curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A`
+- Same treatment for the third-party CDN tags (gsap, barba, lenis, swiper,
+  base-lib), which are all unpinned or branch-pinned today.
