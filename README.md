@@ -90,7 +90,7 @@ Site-wide, set the variable on a global class or on `body`:
 
 Per template, put `data-transition-bg` on the Barba container; it wins over the
 site-wide value for navigations landing on that page. Unset, it falls back to
-`--_theme---background--bg-primary`, which is what the gap showed before.
+black.
 
 ## Modules
 

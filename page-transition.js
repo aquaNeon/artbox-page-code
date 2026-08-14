@@ -33,6 +33,10 @@
   let nextPage = document;
   let onceFunctionsInitialized = false;
 
+  // Lets the enter step wait on the leave timeline. See runPageEnterAnimation.
+  let leaveDone = null;
+  let resolveLeave = null;
+
   const hasLenis = typeof window.Lenis !== 'undefined';
   const hasScrollTrigger = typeof window.ScrollTrigger !== 'undefined';
 
@@ -716,7 +720,7 @@
       zIndex: 1, transformStyle: 'preserve-3d',
       willChange: 'transform, opacity', backfaceVisibility: 'hidden',
       xPercent: 175, z: '-100vw', autoAlpha: 1,
-      clipPath: 'rect(0% 100% 100% 0% round 1.5em)'
+      clipPath: 'rect(0% 100% 100% 0% round 0em)'
     });
 
     return { wrapper, backdrop, scrollY };
@@ -730,6 +734,7 @@
       onComplete: () => {
         wrapper.remove();
         backdrop.remove();
+        resolveLeave?.();
         gsap.set(parent, {
           clearProps: 'perspective,perspectiveOrigin,transformStyle,overflow'
         });
@@ -743,7 +748,7 @@
 
     tl.to(wrapper, {
       z: '-100vw', duration: 0.9,
-      clipPath: 'rect(0% 100% 100% 0% round 1.5em)'
+      clipPath: 'rect(0% 100% 100% 0% round 0em)'
     }, 0);
 
     tl.to(wrapper, { xPercent: -175, duration: 1, overwrite: 'auto' }, 0.25);
@@ -757,20 +762,17 @@
     return tl;
   }
 
+  /* resetPage strips the fixed positioning and the 100vh box off the
+     incoming container, which is what makes it read as a clipped
+     rectangle alongside the outgoing one. It used to run at position 0 of
+     this timeline, roughly a frame after prepareForTransition set those
+     properties, so the incoming page reflowed full-bleed and only the
+     outgoing page kept its rectangle. Hold it until the leave is done.
+     leaveDone is created in beforeLeave, which barba guarantees runs
+     before either leave or enter. */
   function runPageEnterAnimation(next) {
-    const tl = gsap.timeline();
-
-    if (reducedMotion) {
-      tl.set(next, { autoAlpha: 1 });
-      tl.add('pageReady');
-      tl.call(resetPage, [next], 'pageReady');
-      return new Promise((resolve) => tl.call(resolve, null, 'pageReady'));
-    }
-
-    tl.add('pageReady');
-    tl.call(resetPage, [next], 'pageReady');
-
-    return new Promise((resolve) => tl.call(resolve, null, 'pageReady'));
+    if (reducedMotion) gsap.set(next, { autoAlpha: 1 });
+    return (leaveDone || Promise.resolve()).then(() => resetPage(next));
   }
 
   function resetPage(container) {
@@ -792,6 +794,7 @@
   barba.hooks.beforeLeave(() => {
     root.classList.add('is-transitioning');
     FooterReveal.collapse();
+    leaveDone = new Promise((resolve) => { resolveLeave = resolve; });
   });
 
   barba.hooks.beforeEnter((data) => {

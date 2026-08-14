@@ -33,10 +33,10 @@ html.is-transitioning {
 }
 
 /* Only ever on screen mid-transition, filling the 3D gap between the
-   outgoing and incoming page. Set --transition-bg to colour it without
-   touching the page background; falls back to the page background so an
-   unset value looks like it did before. */
+   outgoing and incoming page. Black by default, deliberately independent
+   of the page background. Override site-wide with --transition-bg, or per
+   template with data-transition-bg on the Barba container. */
 .page-transition__backdrop {
-  background: var(--transition-bg, var(--_theme---background--bg-primary));
+  background: var(--transition-bg, #000);
   pointer-events: none;
 }
