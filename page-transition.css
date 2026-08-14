@@ -5,10 +5,12 @@
   z-index: 100;
 }
 
+/* No background here on purpose. This file loads after Webflow's
+   stylesheet at the same specificity, so declaring one silently beat
+   whatever was set in the Designer. Style .page_wrap in Webflow. */
 .page_wrap {
   position: relative;
   z-index: 1;
-  background: var(--_theme---background--bg-primary);
 }
 
 .footer_wrap {
@@ -28,8 +30,11 @@ html.is-transitioning {
   cursor: wait;
 }
 
+/* Backing for the outgoing page while it is lifted out of flow. Inherits
+   so it tracks whatever .page_wrap is set to in Webflow rather than
+   pinning a theme variable that may not resolve on every template. */
 .page-transition__wrapper {
-  background: var(--_theme---background--bg-primary);
+  background: inherit;
 }
 
 /* Only ever on screen mid-transition, filling the 3D gap between the
