@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-14-i';
+  const BUILD = '2026-08-14-j';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -661,17 +661,6 @@
   }
 
   function prepareForTransition(parent, current, next) {
-    /* A leave timeline that never reaches onComplete (interrupted
-       navigation, barba timeout, a thrown hook) leaves its wrapper in the
-       DOM. That wrapper is fixed and 100vh and still holds the previous
-       page, so it reads as a second page overlaid on the live one. Sweep
-       any leftovers before building new ones, skipping the one that holds
-       the page we are about to animate out. */
-    document.querySelectorAll('.page-transition__wrapper').forEach((el) => {
-      if (!el.contains(current)) el.remove();
-    });
-    document.querySelectorAll('.page-transition__backdrop').forEach((el) => el.remove());
-
     // Belt and braces: both pages must share the perspective parent, so
     // never animate a next that beforeEnter did not manage to move.
     if (next.parentElement !== parent) parent.insertBefore(next, current);
@@ -741,13 +730,31 @@
       willChange: 'transform, opacity', backfaceVisibility: 'hidden'
     });
 
-    gsap.set(next, {
+    /* Symmetry with the outgoing side, and the reason the home page
+       composited onto itself. The outgoing page sits inside a fixed 100vh
+       wrapper and keeps its own natural height. The incoming page used to
+       BE the box: height:100vh on the container itself, so every
+       percentage height and every sticky section inside it resolved
+       against one viewport instead of the real page height, and they all
+       landed in the same place. Give it a wrapper too and the container
+       is left to lay out exactly as it does on a normal load. */
+    const nextWrapper = document.createElement('div');
+    nextWrapper.className = 'page-transition__wrapper';
+    parent.insertBefore(nextWrapper, next);
+    nextWrapper.appendChild(next);
+
+    gsap.set(nextWrapper, {
       position: 'fixed', top: -offsetY, left: -offsetX,
       width: '100%', height: '100vh',
       zIndex: 1, transformStyle: 'preserve-3d',
       willChange: 'transform, opacity', backfaceVisibility: 'hidden',
       xPercent: 175, z: '-100vw', autoAlpha: 1,
       clipPath: 'rect(0% 100% 100% 0% round 0em)'
+    });
+
+    gsap.set(next, {
+      position: 'absolute', top: 0, left: 0, width: '100%',
+      willChange: 'transform, opacity', backfaceVisibility: 'hidden'
     });
 
     /* Every symptom so far has come down to one of these five facts, and
@@ -768,17 +775,39 @@
       });
     });
 
-    return { wrapper, backdrop, scrollY };
+    return { wrapper, nextWrapper, backdrop, scrollY };
+  }
+
+  /* A leave timeline that never reaches onComplete (interrupted
+     navigation, barba timeout, a thrown hook) leaves its wrappers in the
+     DOM. They are fixed and 100vh and still hold a page, so they read as
+     an extra page overlaid on the live one. Both pages now live in one of
+     these, so a leftover can be holding markup we still need: lift the
+     children out before dropping the wrapper, never delete it wholesale.
+     Runs before the parent is resolved, since a stale wrapper would
+     otherwise be mistaken for it. */
+  function sweepStaleLayers() {
+    document.querySelectorAll('.page-transition__wrapper').forEach((el) => {
+      const host = el.parentElement;
+      if (host) while (el.firstChild) host.insertBefore(el.firstChild, el);
+      el.remove();
+    });
+    document.querySelectorAll('.page-transition__backdrop').forEach((el) => el.remove());
   }
 
   function runPageLeaveAnimation(current, next) {
-    const parent = current.parentElement || document.body;
-    const { wrapper, backdrop } = prepareForTransition(parent, current, next);
+    sweepStaleLayers();
+    const parent = current.parentElement || document.querySelector('.page_wrap') || document.body;
+    const { wrapper, nextWrapper, backdrop } = prepareForTransition(parent, current, next);
 
     const tl = gsap.timeline({
       onComplete: () => {
         wrapper.remove();
         backdrop.remove();
+        // Put the incoming page back where it belongs before dropping its
+        // wrapper, so it ends up in the same slot a normal load leaves it.
+        parent.insertBefore(next, nextWrapper);
+        nextWrapper.remove();
         resolveLeave?.();
         gsap.set(parent, {
           clearProps: 'perspective,perspectiveOrigin,transformStyle,overflow'
@@ -797,9 +826,9 @@
     }, 0);
 
     tl.to(wrapper, { xPercent: -175, duration: 1, overwrite: 'auto' }, 0.25);
-    tl.to(next, { xPercent: 0, duration: 1, overwrite: 'auto' }, '<');
+    tl.to(nextWrapper, { xPercent: 0, duration: 1, overwrite: 'auto' }, '<');
 
-    tl.to(next, {
+    tl.to(nextWrapper, {
       z: 0, duration: 0.9, overwrite: 'auto',
       clipPath: 'rect(0% 100% 100% 0% round 0em)'
     }, '>-=0.4');
