@@ -9,19 +9,38 @@ Webflow republish needed.
 
 ## CDN
 
+Development, live on every push, no purge step:
+
 ```
-https://cdn.jsdelivr.net/gh/aquaNeon/artbox-page-code@main/page-transition.js
-https://cdn.jsdelivr.net/gh/aquaNeon/artbox-page-code@main/page-transition.css
+https://raw.githack.com/aquaNeon/artbox-page-code/main/page-transition.js
+https://raw.githack.com/aquaNeon/artbox-page-code/main/page-transition.css
 ```
 
-jsDelivr minifies on request — append `.min` before the extension
-(`page-transition.min.js`) if you want the smaller build, no build step required.
+**Do not use jsDelivr `@main` here.** Its branch alias froze several commits
+back and kept serving a stale build through repeated purges that all reported
+`finished`; the commit-pinned `@<sha>` form stayed correct throughout. If a
+change appears not to have taken effect, verify the bytes before touching the
+code:
 
-Branch URLs are edge-cached for roughly 12 hours. After a push, run
-`./purge-cdn.ps1` to flush both files, then hard-reload the site.
+```bash
+curl -s <url> | wc -l          # compare against the local file
+```
 
-Pin to an immutable tag instead if you ever need a rollback anchor: tag the
-commit and swap `@main` for `@v1.2.3` in the embed.
+The script logs `[page-transition] build <stamp>` on load. If that stamp does
+not match `BUILD` at the top of `page-transition.js`, you are running an old
+file and nothing else is worth debugging yet.
+
+`raw.githack.com` is rate-limited and deliberately uncached, so it is a
+development URL only. Before launch, pin the full commit SHA:
+
+```
+https://rawcdn.githack.com/aquaNeon/artbox-page-code/<full-sha>/page-transition.js
+```
+
+That form is immutable and cached hard, which is what production wants anyway.
+
+`purge-cdn.ps1` only applies to the jsDelivr URLs and is kept for that eventual
+switch.
 
 ## Install
 
