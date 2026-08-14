@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-14-f';
+  const BUILD = '2026-08-14-g';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -661,6 +661,17 @@
   }
 
   function prepareForTransition(parent, current, next) {
+    /* A leave timeline that never reaches onComplete (interrupted
+       navigation, barba timeout, a thrown hook) leaves its wrapper in the
+       DOM. That wrapper is fixed and 100vh and still holds the previous
+       page, so it reads as a second page overlaid on the live one. Sweep
+       any leftovers before building new ones, skipping the one that holds
+       the page we are about to animate out. */
+    document.querySelectorAll('.page-transition__wrapper').forEach((el) => {
+      if (!el.contains(current)) el.remove();
+    });
+    document.querySelectorAll('.page-transition__backdrop').forEach((el) => el.remove());
+
     // Belt and braces: both pages must share the perspective parent, so
     // never animate a next that beforeEnter did not manage to move.
     if (next.parentElement !== parent) parent.appendChild(next);
