@@ -1,0 +1,33 @@
+/* Nav has to outrank both containers while they sit at
+   z-index 1 and 2 inside .page_wrap */
+.meganav_root {
+  position: relative;
+  z-index: 100;
+}
+
+.page_wrap {
+  position: relative;
+  z-index: 1;
+  background: var(--_theme---background--bg-primary);
+}
+
+.footer_wrap {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 0;
+}
+
+/* The reveal gap collapses during a transition because both
+   containers go position:fixed. Hide the footer so it cannot
+   flash through the 3D gap between the two pages. */
+html.is-transitioning .footer_wrap {
+  visibility: hidden;
+}
+
+html.is-transitioning {
+  cursor: wait;
+}
+
+.page-transition__wrapper {
+  background: var(--_theme---background--bg-primary);
+}
