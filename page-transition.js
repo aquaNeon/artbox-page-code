@@ -26,6 +26,13 @@
 (function () {
   'use strict';
 
+  /* Bump on every push. jsDelivr sends max-age=604800, so a plain reload
+     serves the browser's week-old copy without revalidating and it is
+     otherwise impossible to tell which build is running. Check the
+     console line against the repo before debugging anything else. */
+  const BUILD = '2026-08-14-f';
+  console.info(`[page-transition] build ${BUILD}`);
+
   gsap.registerPlugin(CustomEase);
   history.scrollRestoration = 'manual';
 
@@ -725,6 +732,24 @@
       willChange: 'transform, opacity', backfaceVisibility: 'hidden',
       xPercent: 175, z: '-100vw', autoAlpha: 1,
       clipPath: 'rect(0% 100% 100% 0% round 0em)'
+    });
+
+    /* Every symptom so far has come down to one of these five facts, and
+       none of them is visible from a screenshot. Logged mid-leave so the
+       state is the animating one, not the cleaned-up one. */
+    requestAnimationFrame(() => {
+      const cs = getComputedStyle(next);
+      console.info('[page-transition] state', {
+        build: BUILD,
+        containerParent: next.parentElement?.className || '(none)',
+        parentPerspective: getComputedStyle(parent).perspective,
+        backdropInDom: document.body.contains(backdrop),
+        backdropBg: getComputedStyle(backdrop).backgroundColor,
+        nextPosition: cs.position,
+        nextHeight: cs.height,
+        nextTransform: cs.transform,
+        nextZIndex: cs.zIndex
+      });
     });
 
     return { wrapper, backdrop, scrollY };
