@@ -156,6 +156,49 @@
     });
   });
 
+  // SMOOTHLY 
+
+  Modules.add('smooothy', function (root) {
+  const els = root.querySelectorAll('.work_smoothly_wrap');
+  if (!els.length) return;
+
+  const instances = [];
+  let rafId = null;
+  let killed = false;
+
+  import('https://cdn.jsdelivr.net/npm/smooothy@0.0.25/+esm').then(({ default: Core }) => {
+    if (killed) return;
+
+    els.forEach((el) => {
+      const slider = new Core(el, {
+        infinite: true,
+        snap: false,
+        variableWidth: false,
+        lerpFactor: 0.08,
+        dragSensitivity: 0.005,
+        scrollInput: false
+      });
+      el.classList.add('is-ready');
+      instances.push({ slider, el });
+    });
+
+    const tick = () => {
+      instances.forEach(({ slider }) => slider.update());
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+  });
+
+  return function cleanup() {
+    killed = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    instances.forEach(({ slider, el }) => {
+      slider.destroy?.();
+      el.classList.remove('is-ready');
+    });
+  };
+});
+
 
   /* ============================================================
      SWIPER
