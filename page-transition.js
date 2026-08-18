@@ -158,47 +158,69 @@
 
   // SMOOTHLY 
 
-  Modules.add('smooothy', function (root) {
+ Modules.add('smooothy', function (root) {
   const els = root.querySelectorAll('.work_smoothly_wrap');
   if (!els.length) return;
 
+  const html = document.documentElement;
   const instances = [];
   let rafId = null;
   let killed = false;
 
-  import('https://cdn.jsdelivr.net/npm/smooothy@0.0.25/+esm').then(({ default: Core }) => {
-    if (killed) return;
+  const remeasure = (slider) => {
+    if (typeof slider.resize === 'function') return slider.resize();
+    if (typeof slider.refresh === 'function') return slider.refresh();
+    if (typeof slider.update === 'function') return slider.update();
+  };
 
-    els.forEach((el) => {
-      const slider = new Core(el, {
-        infinite: true,
-        snap: false,
-        variableWidth: false,
-        lerpFactor: 0.08,
-        dragSensitivity: 0.005,
-        scrollInput: false
+  const refreshAll = () => {
+    instances.forEach(({ slider }) => remeasure(slider));
+  };
+
+  import('https://cdn.jsdelivr.net/npm/smooothy@0.0.25/+esm')
+    .then(({ default: Core }) => {
+      if (killed) return;
+
+      els.forEach((el) => {
+        const slider = new Core(el, {
+          infinite: true,
+          snap: false,
+          variableWidth: false,
+          lerpFactor: 0.08,
+          dragSensitivity: 0.005,
+          scrollInput: false
+        });
+        instances.push({ slider, el });
       });
-      el.classList.add('is-ready');
-      instances.push({ slider, el });
-    });
 
-    const tick = () => {
-      instances.forEach(({ slider }) => slider.update());
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-  });
+      const tick = () => {
+        if (!html.classList.contains('is-transitioning')) {
+          instances.forEach(({ slider }) => slider.update());
+        }
+        rafId = requestAnimationFrame(tick);
+      };
+
+      requestAnimationFrame(() => {
+        if (killed) return;
+        refreshAll();
+        instances.forEach(({ el }) => el.classList.add('is-ready'));
+        rafId = requestAnimationFrame(tick);
+      });
+    })
+    .catch((err) => console.error('[smooothy] failed to load', err));
+
+  window.__smooothyRefresh = refreshAll;
 
   return function cleanup() {
     killed = true;
     if (rafId) cancelAnimationFrame(rafId);
+    delete window.__smooothyRefresh;
     instances.forEach(({ slider, el }) => {
       slider.destroy?.();
       el.classList.remove('is-ready');
     });
   };
 });
-
 
   /* ============================================================
      SWIPER
@@ -964,10 +986,16 @@
     if (hasScrollTrigger) ScrollTrigger.refresh();
   });
 
+
   barba.hooks.after(() => {
-    root.classList.remove('is-transitioning');
-    FooterReveal.sync();
+  FooterReveal.sync();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      root.classList.remove('is-transitioning');
+      window.__smooothyRefresh?.();
+    });
   });
+});
 
   barba.init({
     debug: true, // set false before launch
