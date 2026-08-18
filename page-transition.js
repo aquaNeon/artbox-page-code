@@ -255,12 +255,17 @@
       const wrap = el.closest('.c_slider_wrap');
 
       const swiper = new Swiper(el, {
-        slidesPerView: num('data-slides-per-view', 1.25),
+        slidesPerView: 1,
         spaceBetween: measureGap(),
         loop: bool('data-loop', false),
         rewind: bool('data-rewind', true),
         loopAdditionalSlides: num('data-loop-extra', 4),
         speed: num('data-speed', 600),
+        breakpoints: {
+          768: {
+            slidesPerView: num('data-slides-per-view', 1.25)
+          }
+        },
         navigation: {
           prevEl: wrap ? wrap.querySelector('.c_slider_button_prev') : null,
           nextEl: wrap ? wrap.querySelector('.c_slider_button_next') : null,
