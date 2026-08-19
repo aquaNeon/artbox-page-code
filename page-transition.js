@@ -294,6 +294,7 @@
         t = setTimeout(() => {
           applyGap();
           const gap = measureGap();
+          if (swiper.params.spaceBetween === gap) return;
           swiper.params.spaceBetween = gap;
           Object.keys(swiper.params.breakpoints).forEach((bp) => {
             swiper.params.breakpoints[bp].spaceBetween = gap;
