@@ -225,6 +225,9 @@
   /* ============================================================
      SWIPER
      ============================================================ */
+  /* ============================================================
+     SWIPER
+     ============================================================ */
 
   Modules.add('slider', function (root) {
     const instances = [];
@@ -239,9 +242,19 @@
         const v = el.getAttribute(attr);
         return v !== null && v !== '' ? v === 'true' : fallback;
       };
+      const str = (attr) => {
+        const v = el.getAttribute(attr);
+        return v !== null && v.trim() !== '' ? v.trim() : null;
+      };
 
-      const gapAttr = el.getAttribute('data-gap');
-      if (gapAttr) el.style.setProperty('--slider-gap', gapAttr);
+      const gapAttr = str('data-gap');
+      const gapMobileAttr = str('data-gap-mobile');
+      const mq = window.matchMedia('(max-width: 767px)');
+
+      const applyGap = () => {
+        const value = mq.matches ? (gapMobileAttr || gapAttr) : gapAttr;
+        if (value) el.style.setProperty('--slider-gap', value);
+      };
 
       const measureGap = () => {
         const probe = document.createElement('div');
@@ -252,10 +265,12 @@
         return px;
       };
 
+      applyGap();
+
       const wrap = el.closest('.c_slider_wrap');
 
       const swiper = new Swiper(el, {
-        slidesPerView: 1,
+        slidesPerView: num('data-slides-mobile', 1),
         spaceBetween: measureGap(),
         loop: bool('data-loop', false),
         rewind: bool('data-rewind', true),
@@ -277,7 +292,12 @@
       const onResize = () => {
         clearTimeout(t);
         t = setTimeout(() => {
-          swiper.params.spaceBetween = measureGap();
+          applyGap();
+          const gap = measureGap();
+          swiper.params.spaceBetween = gap;
+          Object.keys(swiper.params.breakpoints).forEach((bp) => {
+            swiper.params.breakpoints[bp].spaceBetween = gap;
+          });
           swiper.update();
         }, 150);
       };
