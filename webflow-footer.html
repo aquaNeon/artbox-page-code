@@ -13,6 +13,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/CustomEase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/SplitText.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@barba/core@2.10.3/dist/barba.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.17/dist/lenis.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
@@ -30,3 +32,13 @@
      immutable and properly cached:
      https://rawcdn.githack.com/aquaNeon/artbox-page-code/<full-sha>/page-transition.js -->
 <script src="https://raw.githack.com/aquaNeon/artbox-page-code/main/page-transition.js"></script>
+
+<!-- LOCAL DEV. Run `node dev-server.js` in the repo, comment out the tag
+     above and uncomment this one, then reload the published site or the
+     Designer preview: every save is live on the next reload, no push, no
+     CDN. Chrome only — Safari and Firefox block http:// subresources on
+     an https page even from localhost. Never publish with this active,
+     it is a dead tag for everyone but you.
+
+<script src="http://localhost:5173/page-transition.js"></script>
+-->

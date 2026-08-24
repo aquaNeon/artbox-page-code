@@ -42,6 +42,33 @@ That form is immutable and cached hard, which is what production wants anyway.
 `purge-cdn.ps1` only applies to the jsDelivr URLs and is kept for that eventual
 switch.
 
+## Local development
+
+```bash
+node dev-server.js          # http://localhost:5173, no npm install
+node dev-server.js 4000     # if 5173 is taken
+```
+
+Then swap the two embeds over to localhost — both files have the dev tag
+commented out in place, ready to uncomment:
+
+```html
+<script src="http://localhost:5173/page-transition.js"></script>
+<link rel="stylesheet" href="http://localhost:5173/page-transition.css">
+```
+
+Reload the published site or the Designer preview and it runs the file on
+disk. Every response is `no-store`, so a plain reload is enough — no push,
+no CDN, no build stamp to check.
+
+**Chrome only.** It treats `http://localhost` as a trustworthy origin, so an
+https Webflow page loads it. Safari and Firefox block it as mixed content
+and the site just runs without the script.
+
+**Swap the tags back before publishing.** A localhost tag on the live site
+is a dead script for every visitor: no transitions, no modules, no error
+anyone can see.
+
 ## Install
 
 Two paste-ins, both under **Webflow → Site Settings → Custom Code**:
@@ -121,7 +148,168 @@ rather than shared globally. A module that registers global listeners, a `rAF`
 loop or an observer must return a teardown, or it will leak on every navigation.
 
 Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
-`cardHoverColours`, `slider` (Swiper), `marquee`, `baseLib`.
+`cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `homeHero`,
+`slider` (Swiper), `marquee`, `baseLib`.
+
+### textAnim — `[data-text-anim]`
+
+Site-wide text reveal, ported from the ManyChat *creators-for-creators*
+build (`src/modules/text-anim.js`) with the attribute contract unchanged,
+so markup moves between the two sites as-is.
+
+| Attribute | Effect |
+| --- | --- |
+| `data-text-anim` | Group root. One trigger, its steps run in DOM order |
+| `data-text-anim-heading` | Split into lines; each line rises out of an overflow mask |
+| `data-text-anim-body` | Neighbouring body elements rise and fade as one block |
+| `data-text-anim-solo` | Breaks an element out into its own step |
+| `data-text-anim-list` | Repeated list, items wave in as a single step |
+| `data-text-anim-stagger` | On a shared ancestor: one trigger for every `[data-text-anim]` under it, plus a per-card delay (default `0.15`) |
+
+Timing knobs, all optional:
+
+| Where | Attribute | Meaning |
+| --- | --- | --- |
+| root | `data-text-anim="0.7"` | speed of the whole group. `1` normal, lower slower |
+| root | `data-text-anim-delay="0.4"` | dead air after the trigger fires, before the group starts |
+| step | `data-text-anim-solo="0.2"` | the step attribute's own value is the **overlap** in seconds against the previous step's end. Default `0.4`; `0` is strictly sequential, higher means more overlap |
+| step | `data-text-anim-speed="0.6"` | that one step's rate, on top of the group's |
+| step | `data-text-anim-delay="0.3"` | extra gap before that one step |
+| ancestor | `data-text-anim-stagger="0.12"` | spacing between the `[data-text-anim]` groups under it |
+
+Overlap pulls a step earlier and delay pushes it later; a step carrying both
+resolves to one signed offset. Under a `-stagger` ancestor, card *i* starts at
+`i × stagger + its own delay`. `data-text-anim-delay` on an element that is both
+root and step counts once, as the group delay.
+
+Base durations, eases and the optional blur live in the `TEXT` object above the
+module; `?blur=1` / `?blur=0` overrides the blur on a live URL, and
+`?textdebug=1` logs what each group built and when it fired.
+
+Pieces are marked explicitly rather than guessed from the tag, because
+Webflow text and link components are div-based and tag detection finds
+nothing on the real markup. A `<br><br>` inside a `-body` element reads as a
+paragraph break and its halves become separate staggered steps; a single
+`<br>` does not.
+
+Split and hidden start state happen at mount; the ScrollTriggers are created
+from the intro queue, since a trigger measured against the fixed 100vh
+transition rectangle either fires at the wrong scroll position or fires
+immediately and plays the reveal behind the transition. Teardown reverts the
+SplitText, so a container is never re-split on top of an old split.
+
+Requires `SplitText` (free since GSAP 3.13, now loaded in the footer embed).
+Without it `-heading` degrades to the same block rise as `-solo`. Lines are
+split once at mount and not re-split on resize, same as the source project.
+
+The scramble variant from that repo is **not** ported: it needs a
+`[data-text-anim-scramble]{opacity:0!important}` rule in the site head plus
+the scramble util. Ask if you want it.
+
+### Intro timings
+
+Modules mount on `beforeEnter`, while the incoming container is still a
+fixed 100vh rectangle sliding in — an entrance timeline started there is
+half over before the page lands. Set the initial state at mount and queue
+the timeline with `Intro.add(root, play)`; it runs on `afterEnter`, and
+from `once()` on first load, which `afterEnter` does not fire for.
+
+### parallax — `[data-parallax]`
+
+Column drift: each marked element travels against the scroll at its own rate
+while its group crosses the viewport, so a grid of images reads as several
+columns at different speeds with static text on top.
+
+| Attribute | Where | Meaning |
+| --- | --- | --- |
+| `data-parallax="0.6"` | the moving element | Strength. `1` = the base distance (120px), negative travels the other way, `0` opts out |
+| `data-parallax-group` | ancestor | The element whose pass through the viewport drives the motion. Defaults to the nearest `section` |
+| `data-parallax-clip` | the group | Keeps the moving elements inside the group. Uses `clip-path`, never `overflow` — a non-visible overflow becomes the scrollport that `position: sticky` descendants resolve against and would break the pin |
+| `data-parallax-axis="x"` | the moving element | Horizontal instead of vertical |
+| `data-parallax-distance` | the moving element | px for strength 1 on that element, overriding the 120 default |
+| `data-parallax-from` / `-to` | the moving element | Start and end of the range as a length. Given either, strength is ignored and the element travels between them — the rise-from-below form, e.g. `from="60vh" to="0"` |
+| `data-parallax-mobile="0.5"` | element or group | Strength multiplier below 768px. **Defaults to 0.5** — a phone shows less of the group at once, so the same travel crosses more screen per scrolled pixel. `1` keeps desktop travel, `0` disables on phones |
+
+Scrubbed, so it reverses on the way back up. The range is the group crossing
+the screen — group top at the viewport bottom through to group bottom at the
+top — and the element is at its extreme exactly when the group is, so nothing
+jumps at either end.
+
+Lengths (`-distance`, `-from`, `-to`) take a bare number as px or accept `vh` /
+`vw`, resolved per ScrollTrigger refresh so they follow a resize or an
+orientation change rather than freezing at mount.
+
+The default distance is normalised against a 900px-tall reference viewport
+(clamped 0.45–1.2), so the same attribute reads the same on a laptop and a tall
+desktop window. An explicit `data-parallax-distance` is taken at face value —
+you asked for that number.
+
+Alternate the sign between columns for counter-motion. Keep the parallax on a
+wrapper and any hover or reveal on the element inside it: two owners of one
+transform fight and drift.
+
+### stickyStack — `[data-sticky-stack]`
+
+Cards pin one after another and the next scrolls over the one before it. The
+pinning is CSS (`position: sticky` per card) — a ScrollTrigger pin rebuilds
+layout on every Barba swap and fights Lenis. The module owns stacking order and
+the depth cue: while a card is being covered its content lifts, which is what
+makes the new card read as sliding *over* the old one.
+
+| Attribute | Where | Meaning |
+| --- | --- | --- |
+| `data-sticky-stack` | the track holding the cards | Marks the stack |
+| `data-sticky-card` | each card | Optional; without it the track's element children are used |
+| `data-sticky-inner` | inside a card | What lifts. Optional; defaults to the card's children, so the card's background holds still while its contents move |
+| `data-sticky-lift="80"` | track or card | px of lift, default 80 |
+| `data-sticky-fade="0.6"` | track or card | Opacity the covered content reaches |
+| `data-sticky-scale="0.96"` | track or card | Scale the covered content reaches |
+
+Each lift is driven by the *covering* card's climb from the viewport bottom to
+the top, not by the covered card — a pinned card's own rect stops changing, so
+it cannot describe the progress the eye is following.
+
+z-index is assigned in JS, ascending, so adding a third card in the Designer
+needs no CSS edit. Cards need an opaque background or they show through each
+other. Desktop only (`min-width: 768px`), matching the CSS.
+
+The matching CSS, in the section's embed:
+
+```css
+.design_sticky_track { position: relative; }
+
+@media (min-width: 768px) {
+  .design_sticky_item {
+    position: sticky;
+    top: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+  }
+  /* every card but the last gets scroll distance behind it */
+  .design_sticky_item:not(:last-child) { margin-bottom: 50vh; }
+}
+```
+
+### homeHero
+
+`.home_wrap` only. The heading is untouched by this module by design — put
+`data-text-anim` / `data-text-anim-heading` on it if you want the line rise.
+The images fade/scale in, bump toward the pointer, and parallax *against*
+the scroll direction (negative `y`).
+Tuning lives in the `HERO` object at the top of the module. The two
+transforms sit on different elements on purpose: parallax drives
+`.home_img_wrap`, the pointer bump drives the `img` inside it.
+
+The section's CSS embed can stay in the Designer — `<style>` in swapped
+markup still applies, only `<script>` is dead. It pre-hides the images;
+the module adds `hero-anim-off` on `<html>` once GSAP owns their opacity,
+with a 2.5s watchdog so a throw can never leave a blank grid.
+
+ScrollTrigger is required for the parallax and is now loaded in the footer
+embed. `afterLeave` kills triggers scoped to the outgoing container plus
+orphans — never `ScrollTrigger.getAll().kill()`, which under `sync: true`
+would take the already-mounted incoming page's triggers with it.
 
 `baseLib` calls `MYL.video.init(root)`, `MYL.formValidation.init(root)` and
 `MYL.matchContainer.init(root)`. Those three scripts currently bind on

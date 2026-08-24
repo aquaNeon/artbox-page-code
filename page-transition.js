@@ -30,10 +30,12 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-14-j';
+  const BUILD = '2026-08-24-u';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
+  if (window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
+  if (window.SplitText) gsap.registerPlugin(SplitText);
   history.scrollRestoration = 'manual';
 
   let lenis = null;
@@ -46,6 +48,7 @@
 
   const hasLenis = typeof window.Lenis !== 'undefined';
   const hasScrollTrigger = typeof window.ScrollTrigger !== 'undefined';
+  const hasSplitText = typeof window.SplitText !== 'undefined';
 
   const rmMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
   let reducedMotion = rmMQ.matches;
@@ -95,7 +98,42 @@
           try { fn(); } catch (err) { console.error('[modules] cleanup failed', err); }
         });
         mounted.delete(root);
+        Intro.drop(root);
       }
+    };
+  })();
+
+
+  /* ============================================================
+     INTRO QUEUE
+
+     Modules mount at beforeEnter, while the incoming page is still a
+     fixed 100vh rectangle sliding in from the right. An intro timeline
+     started there plays behind the transition and is half over by the
+     time the page lands. Modules queue theirs here instead and it runs
+     once the container is laid out for real: afterEnter on a navigation,
+     and explicitly in once() for the first load, which afterEnter does
+     not fire for.
+     ============================================================ */
+
+  const Intro = (function () {
+    const queued = new Map();
+
+    return {
+      add(root, play) {
+        const list = queued.get(root) || [];
+        list.push(play);
+        queued.set(root, list);
+      },
+      play(root) {
+        const list = queued.get(root);
+        if (!list) return;
+        queued.delete(root);
+        list.forEach((fn) => {
+          try { fn(); } catch (err) { console.error('[intro] play failed', err); }
+        });
+      },
+      drop(root) { queued.delete(root); }
     };
   })();
 
@@ -228,6 +266,961 @@
   /* ============================================================
      SWIPER
      ============================================================ */
+
+  /* ============================================================
+     TEXT REVEAL — [data-text-anim]
+
+     Ported from the ManyChat creators-for-creators build with the
+     attribute contract unchanged, so markup moves between the two
+     sites as-is. Two things differ, both forced by this repo:
+
+       - it mounts per Barba container instead of a global registry,
+         so everything is torn down and the SplitText reverted when
+         the page leaves;
+       - the ScrollTriggers are created from the Intro queue, not at
+         mount. Mount happens at beforeEnter while the container is a
+         fixed 100vh rectangle sliding in, and a trigger measured
+         against that fires at the wrong scroll position — or fires
+         immediately and plays the reveal behind the transition. The
+         split and the hidden start state still happen at mount, so
+         nothing flashes in the meantime.
+
+     Marked explicitly, never guessed from the tag: Webflow text and
+     link components are div-based, so tag detection finds nothing on
+     real markup.
+
+       data-text-anim           group root, one trigger
+       data-text-anim-heading   splits to lines, each rises out of a mask
+       data-text-anim-body      neighbouring body elements rise as one block
+       data-text-anim-solo      breaks an element out into its own step
+       data-text-anim-list      repeated list, items wave in as one step
+       data-text-anim-stagger   on a shared ancestor: ONE trigger for all the
+                                [data-text-anim] cards under it, plus a
+                                per-card delay (default 0.15)
+
+       data-text-anim-delay     on the group root: seconds to wait after the
+                                trigger fires before the group starts.
+                                On a step: extra gap before that one step,
+                                on top of its overlap. Ignored on an element
+                                that is both root and step — there it is the
+                                group delay and nothing else.
+       data-text-anim-speed     on a step: that step alone runs at this
+                                rate. 0.6 slower, 1.5 quicker. The group
+                                root's own number still scales everything.
+
+     The group root takes a number too, and it is a speed, not a time:
+     data-text-anim="0.6" runs that whole group at 0.6x — slower and
+     more deliberate — while 1.5 runs it faster. It scales the tweens
+     and the gaps between them together, which is what you want when
+     the sequence reads too quick; the per-step value only moves the
+     steps closer or further apart and cannot slow anything down.
+
+     Steps run in DOM order, each overlapping the previous step's END
+     by the attribute's own value in seconds — data-text-anim-solo="0.7"
+     — default 0.4.
+
+     The scramble variant is deliberately not ported: it needs a
+     [data-text-anim-scramble]{opacity:0!important} rule in the site
+     head and the scramble util, and neither exists here yet.
+     ============================================================ */
+
+  const TEXT = {
+    stagger: 0.15,          // between cards under [data-text-anim-stagger]
+    overlap: 0.4,           // step overlap when the attribute carries no value
+    start: 'top 80%',
+
+    /* The mask is overflow:hidden, so it clips whatever sits below the
+       line box — the descenders of g, j, p, q, y, and accents on some
+       faces. Pad the mask and cancel the pad with an equal negative
+       margin: the clip moves down, the layout does not move at all.
+       In em, so it scales with the type rather than with a px guess. */
+    maskPad: 0.34,
+
+    headingDuration: 0.75,
+    headingStagger: 0.16,
+    headingEase: 'power4.out',
+
+    bodyDuration: 0.9,
+    bodyStagger: 0.08,
+    bodyEase: 'power3.out',
+    bodyFromY: 30,          // yPercent
+
+    listDuration: 0.5,
+    listStagger: 0.06,
+    listEase: 'power2.out',
+
+    blur: false,            // layers onto the existing tweens, not a separate mode
+    headingBlur: 10,        // px per line
+    bodyBlur: 8             // px
+  };
+
+  /* Dev override, no rebuild: ?blur=1 / ?blur=0 in the URL. */
+  const blurParam = new URLSearchParams(location.search).get('blur');
+  const BLUR = blurParam === '1' ? true : blurParam === '0' ? false : TEXT.blur;
+
+  const TEXT_DEBUG = new URLSearchParams(location.search).get('textdebug') === '1';
+
+  let splitTextWarned = false;
+  function warnNoSplitText() {
+    if (splitTextWarned) return;
+    splitTextWarned = true;
+    console.warn(
+      '[text-anim] SplitText is not loaded, so [data-text-anim-heading] is ' +
+      'rising as one block instead of line by line. Add ' +
+      '<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/SplitText.min.js"><\/script> ' +
+      'to the Webflow footer embed, after gsap and before page-transition.js, and publish.'
+    );
+  }
+
+  function buildLineRise(el) {
+    const split = new SplitText(el, { type: 'lines', linesClass: 'text-anim_line' });
+    const pads = [];
+    const inners = split.lines.map((line) => {
+      line.style.overflow = 'hidden';
+      line.style.display = 'block';
+      let pad = 0;
+      if (TEXT.maskPad) {
+        pad = descenderPad(line);
+        line.style.paddingBottom = `${pad}px`;
+        line.style.marginBottom = `${-pad}px`;
+      }
+      pads.push(pad);
+      const inner = document.createElement('span');
+      inner.style.display = 'block';
+      while (line.firstChild) inner.appendChild(line.firstChild);
+      line.appendChild(inner);
+      return inner;
+    });
+    /* overflow clips to the PADDING box, so the pad added below to save
+       the descenders is also a strip the waiting line can show through.
+       Derive the start from each line's own pad rather than guessing a
+       flat number: 100% clears the line box, the ratio clears the pad,
+       and 5% covers sub-pixel rounding. A flat value is either short on
+       a big pad or wastefully far on a small one. */
+    const from = {
+      yPercent: (i, target) => {
+        const h = target.offsetHeight || 1;
+        return 105 + (pads[i] / h) * 100;
+      }
+    };
+    if (BLUR) from.filter = `blur(${TEXT.headingBlur}px)`;
+    gsap.set(inners, from);
+    return { split, inners };
+  }
+
+  /* The pad has to be measured against the type that is actually being
+     clipped, not against the element doing the clipping. Webflow markup
+     routinely nests an h2 inside a plain wrapper, so the wrapper sits at
+     16px while the glyphs are 60 — an em on the wrapper resolves to about
+     3px and clips exactly as before. Take the largest font-size in the
+     subtree and return px. */
+  function descenderPad(el) {
+    let size = parseFloat(getComputedStyle(el).fontSize) || 16;
+    el.querySelectorAll('*').forEach((child) => {
+      const s = parseFloat(getComputedStyle(child).fontSize);
+      if (s > size) size = s;
+    });
+    return size * TEXT.maskPad;
+  }
+
+  /* Masks are ours to pad, but a -solo or -body element can be clipped by
+     a Webflow class of its own — a clamp, a fixed height, an overflow on
+     the wrapper. Same trick, applied to whatever actually clips: grow the
+     clip box downward, cancel the growth with an equal negative margin, so
+     nothing in the layout moves. Walks up to the group root, since the
+     clipper is as often the wrapper as the text element itself. */
+  function unclipDescenders(el, stop) {
+    for (let node = el; node && node !== stop && node !== document.body; node = node.parentElement) {
+      if (node.dataset.textAnimUnclipped) continue;
+      const cs = getComputedStyle(node);
+      if (cs.overflow === 'visible' && cs.overflowY === 'visible') continue;
+      node.dataset.textAnimUnclipped = 'true';
+      /* Additive: these elements usually already carry padding from a
+         Webflow class, and replacing it would move the text. */
+      const pad = parseFloat(cs.paddingBottom) || 0;
+      const margin = parseFloat(cs.marginBottom) || 0;
+      const extra = descenderPad(node);
+      node.style.paddingBottom = `${pad + extra}px`;
+      node.style.marginBottom = `${margin - extra}px`;
+    }
+  }
+
+  function stepOverlap(el) {
+    const raw = el.dataset.textAnimHeading || el.dataset.textAnimBody
+      || el.dataset.textAnimSolo || el.dataset.textAnimList;
+    const val = parseFloat(raw);
+    return Number.isFinite(val) && val >= 0 ? val : TEXT.overlap;
+  }
+
+  /* role="listitem" is what the CMS emits; data-text-anim-list-item covers
+     hand-added extras. Direct children are the last resort for a list built
+     by hand in the Designer. */
+  function listItems(el) {
+    const items = el.querySelectorAll('[role="listitem"], [data-text-anim-list-item]');
+    return items.length ? Array.from(items) : Array.from(el.children);
+  }
+
+  /* A double <br><br> in a rich text block reads as a paragraph break, so
+     split there and let the halves stagger instead of rising fused. */
+  function splitDoubleBreaks(el) {
+    const nodes = Array.from(el.childNodes);
+    const groups = [[]];
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const next = nodes[i + 1];
+      if (node.nodeName === 'BR' && next && next.nodeName === 'BR') {
+        groups.push([]);
+        i++; // consume both
+        continue;
+      }
+      groups[groups.length - 1].push(node);
+    }
+
+    const filled = groups.filter((g) => g.length);
+    if (filled.length < 2) return null;
+
+    while (el.firstChild) el.removeChild(el.firstChild);
+
+    return filled.map((group, i) => {
+      const wrapper = document.createElement('span');
+      wrapper.style.display = 'block';
+      if (i > 0) wrapper.style.marginTop = '0.65em'; // replaces the <br><br> gap
+      group.forEach((node) => wrapper.appendChild(node));
+      el.appendChild(wrapper);
+      return wrapper;
+    });
+  }
+
+  function buildTextTimeline(wrap) {
+    /* Nested [data-text-anim]: a marked element belongs to its nearest
+       group root only, never to both. */
+    const own = ['data-text-anim-heading', 'data-text-anim-body',
+                 'data-text-anim-solo', 'data-text-anim-list'];
+    const selfMarked = own.some((attr) => wrap.hasAttribute(attr)) ? [wrap] : [];
+    const marked = [
+      ...selfMarked,
+      ...Array.from(wrap.querySelectorAll(
+        '[data-text-anim-heading], [data-text-anim-body], [data-text-anim-solo], [data-text-anim-list]'
+      )).filter((el) => el.closest('[data-text-anim]') === wrap)
+    ];
+    if (!marked.length) return null;
+
+    const tl = gsap.timeline({ paused: true });
+    const speed = parseFloat(wrap.dataset.textAnim);
+    if (Number.isFinite(speed) && speed > 0) tl.timeScale(speed);
+    /* Held outside the timeline and applied as a delayedCall on play.
+       A paused timeline swallows its own delay when something calls
+       play() on it, so putting it here would silently do nothing. */
+    const rawDelay = parseFloat(wrap.dataset.textAnimDelay);
+    const delay = Number.isFinite(rawDelay) && rawDelay > 0 ? rawDelay : 0;
+    const splits = [];
+    let bodyBuffer = [];
+    let isFirst = true;
+
+    /* A step's own rate. Applied as duration / speed rather than a nested
+       timeScale, so the value reads the same way as the group root's. */
+    const stepSpeed = (el) => {
+      const v = parseFloat(el.dataset.textAnimSpeed);
+      return Number.isFinite(v) && v > 0 ? v : 1;
+    };
+
+    const stepDelay = (el) => {
+      if (el === wrap) return 0; // the root's delay is the group delay
+      const v = parseFloat(el.dataset.textAnimDelay);
+      return Number.isFinite(v) && v > 0 ? v : 0;
+    };
+
+    /* Overlap pulls a step earlier, delay pushes it later, and one step can
+       carry both — resolve them into a single signed offset rather than
+       stacking two position strings, which gsap applies in sequence and
+       would leave the timeline dependent on which one was written first. */
+    const position = (el) => {
+      const delay = stepDelay(el);
+      if (isFirst) { isFirst = false; return delay; }
+      const offset = delay - stepOverlap(el);
+      return offset >= 0 ? `+=${offset}` : `-=${-offset}`;
+    };
+
+    /* Transforms do not apply to display:inline, and a Webflow Link (as
+       opposed to a Link Block) is inline — the element would fade but never
+       move, or with opacity already at 1 from a class, do nothing visible at
+       all. Promote it rather than fail quietly. */
+    const ensureTransformable = (el) => {
+      if (getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
+    };
+
+    // Shared by -solo and by the pieces a <br><br> split produced.
+    const addSolo = (el) => {
+      ensureTransformable(el);
+      unclipDescenders(el, wrap);
+      const from = { yPercent: TEXT.bodyFromY, opacity: 0 };
+      const to = {
+        yPercent: 0, opacity: 1,
+        duration: TEXT.bodyDuration / stepSpeed(el), ease: TEXT.bodyEase
+      };
+      if (BLUR) { from.filter = `blur(${TEXT.bodyBlur}px)`; to.filter = 'blur(0px)'; }
+      gsap.set(el, from);
+      tl.to(el, to, position(el));
+    };
+
+    const flushBody = () => {
+      if (!bodyBuffer.length) return;
+      bodyBuffer.forEach(ensureTransformable);
+      bodyBuffer.forEach((el) => unclipDescenders(el, wrap));
+      const from = { yPercent: TEXT.bodyFromY, opacity: 0 };
+      const speed = stepSpeed(bodyBuffer[0]);
+      const to = {
+        yPercent: 0, opacity: 1,
+        duration: TEXT.bodyDuration / speed, ease: TEXT.bodyEase,
+        stagger: TEXT.bodyStagger / speed
+      };
+      if (BLUR) { from.filter = `blur(${TEXT.bodyBlur}px)`; to.filter = 'blur(0px)'; }
+      gsap.set(bodyBuffer, from);
+      tl.to(bodyBuffer, to, position(bodyBuffer[0]));
+      bodyBuffer = [];
+    };
+
+    marked.forEach((el) => {
+      if (el.hasAttribute('data-text-anim-body')) {
+        const pieces = splitDoubleBreaks(el);
+        if (pieces) {
+          flushBody();
+          pieces.forEach(addSolo);
+        } else {
+          bodyBuffer.push(el);
+        }
+        return;
+      }
+      flushBody();
+
+      if (el.hasAttribute('data-text-anim-heading') && hasSplitText) {
+        /* From the heading itself, not its parent. A one-line heading is
+           exactly as tall as its single line box, so its own overflow —
+           or a Webflow class setting a height in line-height units —
+           crops the descenders before the parent ever gets a say. */
+        unclipDescenders(el, wrap);
+        const { split, inners } = buildLineRise(el);
+        splits.push(split);
+        const speed = stepSpeed(el);
+        const to = {
+          yPercent: 0, duration: TEXT.headingDuration / speed,
+          ease: TEXT.headingEase, stagger: TEXT.headingStagger / speed
+        };
+        if (BLUR) to.filter = 'blur(0px)';
+        tl.to(inners, to, position(el));
+      } else if (el.hasAttribute('data-text-anim-list')) {
+        const items = listItems(el);
+        if (items.length) {
+          gsap.set(items, { y: 6, opacity: 0 });
+          const speed = stepSpeed(el);
+          tl.to(items, {
+            y: 0, opacity: 1,
+            duration: TEXT.listDuration / speed, ease: TEXT.listEase,
+            stagger: TEXT.listStagger / speed
+          }, position(el));
+        }
+      } else {
+        /* -solo, and -heading when SplitText did not load. The fallback is
+           deliberate — a heading that never appears is worse than one that
+           rises as a block — but it is indistinguishable from a working
+           line rise unless it says so. */
+        if (el.hasAttribute('data-text-anim-heading')) warnNoSplitText();
+        addSolo(el);
+      }
+    });
+    flushBody();
+
+    if (TEXT_DEBUG) {
+      console.info('[text-anim] group', wrap, {
+        steps: marked.map((el) => {
+          const role = ['heading', 'body', 'solo', 'list']
+            .find((r) => el.hasAttribute('data-text-anim-' + r)) || '?';
+          return role + ':' + (el.className || el.tagName.toLowerCase());
+        }),
+        duration: Number(tl.duration().toFixed(2))
+      });
+    }
+
+    return { tl, splits, delay };
+  }
+
+  Modules.add('textAnim', function (root) {
+    const staggerWraps = root.querySelectorAll('[data-text-anim-stagger]');
+    const allGroups = root.querySelectorAll('[data-text-anim]');
+    if (!staggerWraps.length && !allGroups.length) return;
+
+    const instances = [];
+    const handled = new Set();
+
+    staggerWraps.forEach((repeater) => {
+      const groups = Array.from(repeater.querySelectorAll('[data-text-anim]'));
+      if (!groups.length) return;
+
+      const delay = parseFloat(repeater.dataset.textAnimStagger) || TEXT.stagger;
+      const splits = [];
+      /* Staggered delayedCalls rather than nested paused timelines, which
+         do not reliably play when added to a parent with .add(). */
+      const kills = [];
+      const calls = [];
+
+      groups.forEach((group, i) => {
+        handled.add(group);
+        const built = buildTextTimeline(group);
+        if (!built) return;
+        splits.push(...built.splits);
+        kills.push(built.tl);
+        if (reducedMotion) built.tl.progress(1);
+        else calls.push(gsap.delayedCall(i * delay + built.delay, () => built.tl.play()).pause());
+      });
+
+      kills.push(...calls);
+      instances.push({
+        trigger: repeater,
+        play: () => calls.forEach((c) => c.play()),
+        kills,
+        splits
+      });
+    });
+
+    allGroups.forEach((wrap) => {
+      if (handled.has(wrap)) return;
+      const built = buildTextTimeline(wrap);
+      if (!built) return;
+      if (reducedMotion) built.tl.progress(1);
+
+      const kills = [built.tl];
+      let play = () => built.tl.play();
+      if (built.delay) {
+        play = () => {
+          const call = gsap.delayedCall(built.delay, () => built.tl.play());
+          kills.push(call);
+        };
+      }
+
+      instances.push({ trigger: wrap, play, kills, splits: built.splits });
+    });
+
+    if (!instances.length) return;
+
+    /* Triggers wait for the container to be laid out for real. Reduced
+       motion has already jumped every timeline to its end state, so it
+       needs no trigger at all. */
+    if (!reducedMotion && hasScrollTrigger) {
+      Intro.add(root, () => {
+        instances.forEach((inst) => {
+          inst.st = ScrollTrigger.create({
+            trigger: inst.trigger,
+            start: TEXT.start,
+            once: true,
+            onEnter: () => {
+              /* A group taller than the viewport fires on its own top edge,
+                 so its lower steps can finish while still off-screen and read
+                 as "never animated". This is what that looks like in the log. */
+              if (TEXT_DEBUG) {
+                const r = inst.trigger.getBoundingClientRect();
+                console.info('[text-anim] fired', inst.trigger, {
+                  top: Math.round(r.top),
+                  height: Math.round(r.height),
+                  viewport: window.innerHeight,
+                  tallerThanViewport: r.height > window.innerHeight
+                });
+              }
+              inst.play();
+            }
+          });
+        });
+      });
+    } else if (!reducedMotion) {
+      // No ScrollTrigger: play everything rather than leave the page blank.
+      Intro.add(root, () => instances.forEach((inst) => inst.play()));
+    }
+
+    return () => {
+      instances.forEach(({ kills, st, splits }) => {
+        kills.forEach((k) => k.kill());
+        st?.kill();
+        splits.forEach((split) => split.revert());
+      });
+    };
+  });
+
+
+  /* ============================================================
+     SCROLL PARALLAX — [data-parallax]
+
+     Column drift: each marked element travels against the scroll at
+     its own rate while its group passes the viewport, so a grid of
+     images reads as several columns moving at different speeds with
+     static text sitting on top of them.
+
+       data-parallax="0.6"       strength. 1 is the base distance,
+                                 negative travels the other way, so
+                                 alternating signs give the columns
+                                 their counter-motion. 0 opts out.
+       data-parallax-group       on an ancestor: the element whose
+                                 pass through the viewport drives the
+                                 motion. Defaults to the nearest
+                                 section, which is usually right.
+       data-parallax-clip        on the group: keep the moving elements
+                                 inside it. Uses clip-path, not overflow:
+                                 an overflow other than visible turns the
+                                 element into the scrollport that sticky
+                                 descendants resolve against, which would
+                                 break the pin this section depends on.
+                                 clip-path clips without creating one.
+       data-parallax-axis="x"    horizontal instead of vertical
+       data-parallax-distance    distance for strength 1, overriding the
+                                 default on that one element. Accepts a
+                                 bare number as px, or vh/vw units, which
+                                 are resolved per refresh so they follow
+                                 a resize
+       data-parallax-mobile      strength multiplier below the mobile
+                                 breakpoint. Defaults to half; "1" keeps
+                                 the desktop travel, "0" switches the
+                                 element off on phones entirely
+       data-parallax-start       ScrollTrigger positions for the range,
+       data-parallax-end         overriding "top bottom" / "bottom top".
+                                 For a sticky group the pinned window is
+                                 start="top top" end="bottom bottom" —
+                                 the frame is on screen for exactly that
+                                 span, so all the travel is visible
+                                 instead of most of it happening before
+                                 and after.
+       data-parallax-from        px at the start of the range, and
+       data-parallax-to          px at the end. Given either one, the
+                                 element travels between them literally
+                                 and strength is ignored — that is how
+                                 you get a rise from below the fold
+                                 (from="420" to="0") rather than the
+                                 symmetric drift the strength form
+                                 produces.
+
+     Scrubbed, so it runs backwards on the way up, and the whole range
+     is the group crossing the screen — top of the group at the bottom
+     edge, through to the bottom of the group at the top edge. Nothing
+     jumps at either end because the element is at its extreme exactly
+     when the group is.
+
+     The transform stays on the marked wrapper. Put the parallax on a
+     wrapper and any hover or reveal on the image inside it, never both
+     on one element — two owners of one transform fight and drift.
+     ============================================================ */
+
+  const PARALLAX = {
+    distance: 120,      // px of travel at strength 1, at the reference viewport
+    scrub: 0.6,
+
+    /* The same 120px is a mild drift on a 900px-tall desktop window and a
+       lurch on a 600px phone, because what the eye reads is travel
+       relative to the screen, not in pixels. Scale the base by the
+       viewport against this reference, clamped so a very tall or very
+       small window does not go to either extreme. */
+    referenceHeight: 900,
+    minScale: 0.45,
+    maxScale: 1.2,
+
+    mobile: '(max-width: 767px)',
+    /* Half by default. A phone shows a fraction of the group at a time, so
+       the same travel crosses far more of the screen per scrolled pixel and
+       reads as a lurch. Override per element or per group with
+       data-parallax-mobile. */
+    mobileFactor: 0.5
+  };
+
+  /* Bare number = px. vh/vw resolve against the viewport at the moment they
+     are read, and every caller passes them to gsap as a function value, so
+     invalidateOnRefresh re-reads them after a resize or an orientation
+     change instead of freezing the value taken at mount. */
+  function parallaxLength(raw) {
+    if (raw == null) return null;
+    const v = String(raw).trim();
+    const n = parseFloat(v);
+    if (!Number.isFinite(n)) return null;
+    if (v.endsWith('vh')) return () => (window.innerHeight * n) / 100;
+    if (v.endsWith('vw')) return () => (window.innerWidth * n) / 100;
+    return () => n;
+  }
+
+  function viewportScale() {
+    const raw = window.innerHeight / PARALLAX.referenceHeight;
+    return Math.max(PARALLAX.minScale, Math.min(PARALLAX.maxScale, raw));
+  }
+
+  Modules.add('parallax', function (root) {
+    const items = root.querySelectorAll('[data-parallax]');
+    if (!items.length || !hasScrollTrigger || reducedMotion) return;
+
+    const tweens = [];
+    const clipped = [];
+
+    /* Marked here rather than per item: the group is what the elements are
+       meant to stay inside, and one element can be reached by several
+       items. */
+    root.querySelectorAll('[data-parallax-clip]').forEach((group) => {
+      if (getComputedStyle(group).clipPath !== 'none') return;
+      group.style.clipPath = 'inset(0)';
+      clipped.push(group);
+    });
+
+    items.forEach((el) => {
+      const raw = parseFloat(el.dataset.parallax);
+      const strength = Number.isFinite(raw) ? raw : 1;
+      if (!strength) return;
+
+      const marked = el.closest('[data-parallax-group]')
+        || el.closest('section')
+        || el.parentElement;
+      if (!marked) return;
+
+      /* A position:sticky element cannot describe its own scroll range —
+         while it is stuck its rect stops moving with the page, so
+         start/end resolve against a box that is standing still and the
+         whole range collapses to a fraction of the intended one. The
+         motion then reads as fast and short, which is exactly what a
+         sticky group produces. Climb to the first ancestor that actually
+         scrolls; that element's pass is the real range. */
+      let group = marked;
+      while (group && getComputedStyle(group).position === 'sticky') {
+        group = group.parentElement;
+      }
+      if (!group) group = marked;
+      if (group !== marked) {
+        console.warn(
+          '[parallax] the group is position:sticky, so its own rect cannot ' +
+          'drive the range — using its scrolling ancestor instead:', group,
+          'Put data-parallax-group (and any -start / -end) on the tall ' +
+          'section, not on the pinned element inside it.'
+        );
+      }
+
+      const axis = el.dataset.parallaxAxis === 'x' ? 'x' : 'y';
+      const baseFn = parallaxLength(el.dataset.parallaxDistance)
+        || (() => PARALLAX.distance);
+
+      /* Mobile multiplier is applied at read time, not at mount, so
+         rotating a phone or resizing across the breakpoint lands on the
+         right value at the next refresh rather than keeping whatever was
+         true when the page loaded. */
+      const rawMobile = parseFloat(
+        el.dataset.parallaxMobile ?? marked.dataset.parallaxMobile ?? group.dataset.parallaxMobile
+      );
+      const mobileFactor = Number.isFinite(rawMobile) ? rawMobile : PARALLAX.mobileFactor;
+      const isMobile = () => window.matchMedia(PARALLAX.mobile).matches;
+
+      /* An explicit distance is taken at face value — the author asked for
+         that number. Only the shared default is normalised, since that is
+         the one that has to look the same on every screen. */
+      const normalise = el.dataset.parallaxDistance ? () => 1 : viewportScale;
+
+      /* One reduction or the other, never both. The viewport scale already
+         shrinks travel on a short screen, so multiplying the mobile factor
+         on top of it took a phone to roughly a third and the motion stopped
+         reading as parallax at all. Below the breakpoint the explicit
+         mobile factor wins outright. */
+      const travel = () =>
+        isMobile()
+          ? baseFn() * strength * mobileFactor
+          : baseFn() * strength * normalise();
+
+      /* Two forms. Strength alone is symmetric: displaced one way at the
+         start, the other way at the end, so the element sits at its
+         designed position exactly at the group's midpoint. from/to is
+         literal px and one-directional, for a rise out of the fold that
+         has to land at 0 and stay there. */
+      const fromFn = parallaxLength(el.dataset.parallaxFrom);
+      const toFn = parallaxLength(el.dataset.parallaxTo);
+      const explicit = fromFn || toFn;
+      const mobileMul = () => (isMobile() ? mobileFactor : 1);
+
+      const from = explicit
+        ? () => (fromFn ? fromFn() * mobileMul() : 0)
+        : () => travel();
+      const to = explicit
+        ? () => (toFn ? toFn() * mobileMul() : 0)
+        : () => -travel();
+
+      const tween = gsap.fromTo(el,
+        { [axis]: from },
+        {
+          [axis]: to,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: group,
+            start: el.dataset.parallaxStart || marked.dataset.parallaxStart
+              || group.dataset.parallaxStart || 'top bottom',
+            end: el.dataset.parallaxEnd || marked.dataset.parallaxEnd
+              || group.dataset.parallaxEnd || 'bottom top',
+            scrub: PARALLAX.scrub,
+            invalidateOnRefresh: true
+          }
+        }
+      );
+
+      tweens.push(tween);
+    });
+
+    if (!tweens.length && !clipped.length) return;
+
+    return () => {
+      tweens.forEach((t) => {
+        t.scrollTrigger?.kill();
+        t.kill();
+      });
+      clipped.forEach((el) => { el.style.clipPath = ''; });
+    };
+  });
+
+
+  /* ============================================================
+     STICKY CARD STACK — [data-sticky-stack]
+
+     Cards pin one after another and the next one scrolls over the
+     one before it. The pinning itself is CSS — position:sticky on
+     each card — because a ScrollTrigger pin rebuilds layout on
+     every Barba swap and fights Lenis. This module owns the two
+     parts CSS cannot do:
+
+       - stacking order, so a later card always paints over an
+         earlier one. Set here rather than in nth-child rules so
+         adding a third card in the Designer needs no CSS edit;
+       - the depth cue: while a card is being covered, its content
+         lifts slightly, which is what makes the new card read as
+         sliding over the old one instead of the old one simply
+         vanishing under it.
+
+       data-sticky-stack        on the track holding the cards
+       data-sticky-card         each card. Optional — without it the
+                                track's element children are used
+       data-sticky-inner        what actually lifts inside a card.
+                                Optional; defaults to the card's
+                                element children, so the card's own
+                                background stays put while its
+                                contents move
+       data-sticky-lift="80"    px of lift, on the track or per card
+       data-sticky-fade="0.6"   opacity the covered content reaches
+       data-sticky-scale="0.96" scale the covered content reaches
+
+     Desktop only, matching the CSS: under 768px the cards are
+     static and stacking would just hide content behind content.
+     ============================================================ */
+
+  const STICKY = {
+    lift: 80,
+    breakpoint: '(min-width: 768px)'
+  };
+
+  Modules.add('stickyStack', function (root) {
+    const tracks = root.querySelectorAll('[data-sticky-stack]');
+    if (!tracks.length || !hasScrollTrigger) return;
+
+    const mm = gsap.matchMedia();
+
+    tracks.forEach((track) => {
+      const marked = track.querySelectorAll('[data-sticky-card]');
+      const cards = marked.length
+        ? Array.from(marked)
+        : Array.from(track.children).filter((el) => el.nodeType === 1);
+      if (cards.length < 2) return;
+
+      /* Ascending, and above whatever sits before the stack. Applied
+         even on mobile: it is inert there and costs nothing, and it
+         means the order never depends on the media query having run. */
+      cards.forEach((card, i) => { card.style.zIndex = String(i + 1); });
+
+      if (reducedMotion) return;
+
+      mm.add(STICKY.breakpoint, () => {
+        const triggers = [];
+
+        cards.forEach((card, i) => {
+          const next = cards[i + 1];
+          if (!next) return; // nothing covers the last card
+
+          const innerMarked = card.querySelectorAll('[data-sticky-inner]');
+          const inner = innerMarked.length
+            ? Array.from(innerMarked)
+            : Array.from(card.children).filter((el) => el.nodeType === 1);
+          if (!inner.length) return;
+
+          const rawLift = parseFloat(card.dataset.stickyLift ?? track.dataset.stickyLift);
+          const lift = Number.isFinite(rawLift) ? rawLift : STICKY.lift;
+
+          const to = { y: -lift, ease: 'none' };
+
+          const fade = parseFloat(card.dataset.stickyFade ?? track.dataset.stickyFade);
+          if (Number.isFinite(fade)) to.opacity = fade;
+
+          const scale = parseFloat(card.dataset.stickyScale ?? track.dataset.stickyScale);
+          if (Number.isFinite(scale)) to.scale = scale;
+
+          /* Driven by the covering card, not by this one. This card is
+             pinned while it is being covered, so its own rect stops
+             changing and cannot describe the progress — the next card's
+             climb from the bottom edge to the top is the motion the eye
+             is actually following. */
+          const tween = gsap.to(inner, {
+            ...to,
+            scrollTrigger: {
+              trigger: next,
+              start: 'top bottom',
+              end: 'top top',
+              scrub: true,
+              invalidateOnRefresh: true
+            }
+          });
+
+          triggers.push(tween);
+        });
+
+        return () => {
+          triggers.forEach((t) => {
+            t.scrollTrigger?.kill();
+            t.kill();
+          });
+        };
+      });
+    });
+
+    return () => mm.revert();
+  });
+
+
+  /* ============================================================
+     HOME HERO
+
+     Was an inline embed inside .home_wrap, which never executes once
+     the section arrives through a Barba swap. The heading is
+     deliberately left alone: text holds still, only the images move.
+
+     Two transforms per cell, on two different elements on purpose. The
+     scroll parallax drives .home_img_wrap and the pointer bump drives
+     the img inside it, so neither has to read or preserve the other's
+     matrix.
+     ============================================================ */
+
+  const HERO = {
+    imgFrom: 0.6,
+    imgDuration: 0.9,
+    imgStagger: 0.08,
+    imgEase: 'power2.out',
+    imgDelay: 0.15,
+    imgStaggerFrom: 'start',   // 'start' | 'center' | 'edges' | 'random'
+
+    bump: true,
+    bumpStrength: 0.12,
+    bumpDuration: 0.4,
+    bumpEase: 'power2.out',
+
+    parallax: true,
+    parallaxMax: 48,           // px of travel across the section's scroll range,
+                               // negative y: cells rise against the scroll
+    parallaxDepths: [1, 0.45, 0.85, 0.3, 0.7, 0.55]  // per cell, DOM order
+  };
+
+  Modules.add('homeHero', function (root) {
+    const section = root.querySelector('.home_wrap');
+    if (!section) return;
+
+    const wraps = section.querySelectorAll('.home_img_wrap');
+    const imgs = section.querySelectorAll('.home_img_wrap img');
+
+    /* The section's own CSS embed pre-hides the images so they cannot
+       flash at full opacity before gsap owns them. Nothing below is
+       allowed to leave that class off: a blank grid is worse than an
+       unanimated one. */
+    const reveal = () => document.documentElement.classList.add('hero-anim-off');
+    if (!imgs.length) { reveal(); return; }
+
+    const watchdog = setTimeout(reveal, 2500);
+
+    if (reducedMotion) {
+      reveal();
+      gsap.set(imgs, { opacity: 1, scale: 1 });
+      clearTimeout(watchdog);
+      return;
+    }
+
+    const cleanups = [];
+
+    const ctx = gsap.context(() => {
+      /* Built paused and handed to the queue. Created here rather than
+         inside the callback so the context owns it and revert() takes it
+         with everything else. */
+      gsap.set(imgs, { opacity: 0, scale: HERO.imgFrom, transformOrigin: 'center center' });
+
+      const intro = gsap.timeline({ paused: true, defaults: { force3D: true } });
+      intro.to(imgs, {
+        opacity: 1,
+        scale: 1,
+        duration: HERO.imgDuration,
+        ease: HERO.imgEase,
+        stagger: { each: HERO.imgStagger, from: HERO.imgStaggerFrom },
+        onStart: reveal
+      }, HERO.imgDelay);
+
+      Intro.add(root, () => intro.play());
+
+      if (HERO.bump && window.matchMedia('(hover: hover)').matches) {
+        wraps.forEach((wrap) => {
+          const img = wrap.querySelector('img');
+          if (!img) return;
+
+          const xTo = gsap.quickTo(img, 'x', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
+          const yTo = gsap.quickTo(img, 'y', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
+          let rect = null;
+
+          const onEnter = () => { rect = wrap.getBoundingClientRect(); };
+          const onMove = (e) => {
+            if (!rect) rect = wrap.getBoundingClientRect();
+            xTo((e.clientX - (rect.left + rect.width / 2)) * HERO.bumpStrength);
+            yTo((e.clientY - (rect.top + rect.height / 2)) * HERO.bumpStrength);
+          };
+          const onLeave = () => { xTo(0); yTo(0); rect = null; };
+
+          wrap.addEventListener('mouseenter', onEnter);
+          wrap.addEventListener('mousemove', onMove);
+          wrap.addEventListener('mouseleave', onLeave);
+
+          cleanups.push(() => {
+            wrap.removeEventListener('mouseenter', onEnter);
+            wrap.removeEventListener('mousemove', onMove);
+            wrap.removeEventListener('mouseleave', onLeave);
+          });
+        });
+      }
+
+      /* Scrubbed, so it runs backwards on the way up too. The triggers
+         are created inside the context, which is what lets the teardown
+         kill this page's and only this page's. */
+      if (HERO.parallax && hasScrollTrigger) {
+        wraps.forEach((wrap, i) => {
+          const depth = HERO.parallaxDepths[i % HERO.parallaxDepths.length];
+          gsap.fromTo(wrap,
+            { y: 0 },
+            {
+              y: -HERO.parallaxMax * depth,
+              ease: 'none',
+              scrollTrigger: {
+                trigger: section,
+                start: 'top top',
+                end: 'bottom top',
+                scrub: 0.6,
+                invalidateOnRefresh: true
+              }
+            }
+          );
+        });
+      }
+    }, section);
+
+    return () => {
+      clearTimeout(watchdog);
+      cleanups.forEach((fn) => fn());
+      ctx.revert();
+    };
+  });
+
 
   Modules.add('slider', function (root) {
     const instances = [];
@@ -733,6 +1726,7 @@
 
   function initAfterEnterFunctions(next) {
     nextPage = next || document;
+    Intro.play(nextPage);
     FooterReveal.sync();
     if (hasLenis && lenis) lenis.resize();
     if (hasScrollTrigger) ScrollTrigger.refresh();
@@ -999,7 +1993,17 @@
   // Runs once the outgoing container is gone, so its Swiper and
   // marquee stay alive and animating through the whole leave.
   barba.hooks.afterLeave((data) => {
-    if (hasScrollTrigger) ScrollTrigger.getAll().forEach((t) => t.kill());
+    /* Scoped, not ScrollTrigger.getAll().kill(). sync:true mounts the
+       incoming page back at beforeEnter, so by the time this runs its
+       triggers already exist and a blanket kill took them out with the
+       outgoing page's. Orphans — trigger element gone from the document
+       — go too, since nothing will ever refresh them again. */
+    if (hasScrollTrigger) {
+      ScrollTrigger.getAll().forEach((t) => {
+        const el = t.trigger || t.vars?.trigger;
+        if (!el || data.current.container.contains(el) || !document.contains(el)) t.kill();
+      });
+    }
     Modules.unmount(data.current.container);
   });
 
@@ -1049,6 +2053,7 @@
         async once(data) {
           initOnceFunctions();
           Modules.mount(data.next.container);
+          Intro.play(data.next.container);
           return runPageOnceAnimation(data.next.container);
         },
 
