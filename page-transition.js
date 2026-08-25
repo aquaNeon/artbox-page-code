@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-24-u';
+  const BUILD = '2026-08-25-h';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -79,6 +79,12 @@
       },
       mount(container) {
         const root = container || document;
+        /* barba fires beforeEnter on the initial load as well as on
+           navigations, so this used to run twice for the first page: once
+           from the hook and once from the transition's own once(). Two
+           mounts meant two Swiper instances on one element, two marquee
+           rAF loops, and only the second set of teardowns being kept. */
+        if (mounted.has(root)) return;
         const cleanups = [];
         registry.forEach(({ name, init }) => {
           try {
@@ -191,6 +197,35 @@
       const text = resolve(card.getAttribute('data-card-text'));
       if (bg) card.style.setProperty('--card-bg', bg);
       if (text) card.style.setProperty('--card-text', text);
+
+      /* The colour panel covers the card, but only to the pixel. Wherever
+         its edge antialiases — which is most of the time, since card
+         heights land on fractions — the card's own background shows as a
+         hairline, and that background is near-black behind a light panel.
+         Paint the card in the panel's colour so there is nothing
+         contrasting left to expose. Read rather than configured, because
+         the colour comes from a Webflow variant class that only exists at
+         runtime. */
+      const panel = card.querySelector('.card_hover_bg_hover');
+      if (!panel) return;
+      const panelBg = getComputedStyle(panel).backgroundColor;
+      if (panelBg && panelBg !== 'rgba(0, 0, 0, 0)' && panelBg !== 'transparent') {
+        card.style.backgroundColor = panelBg;
+      }
+
+      /* The secondary lines derive their colour from currentColor, and the
+         parent already animates colour on hover — so a transition here
+         animates an already-animating value and the line lags behind the
+         rest of the card. Most visible on the light variants, where the
+         text swings the full distance to black.
+
+         Set inline rather than in a stylesheet: the competing rule lives in
+         another embed, three levels deep and later in the document, so any
+         rule we add ties on specificity and loses on order. An inline style
+         outranks every non-important rule regardless of where it sits. */
+      card.querySelectorAll(
+        '.card_hover_details_name, .card_hover_details_position, .u-color-secondary'
+      ).forEach((el) => { el.style.transition = 'none'; });
     });
   });
 
@@ -1249,26 +1284,77 @@
         if (value) el.style.setProperty('--slider-gap', value);
       };
 
+      /* Rounded. A rem-based gap measures fractional (23.84px), Swiper
+         multiplies it into every slide offset, and the accumulated
+         fraction lands slide edges on half pixels — which is the hairline
+         of the neighbouring image showing along the edge of a slide. */
       const measureGap = () => {
         const probe = document.createElement('div');
         probe.className = 'c_slider_gap_probe';
         el.appendChild(probe);
         const px = probe.getBoundingClientRect().width;
         probe.remove();
-        return px;
+        return Math.round(px);
       };
 
       applyGap();
 
+      /* Left bleed with a loop, without showing the loop's own machinery.
+         The track runs full-bleed and the first slide is pushed in to line
+         up with the page text, so the clipping edge is the viewport rather
+         than the text margin — a slide leaving to the left stays visible
+         all the way out, while the slides Swiper relocates far off-screen
+         stay hidden.
+
+         Set data-align-to to a selector inside the section whose left edge
+         the first slide should match; defaults to the section's container.
+         Requires the track itself to be full width: drop the margin-left
+         from .c_slider_offset. */
+      const alignSel = str('data-align-to') || '.u-container';
+      const section = el.closest('section') || el.parentElement;
+
+      const measureOffset = () => {
+        const target = section && section.querySelector(alignSel);
+        if (!target || target.contains(el)) return 0;
+        const delta = target.getBoundingClientRect().left - el.getBoundingClientRect().left;
+        return delta > 0 ? Math.round(delta) : 0;
+      };
+
       const wrap = el.closest('.c_slider_wrap');
+
+      const loop = bool('data-loop', false);
 
       const swiper = new Swiper(el, {
         slidesPerView: num('data-slides-mobile', 1),
         spaceBetween: measureGap(),
-        loop: bool('data-loop', false),
-        rewind: bool('data-rewind', true),
+        loop,
+        /* Mutually exclusive in Swiper 11: with both set the loop
+           re-orders slides while rewind also tries to jump the index back
+           to the start, and the two fight on the same transition — the
+           jump you see at the ends. rewind only applies without loop. */
+        rewind: loop ? false : bool('data-rewind', true),
         loopAdditionalSlides: num('data-loop-extra', 4),
         speed: num('data-speed', 600),
+
+        /* The module mounts at beforeEnter, while the container is a fixed
+           100vh rectangle mid-transition, so the first measurement is
+           taken against a box that is about to change. These make Swiper
+           re-measure itself rather than keeping those numbers. */
+        observer: true,
+        observeParents: true,
+        resizeObserver: true,
+        watchOverflow: true,
+
+        slidesOffsetBefore: measureOffset(),
+
+        /* slidesPerView 2.25 divides the container into fractional widths
+           (605.778px) and translates the track by fractional amounts. Every
+           layer inside a card then rounds independently, so a colour panel
+           at inset:0 can land a pixel short of the image beneath it and let
+           an edge of it show. Rounding lengths and translates to whole
+           pixels removes the seam at the source — padding the panel instead
+           just makes it overhang the card. */
+        roundLengths: true,
         breakpoints: {
           768: {
             slidesPerView: num('data-slides-per-view', 1.25)
@@ -1281,12 +1367,42 @@
         }
       });
 
+      /* loop parks duplicate slides just outside the container on both
+         sides and re-orders them as you cross the seam. The container's
+         clipping is what keeps that machinery off screen — without it the
+         duplicates read as a sliver of the neighbouring image along the
+         edges, and the re-order reads as a jump. */
+      if (loop) {
+        const overflow = getComputedStyle(el).overflowX;
+        if (overflow === 'visible') {
+          console.warn(
+            '[slider] data-loop is on but this slider does not clip:',
+            el, 'overflow-x is visible, so the loop duplicates are on ' +
+            'screen and every seam crossing looks like a jump. Set ' +
+            'overflow: clip on .c_slider_swiper (clip, not hidden — hidden ' +
+            'makes it a scrollport and breaks sticky sections).'
+          );
+        }
+      }
+
+      /* Belt and braces on top of the observers: one explicit update once
+         the page is actually laid out. Cheap, and it closes the window
+         where a slide starts at the wrong offset and snaps on first drag. */
+      Intro.add(root, () => {
+        if (!swiper.destroyed) swiper.update();
+      });
+
       let t;
       const onResize = () => {
         clearTimeout(t);
         t = setTimeout(() => {
           applyGap();
           const gap = measureGap();
+          const offset = measureOffset();
+          if (swiper.params.slidesOffsetBefore !== offset) {
+            swiper.params.slidesOffsetBefore = offset;
+            swiper.update();
+          }
           if (swiper.params.spaceBetween === gap) return;
           swiper.params.spaceBetween = gap;
           Object.keys(swiper.params.breakpoints).forEach((bp) => {
@@ -1649,12 +1765,29 @@
      ============================================================ */
 
   function syncNavFrom(container) {
-    const nav = document.querySelector('.meganav');
+    const nav = findNav();
     if (!nav || !container) return;
     const transparent = container.dataset.navTransparent ?? 'true';
     nav.setAttribute('data-transparent', transparent);
     nav.classList.remove('is-open', 'is-mobile-open');
     if (window.scrollY <= 10) nav.classList.remove('is-scrolled');
+
+    /* The nav is persistent, so a menu opened before a navigation is still
+       open after it — and the tap that navigated was usually a link inside
+       that menu. The nav's own embed cannot close it: it only toggles on
+       click and knows nothing about a page change. Clear every piece of
+       the open state, including the body overflow lock, which would
+       otherwise leave the incoming page unscrollable. */
+    document.querySelectorAll(
+      '[data-nav-mobile].is-open, .meganav_mobile_open.is-open, ' +
+      '.meganav_panel.is-open, .meganav_backdrop.is-open, ' +
+      '.meganav_mobile_dropdown.is-open, .meganav_locale_dropdown.is-open'
+    ).forEach((el) => el.classList.remove('is-open'));
+
+    document.querySelectorAll('.meganav_mobile_icon.is-rotated')
+      .forEach((el) => el.classList.remove('is-rotated'));
+
+    if (document.body.style.overflow === 'hidden') document.body.style.overflow = '';
   }
 
   function initBarbaNavUpdate(data) {
@@ -1671,6 +1804,72 @@
       else curr.removeAttribute('aria-current');
       curr.setAttribute('class', next.getAttribute('class') || '');
     });
+  }
+
+
+  /* ============================================================
+     NAV SCROLL STATE
+
+     is-scrolled on the persistent nav: transparent over the top of the
+     page, solid once past the threshold.
+
+     This was briefly left to the nav's own embed, which has the same
+     four lines. It should not be: that embed opens with
+
+       const item = document.querySelector('[data-nav-item="industries"]');
+       if (!nav || !panel || !item) return;
+
+     and the markup uses data-nav-trigger, so item is null and the whole
+     IIFE returns before binding anything — scroll state, burger, panel
+     and locale all dead together. A nav state that depends on an
+     unrelated mega-panel selector existing is not a nav state. Owning it
+     here also means it survives the embed being edited in the Designer.
+
+     Setting the class from two places is still wrong, so delete the
+     SCROLL WATCHER block from that embed once this is live.
+
+     .meganav is the name in the published markup; data-nav overrides it
+     if the class is ever renamed in the Designer.
+     ============================================================ */
+
+  const NAV_SCROLL_AT = 10;
+  let updateNavScroll = () => {};
+
+  function initNavScroll() {
+    const nav = findNav();
+    if (!nav) {
+      console.warn('[nav] no nav found for the scroll state — put data-nav on it');
+      return;
+    }
+
+    let scrolled = null;
+    let queued = false;
+
+    /* Coalesced to one read per frame: a Lenis-driven page fires scroll
+       continuously and every scrollY read forces layout. */
+    const apply = () => {
+      queued = false;
+      const next = window.scrollY > NAV_SCROLL_AT;
+      if (next === scrolled) return;
+      scrolled = next;
+      nav.classList.toggle('is-scrolled', next);
+    };
+
+    updateNavScroll = () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(apply);
+    };
+
+    window.addEventListener('scroll', updateNavScroll, { passive: true });
+    apply();
+  }
+
+  function findNav() {
+    return document.querySelector('[data-nav]')
+      || document.querySelector('.meganav')
+      || document.querySelector('.meganav_root nav, .meganav_root header')
+      || document.querySelector('.meganav_root > *');
   }
 
 
@@ -1715,6 +1914,7 @@
     initLenis();
     if (onceFunctionsInitialized) return;
     onceFunctionsInitialized = true;
+    initNavScroll();
     // Persistent, non-swapped behaviour goes here (meganav etc)
   }
 
@@ -1726,6 +1926,7 @@
 
   function initAfterEnterFunctions(next) {
     nextPage = next || document;
+    updateNavScroll();
     Intro.play(nextPage);
     FooterReveal.sync();
     if (hasLenis && lenis) lenis.resize();
@@ -1934,6 +2135,21 @@
     return (leaveDone || Promise.resolve()).then(() => resetPage(next));
   }
 
+  /* beforeEnter fixes the container so it can be animated as a layer, and
+     the leave timeline clears it again when the transition finishes. On the
+     very first load there is no leave timeline, so whichever hook ran last
+     could leave the fixed positioning on — and a fixed container contributes
+     no height to the document, which collapses the page to one viewport and
+     kills scrolling entirely. Idempotent, so calling it more than once is
+     free. */
+  function clearContainerLayer(container) {
+    if (!container) return;
+    if (getComputedStyle(container).position !== 'fixed') return;
+    gsap.set(container, { clearProps: 'position,top,left,right' });
+    if (hasLenis && lenis) lenis.resize();
+    if (hasScrollTrigger) ScrollTrigger.refresh();
+  }
+
   function resetPage(container) {
     window.scrollTo(0, 0);
     gsap.set(container, { clearProps: 'position,top,left,right' });
@@ -1980,8 +2196,17 @@
 
   barba.hooks.beforeEnter((data) => {
     reparentContainer(data.next.container, data.current?.container);
-    gsap.set(data.next.container, { position: 'fixed', top: 0, left: 0, right: 0 });
-    if (lenis?.stop) lenis.stop();
+
+    /* Only a real navigation needs the container lifted into a layer. On the
+       initial load there is nothing to animate against, and — with no leave
+       timeline to clean up after it — the fixed positioning stayed on. A
+       fixed container contributes no height to the document, so the whole
+       page collapsed to one viewport and could not be scrolled. */
+    if (data.current?.container) {
+      gsap.set(data.next.container, { position: 'fixed', top: 0, left: 0, right: 0 });
+      if (lenis?.stop) lenis.stop();
+    }
+
     initBeforeEnterFunctions(data.next.container);
     syncNavFrom(data.next.container);
   });
@@ -2016,6 +2241,16 @@
     if (hasScrollTrigger) ScrollTrigger.refresh();
   });
 
+
+  /* Both ends of the first load: whichever of the two runs last wins, and
+     both are safe to run when there is nothing to clear. */
+  barba.hooks.afterOnce((data) => {
+    clearContainerLayer(data.next.container);
+  });
+
+  barba.hooks.after((data) => {
+    clearContainerLayer(data?.next?.container);
+  });
 
   barba.hooks.after(() => {
   FooterReveal.sync();

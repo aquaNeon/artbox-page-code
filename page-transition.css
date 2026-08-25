@@ -52,3 +52,4 @@ html.is-transitioning {
   background: var(--transition-bg, #191915);
   pointer-events: none;
 }
+
