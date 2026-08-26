@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-26-a';
+  const BUILD = '2026-08-26-b';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1304,6 +1304,171 @@
         progressTween?.kill();
         switchTl?.kill();
         trigger?.kill();
+      });
+    });
+
+    return () => cleanups.forEach((fn) => fn());
+  });
+
+  /* ============================================================
+     FAQ / ACCORDION — .faq_item_wrap or [data-faq-item]
+
+     The Osmo reference does this in CSS, with grid-template-rows
+     0fr -> 1fr and a transition. That needs the Designer markup to
+     carry data-accordion-* attributes and a grid wrapper the answer
+     sits inside; this markup has neither, so the same motion is done
+     here in GSAP against the classes that already exist. Nothing to
+     add in the Designer — attributes below are opt-in overrides.
+
+     Height 0 <-> auto rather than a max-height guess: GSAP measures
+     the natural height per open, so a long answer never clips and a
+     short one never leaves dead space. The answer's height change
+     moves the document, hence refreshScrollHeight() at the end of
+     every toggle.
+     ============================================================ */
+
+  const FAQ = {
+    duration: 0.6,
+    ease: 'osmo',
+    iconRotate: 45,   // the icon is a plus: 45deg reads as a close cross
+    textShift: 12     // px the answer rises as it opens
+  };
+
+  Modules.add('faq', function (root) {
+    const groups = new Set([
+      ...root.querySelectorAll('[data-faq]'),
+      ...root.querySelectorAll('.faq_items_wrap')
+    ]);
+    if (!groups.size) return;
+
+    const cleanups = [];
+    let groupIndex = 0;
+
+    groups.forEach((group) => {
+      const items = Array.from(new Set([
+        ...group.querySelectorAll('[data-faq-item]'),
+        ...group.querySelectorAll('.faq_item_wrap')
+      ]));
+      if (!items.length) return;
+
+      /* Default is the reference's close-siblings behaviour: one answer
+         open at a time. data-faq-multi="true" lets them stack. */
+      const multi = group.dataset.faqMulti === 'true';
+      const gi = groupIndex++;
+      const records = [];
+
+      items.forEach((item, i) => {
+        const toggle = item.querySelector('[data-faq-toggle]')
+          || item.querySelector('.faq_items_heading_wrap');
+        const panel = item.querySelector('[data-faq-panel]')
+          || item.querySelector('.faq_items_info');
+        if (!toggle || !panel) return;
+
+        /* .faq_items_heading_icon is on both the wrapper div and the svg
+           inside it. querySelector takes the wrapper, which is what we
+           want to rotate — the svg comes along with it. */
+        const icon = item.querySelector('[data-faq-icon]')
+          || item.querySelector('.faq_items_heading_icon');
+        const inner = panel.firstElementChild;
+
+        const open = item.hasAttribute('data-faq-open');
+
+        if (!panel.id) panel.id = `faq-panel-${gi}-${i}`;
+        toggle.setAttribute('role', 'button');
+        toggle.setAttribute('tabindex', '0');
+        toggle.setAttribute('aria-controls', panel.id);
+        toggle.style.cursor = 'pointer';
+
+        records.push({ item, toggle, panel, icon, inner, open, tl: null });
+      });
+
+      if (!records.length) return;
+
+      function paint(rec) {
+        rec.item.classList.toggle('is-open', rec.open);
+        rec.item.setAttribute('data-accordion-status', rec.open ? 'active' : 'not-active');
+        rec.toggle.setAttribute('aria-expanded', String(rec.open));
+        rec.panel.setAttribute('aria-hidden', String(!rec.open));
+      }
+
+      /* Mount runs on beforeEnter, while the container is still a fixed
+         100vh rectangle sliding in. Set the state, never animate it: an
+         animated open here plays behind the transition and measures
+         height:auto against the wrong box. */
+      function setState(rec) {
+        rec.tl?.kill();
+        rec.tl = null;
+        paint(rec);
+        gsap.set(rec.panel, { overflow: 'hidden', height: rec.open ? 'auto' : 0 });
+        if (rec.inner) gsap.set(rec.inner, { autoAlpha: rec.open ? 1 : 0, y: rec.open ? 0 : FAQ.textShift });
+        if (rec.icon) gsap.set(rec.icon, { rotate: rec.open ? FAQ.iconRotate : 0 });
+      }
+
+      function animate(rec, open) {
+        if (rec.open === open) return;
+        rec.open = open;
+        rec.tl?.kill();
+        paint(rec);
+
+        if (reducedMotion) {
+          setState(rec);
+          refreshScrollHeight();
+          return;
+        }
+
+        rec.tl = gsap.timeline({
+          defaults: { duration: FAQ.duration, ease: FAQ.ease },
+          onComplete: () => {
+            /* auto, not the measured px, or a resize or a font swap
+               leaves the open answer frozen at yesterday's height. */
+            if (open) gsap.set(rec.panel, { height: 'auto' });
+            refreshScrollHeight();
+          }
+        });
+
+        rec.tl.to(rec.panel, { height: open ? 'auto' : 0 }, 0);
+        if (rec.inner) {
+          rec.tl.to(rec.inner, {
+            autoAlpha: open ? 1 : 0,
+            y: open ? 0 : FAQ.textShift,
+            duration: open ? FAQ.duration : FAQ.duration * 0.5
+          }, 0);
+        }
+        if (rec.icon) rec.tl.to(rec.icon, { rotate: open ? FAQ.iconRotate : 0 }, 0);
+      }
+
+      function toggleItem(rec) {
+        const next = !rec.open;
+        if (next && !multi) {
+          records.forEach((other) => { if (other !== rec && other.open) animate(other, false); });
+        }
+        animate(rec, next);
+      }
+
+      const find = (target) => records.find((rec) => rec.toggle.contains(target));
+
+      const controller = new AbortController();
+
+      /* One delegated listener per group rather than one per item: the
+         answers can hold links, and a click there must not toggle. */
+      group.addEventListener('click', (e) => {
+        const rec = find(e.target);
+        if (rec) toggleItem(rec);
+      }, { signal: controller.signal });
+
+      group.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const rec = find(e.target);
+        if (!rec) return;
+        e.preventDefault();
+        toggleItem(rec);
+      }, { signal: controller.signal });
+
+      records.forEach(setState);
+
+      cleanups.push(() => {
+        controller.abort();
+        records.forEach((rec) => rec.tl?.kill());
       });
     });
 

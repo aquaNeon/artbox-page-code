@@ -148,7 +148,7 @@ rather than shared globally. A module that registers global listeners, a `rAF`
 loop or an observer must return a teardown, or it will leak on every navigation.
 
 Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
-`cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `tabs`, `homeHero`,
+`cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `tabs`, `faq`, `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
 ### textAnim — `[data-text-anim]`
@@ -325,6 +325,48 @@ ScrollTrigger and both listeners, so a group never survives its container.
 
 Opening a tab changes the document height, so the module calls the same
 guarded `refreshScrollHeight()` the footer uses once the switch lands.
+
+### faq — `.faq_item_wrap` / `[data-faq-item]`
+
+Accordion. Clicking a question animates its answer from height `0` to `auto`,
+rises and fades the answer text in, and rotates the plus icon 45° into a
+cross. One answer open at a time by default.
+
+Driven off the classes the section already has, so there is nothing to add in
+the Designer:
+
+| Looked for | Falls back to | Role |
+| --- | --- | --- |
+| `[data-faq]` | `.faq_items_wrap` | The group — one delegated listener per group |
+| `[data-faq-item]` | `.faq_item_wrap` | One question + answer |
+| `[data-faq-toggle]` | `.faq_items_heading_wrap` | The clickable row |
+| `[data-faq-panel]` | `.faq_items_info` | What opens. Its first child is the part that rises and fades |
+| `[data-faq-icon]` | `.faq_items_heading_icon` | Rotated 45° while open |
+
+Opt-in attributes:
+
+| Attribute | Where | Meaning |
+| --- | --- | --- |
+| `data-faq-multi="true"` | the group | Let several answers stay open. Default closes the siblings |
+| `data-faq-open` | an item | That one starts open |
+
+The Osmo reference does this in CSS (`grid-template-rows: 0fr → 1fr` plus
+`data-accordion-*` attributes on a grid wrapper). This markup has neither the
+attributes nor the wrapper, so the same motion is done in GSAP against the
+existing classes. `height: auto` is measured per open rather than guessed with
+a `max-height`, so a long answer never clips, and it is reset to `auto` when
+the open animation lands so a resize or a font swap cannot freeze it at the
+old pixel height.
+
+The module owns `overflow: hidden` on the panel, `cursor: pointer`, `role`,
+`tabindex`, `aria-expanded` / `aria-controls` and an `is-open` class on the
+item — style off `.is-open` (or `[data-accordion-status="active"]`, which is
+also set, so the reference CSS keeps working). `Enter` / `Space` toggle.
+
+The listener is delegated per group, not per item, so a link inside an answer
+does not toggle it shut. Opening changes the document height, so each toggle
+ends in the same guarded `refreshScrollHeight()` the footer uses. Under
+`prefers-reduced-motion` the state flips instantly.
 
 ### homeHero
 
