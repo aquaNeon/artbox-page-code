@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-25-h';
+  const BUILD = '2026-08-26-a';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1120,6 +1120,195 @@
     return () => mm.revert();
   });
 
+
+  /* ============================================================
+     TABS — [data-tabs="wrapper"]
+
+     One content column of clickable items, one visual column of
+     matching panels. The open item's [data-tabs="item-details"]
+     animates height 0 <-> auto, its visual cross-fades in from the
+     right, and an optional progress bar drives autoplay.
+
+     Ported from the section embed. Two changes for this build:
+     the first tab is set with gsap.set instead of an animated
+     switch — mount runs on beforeEnter, while the container is
+     still a fixed 100vh rectangle, so an animated open would play
+     behind the transition and measure height:auto against the
+     wrong box — and the autoplay ScrollTrigger is created from the
+     intro queue for the same reason.
+     ============================================================ */
+
+  const TABS = {
+    duration: 0.65,
+    ease: 'power3',
+    outProgress: 0.3,   // how long the leaving progress bar takes to empty,
+                        // and how long the incoming visual waits
+    shift: 3,           // xPercent the visual travels while fading
+    autoplayMs: 5000
+  };
+
+  Modules.add('tabs', function (root) {
+    const wrappers = root.querySelectorAll('[data-tabs="wrapper"]');
+    if (!wrappers.length) return;
+
+    const cleanups = [];
+
+    wrappers.forEach((wrapper) => {
+      const contentItems = Array.from(wrapper.querySelectorAll('[data-tabs="content-item"]'));
+      const visualItems = Array.from(wrapper.querySelectorAll('[data-tabs="visual-item"]'));
+      if (!contentItems.length) return;
+      if (contentItems.length !== visualItems.length) {
+        console.warn(
+          '[tabs] content-item / visual-item count mismatch:',
+          contentItems.length, 'vs', visualItems.length, wrapper
+        );
+        return;
+      }
+
+      const detail = (i) => contentItems[i].querySelector('[data-tabs="item-details"]');
+      const bar = (i) => contentItems[i].querySelector('[data-tabs="item-progress"]');
+
+      const autoplay = wrapper.dataset.tabsAutoplay === 'true' && !reducedMotion;
+      const duration = parseInt(wrapper.dataset.tabsAutoplayDuration, 10) || TABS.autoplayMs;
+
+      const controller = new AbortController();
+      let currentIndex = 0;
+      let isAnimating = false;
+      let autoplayReady = false;
+      let dead = false;
+      let progressTween = null;
+      let switchTl = null;
+      let trigger = null;
+
+      function markState(index) {
+        contentItems.forEach((item, i) => {
+          item.classList.toggle('active', i === index);
+          item.setAttribute('aria-selected', String(i === index));
+          item.setAttribute('tabindex', i === index ? '0' : '-1');
+          visualItems[i].classList.toggle('active', i === index);
+        });
+      }
+
+      function startProgress(index) {
+        progressTween?.kill();
+        if (!autoplay || dead) return;
+        const el = bar(index);
+        if (!el) return;
+        gsap.set(el, { scaleX: 0, transformOrigin: 'left center' });
+        progressTween = gsap.to(el, {
+          scaleX: 1,
+          duration: duration / 1000,
+          ease: 'none',
+          onComplete: () => {
+            if (!dead && !isAnimating) switchTab((index + 1) % contentItems.length);
+          }
+        });
+      }
+
+      function setState(index) {
+        markState(index);
+        currentIndex = index;
+        contentItems.forEach((item, i) => {
+          const d = detail(i);
+          if (d) gsap.set(d, { height: i === index ? 'auto' : 0 });
+          const b = bar(i);
+          if (b) gsap.set(b, { scaleX: 0, transformOrigin: 'left center' });
+          gsap.set(visualItems[i], i === index
+            ? { autoAlpha: 1, xPercent: 0 }
+            : { autoAlpha: 0, xPercent: TABS.shift });
+        });
+      }
+
+      function switchTab(index) {
+        if (dead || isAnimating || index === currentIndex) return;
+        const outIndex = currentIndex;
+        progressTween?.kill();
+        switchTl?.kill();
+
+        if (reducedMotion) {
+          setState(index);
+          if (autoplayReady) startProgress(index);
+          return;
+        }
+
+        isAnimating = true;
+        currentIndex = index;
+        markState(index);
+
+        switchTl = gsap.timeline({
+          defaults: { duration: TABS.duration, ease: TABS.ease },
+          onComplete: () => {
+            isAnimating = false;
+            /* height:auto changed the document height, so every
+               ScrollTrigger below this section is now measured against
+               the old one. Guarded and rAF'd inside. */
+            refreshScrollHeight();
+            if (autoplayReady) startProgress(index);
+          }
+        });
+
+        const outBar = bar(outIndex);
+        const outDetail = detail(outIndex);
+        if (outBar) {
+          switchTl.set(outBar, { transformOrigin: 'right center' }, 0)
+                  .to(outBar, { scaleX: 0, duration: TABS.outProgress }, 0);
+        }
+        switchTl.to(visualItems[outIndex], { autoAlpha: 0, xPercent: TABS.shift }, 0);
+        if (outDetail) switchTl.to(outDetail, { height: 0 }, 0);
+
+        switchTl.fromTo(
+          visualItems[index],
+          { autoAlpha: 0, xPercent: TABS.shift },
+          { autoAlpha: 1, xPercent: 0 },
+          TABS.outProgress
+        );
+        const inDetail = detail(index);
+        if (inDetail) switchTl.fromTo(inDetail, { height: 0 }, { height: 'auto' }, 0);
+        const inBar = bar(index);
+        if (inBar) switchTl.set(inBar, { scaleX: 0, transformOrigin: 'left center' }, 0);
+      }
+
+      contentItems.forEach((item, i) => {
+        item.addEventListener('click', () => switchTab(i), { signal: controller.signal });
+        item.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            switchTab(i);
+          }
+        }, { signal: controller.signal });
+      });
+
+      setState(0);
+
+      Intro.add(root, () => {
+        if (dead || !autoplay) return;
+        if (!hasScrollTrigger) {
+          autoplayReady = true;
+          startProgress(currentIndex);
+          return;
+        }
+        trigger = ScrollTrigger.create({
+          trigger: wrapper,
+          start: 'top 70%',
+          once: true,
+          onEnter: () => {
+            autoplayReady = true;
+            if (!isAnimating) startProgress(currentIndex);
+          }
+        });
+      });
+
+      cleanups.push(() => {
+        dead = true;
+        controller.abort();
+        progressTween?.kill();
+        switchTl?.kill();
+        trigger?.kill();
+      });
+    });
+
+    return () => cleanups.forEach((fn) => fn());
+  });
 
   /* ============================================================
      HOME HERO

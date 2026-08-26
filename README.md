@@ -148,7 +148,7 @@ rather than shared globally. A module that registers global listeners, a `rAF`
 loop or an observer must return a teardown, or it will leak on every navigation.
 
 Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
-`cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `homeHero`,
+`cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `tabs`, `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
 ### textAnim — `[data-text-anim]`
@@ -290,6 +290,41 @@ The matching CSS, in the section's embed:
   .design_sticky_item:not(:last-child) { margin-bottom: 50vh; }
 }
 ```
+
+### tabs — `[data-tabs="wrapper"]`
+
+A content column of clickable items beside a visual column of matching
+panels. Opening a tab animates its `item-details` from height `0` to `auto`,
+cross-fades the matching visual in from the right, and — with autoplay on —
+runs a progress bar that advances to the next tab when it fills.
+
+| Attribute | Where | Meaning |
+| --- | --- | --- |
+| `data-tabs="wrapper"` | the section | Marks one tab group. Several per page is fine |
+| `data-tabs="content-item"` | each clickable item | Gets `.active`, `aria-selected` and `tabindex` |
+| `data-tabs="visual-item"` | each panel | Must match the content items **1:1 and in DOM order**; a mismatch logs a warning and the group is skipped |
+| `data-tabs="item-details"` | inside a content item | The part that opens and closes. Needs `overflow: hidden` in CSS |
+| `data-tabs="item-progress"` | inside a content item | The autoplay bar. Scaled on X; the module owns `transform-origin` (left filling, right emptying), so do not set it in CSS |
+| `data-tabs-autoplay="true"` | the wrapper | Advance on its own |
+| `data-tabs-autoplay-duration="7000"` | the wrapper | ms per tab, default `5000` |
+
+Click and `Enter` / `Space` both switch. Timing lives in the `TABS` object
+above the module.
+
+Two things differ from the standalone embed version. The first tab is set
+with `gsap.set` rather than an animated switch: mount runs on `beforeEnter`,
+while the container is still a fixed 100vh rectangle, so an animated open
+would play behind the transition and measure `height: auto` against the wrong
+box. And the autoplay ScrollTrigger is created from the intro queue, for the
+same reason — a trigger measured during the transition fires at the wrong
+scroll position.
+
+Under `prefers-reduced-motion` the tabs still switch, instantly, and autoplay
+is off. Teardown kills the progress tween, the switch timeline, the
+ScrollTrigger and both listeners, so a group never survives its container.
+
+Opening a tab changes the document height, so the module calls the same
+guarded `refreshScrollHeight()` the footer uses once the switch lands.
 
 ### homeHero
 
