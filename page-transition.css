@@ -21,8 +21,12 @@
 
 /* The reveal gap collapses during a transition because both
    containers go position:fixed. Hide the footer so it cannot
-   flash through the 3D gap between the two pages. */
-html.is-transitioning .footer_wrap {
+   flash through the 3D gap between the two pages.
+
+   Unless it was on screen when the navigation started: then the
+   transition lifts it into the outgoing layer as .is-transition-layer
+   and it travels with the page it belongs to instead of vanishing. */
+html.is-transitioning .footer_wrap:not(.is-transition-layer) {
   visibility: hidden;
 }
 
@@ -53,3 +57,37 @@ html.is-transitioning {
   pointer-events: none;
 }
 
+
+/* Services hover preview — the cursor follower, created by the
+   servicesHover module and parented to <body>. Only the box lives
+   here, because it is the one part with a responsive dimension.
+   Everything the module puts on the rows themselves is set inline,
+   where it outranks the Designer regardless of stylesheet order. */
+.services_follower {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: clamp(220px, 22vw, 420px);
+  aspect-ratio: 4 / 3;
+  z-index: 90;               /* under .meganav_root, which sits at 100 */
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Clips the incoming image while it grows, so it reads as covering
+   the one under it rather than spilling past the frame. */
+.services_follower__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.services_follower__visual {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

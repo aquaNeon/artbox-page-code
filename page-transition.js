@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-26-b';
+  const BUILD = '2026-08-26-f';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -375,6 +375,15 @@
     headingStagger: 0.16,
     headingEase: 'power4.out',
 
+    /* Inline images inside a heading — the hero puts square photos
+       between the words. They scale rather than travel: the line mask
+       already carries them up with the type. */
+    imgFrom: 0.6,           // 0 turns the image scaling off
+    imgDuration: 0.9,
+    imgEase: 'power2.out',
+    imgOffset: 0.08,        // after its own line starts
+    imgStagger: 0.08,       // between images sharing a line
+
     bodyDuration: 0.9,
     bodyStagger: 0.08,
     bodyEase: 'power3.out',
@@ -407,31 +416,79 @@
     );
   }
 
+  /* How far the tallest thing on a line pokes out of the line box.
+     An inline image sized in em — the hero headings set one between
+     the words at 2em, pulled up with a negative margin — stands well
+     above the type, and the mask that saves the descenders would
+     otherwise slice its top clean off. Measured before the padding
+     goes on, so the line box is still the bare one. */
+  function maskBleed(line) {
+    const box = line.getBoundingClientRect();
+    let top = 0;
+    let bottom = 0;
+    line.querySelectorAll('*').forEach((child) => {
+      const r = child.getBoundingClientRect();
+      if (!r.height) return;
+      top = Math.max(top, box.top - r.top);
+      bottom = Math.max(bottom, r.bottom - box.bottom);
+    });
+    return { top: Math.max(0, Math.ceil(top)), bottom: Math.max(0, Math.ceil(bottom)) };
+  }
+
+  /* Webflow routinely marks the wrapper rather than the heading: a div
+     carrying the style class with an embedded <h1> inside it. SplitText
+     hoists the lines out of that inner block, and its revert puts them
+     back on the wrapper, not into the <h1> — so the first mount empties
+     the heading element permanently and the page is left with a hero
+     whose <h1> holds nothing. Descend to the element that actually holds
+     the text and split that: the lines stay inside it and revert is
+     lossless. Stops at anything inline, which cannot be a line box. */
+  function splitTarget(el) {
+    let node = el;
+    for (let depth = 0; depth < 4; depth++) {
+      const kids = Array.from(node.childNodes).filter(
+        (n) => n.nodeType === 1 || (n.nodeType === 3 && n.textContent.trim())
+      );
+      if (kids.length !== 1 || kids[0].nodeType !== 1) break;
+      if (getComputedStyle(kids[0]).display.startsWith('inline')) break;
+      node = kids[0];
+    }
+    return node;
+  }
+
   function buildLineRise(el) {
     const split = new SplitText(el, { type: 'lines', linesClass: 'text-anim_line' });
     const pads = [];
     const inners = split.lines.map((line) => {
+      const bleed = maskBleed(line);
       line.style.overflow = 'hidden';
       line.style.display = 'block';
-      let pad = 0;
-      if (TEXT.maskPad) {
-        pad = descenderPad(line);
+      let pad = TEXT.maskPad ? descenderPad(line) : 0;
+      if (bleed.bottom > pad) pad = bleed.bottom;
+      if (pad) {
         line.style.paddingBottom = `${pad}px`;
         line.style.marginBottom = `${-pad}px`;
       }
-      pads.push(pad);
+      /* Same trick upward. Padding grows the clip box, the negative
+         margin cancels it, so nothing in the layout moves either way. */
+      if (bleed.top) {
+        line.style.paddingTop = `${bleed.top}px`;
+        line.style.marginTop = `${-bleed.top}px`;
+      }
+      pads.push(pad + bleed.top);
       const inner = document.createElement('span');
       inner.style.display = 'block';
       while (line.firstChild) inner.appendChild(line.firstChild);
       line.appendChild(inner);
       return inner;
     });
-    /* overflow clips to the PADDING box, so the pad added below to save
-       the descenders is also a strip the waiting line can show through.
-       Derive the start from each line's own pad rather than guessing a
-       flat number: 100% clears the line box, the ratio clears the pad,
-       and 5% covers sub-pixel rounding. A flat value is either short on
-       a big pad or wastefully far on a small one. */
+    /* overflow clips to the PADDING box, so every pad added above is a
+       strip the waiting line can show through — including the one that
+       clears an inline image's head. Derive the start from each line's
+       own pads rather than guessing a flat number: 100% clears the line
+       box, the ratio clears the pads, and 5% covers sub-pixel rounding.
+       A flat value is either short on a big pad or wastefully far on a
+       small one. */
     const from = {
       yPercent: (i, target) => {
         const h = target.offsetHeight || 1;
@@ -524,6 +581,31 @@
       group.forEach((node) => wrapper.appendChild(node));
       el.appendChild(wrapper);
       return wrapper;
+    });
+  }
+
+  /* An image inside a heading scales up as its line arrives. The
+     wrapper is what scales, not the img: the hero frames are
+     aspect-ratio boxes with object-fit:cover inside, so scaling the
+     picture alone would just show the frame's own background around a
+     shrunken photo. Scale never reflows, so the words on either side
+     hold their positions while it grows. */
+  function addHeadingImages(tl, inners, start, speed) {
+    if (!TEXT.imgFrom) return;
+    const lineStagger = TEXT.headingStagger / speed;
+    inners.forEach((inner, i) => {
+      const imgs = Array.from(inner.querySelectorAll('img'));
+      if (!imgs.length) return;
+      const targets = imgs.map((img) => (
+        img.parentElement && img.parentElement !== inner ? img.parentElement : img
+      ));
+      gsap.set(targets, { scale: TEXT.imgFrom, transformOrigin: 'center center' });
+      tl.to(targets, {
+        scale: 1,
+        duration: TEXT.imgDuration / speed,
+        ease: TEXT.imgEase,
+        stagger: TEXT.imgStagger / speed
+      }, start + i * lineStagger + TEXT.imgOffset / speed);
     });
   }
 
@@ -634,8 +716,9 @@
            exactly as tall as its single line box, so its own overflow —
            or a Webflow class setting a height in line-height units —
            crops the descenders before the parent ever gets a say. */
-        unclipDescenders(el, wrap);
-        const { split, inners } = buildLineRise(el);
+        const target = splitTarget(el);
+        unclipDescenders(target, wrap);
+        const { split, inners } = buildLineRise(target);
         splits.push(split);
         const speed = stepSpeed(el);
         const to = {
@@ -644,6 +727,9 @@
         };
         if (BLUR) to.filter = 'blur(0px)';
         tl.to(inners, to, position(el));
+        /* recent(), because timeline.to() returns the timeline — the
+           images need the line tween's own start time to sit on. */
+        addHeadingImages(tl, inners, tl.recent().startTime(), speed);
       } else if (el.hasAttribute('data-text-anim-list')) {
         const items = listItems(el);
         if (items.length) {
@@ -1611,6 +1697,298 @@
   });
 
 
+  /* ============================================================
+     SERVICES HOVER — .services_wrap
+
+     Two things happen when a row is hovered: the neon wipes up
+     behind its text, and a preview follows the cursor.
+
+     The preview does not slide its images past a mask. Each new
+     image is stacked on top of the one already showing, starts
+     small and centred, and grows until it covers it — so the
+     transition reads as the next service landing on the last
+     rather than a filmstrip advancing. Layers are removed by the
+     tween that covered them, which is what makes a fast run down
+     the list safe: whichever clone is on top wins and takes
+     everything under it with it.
+
+     The follower is appended to <body>, never to the section.
+     prepareForTransition puts perspective on .page_wrap, and
+     perspective creates a containing block for fixed-position
+     descendants — a follower inside the container would stop
+     resolving against the viewport.
+
+     Desktop pointers only, matching the reference CSS. Below that
+     the rows are left exactly as the Designer painted them.
+     ============================================================ */
+
+  const SERVICES = {
+    follow: 0.6,             // pointer smoothing
+    followEase: 'power3',
+    show: 0.45,              // follower scaling in and out
+    showEase: 'power3.out',
+    coverFrom: 0.18,         // the incoming image starts this small, centred
+    coverDuration: 0.7,
+    coverEase: 'power3.out',
+    fill: 0.5,               // the colour wipe behind the row
+    fillEase: 'osmo',
+    dim: 0.45                // the rows that are not hovered
+  };
+
+  Modules.add('servicesHover', function (root) {
+    const sections = root.querySelectorAll('.services_wrap');
+    if (!sections.length) return;
+
+    /* No hover, no preview. The rows keep their Designer background
+       and nothing below runs. */
+    if (!window.matchMedia('(hover: hover) and (min-width: 992px)').matches) return;
+
+    const resolve = (v) => {
+      if (!v) return null;
+      v = v.trim();
+      if (!v) return null;
+      return v.startsWith('--') ? `var(${v})` : v;
+    };
+    const opaque = (c) => !!c && c !== 'transparent' && c !== 'rgba(0, 0, 0, 0)';
+
+    const cleanups = [];
+
+    sections.forEach((section) => {
+      const collection = section.querySelector('.services_hover_items');
+      if (!collection) return;
+      const items = Array.from(collection.querySelectorAll('.services_hover_item'));
+      if (!items.length) return;
+
+      const controller = new AbortController();
+      const signal = controller.signal;
+      const restore = [];
+
+      /* ---- follower ---- */
+
+      const follower = document.createElement('div');
+      follower.className = 'services_follower';
+      follower.setAttribute('aria-hidden', 'true');
+      const followerInner = document.createElement('div');
+      followerInner.className = 'services_follower__inner';
+      follower.appendChild(followerInner);
+      document.body.appendChild(follower);
+
+      gsap.set(follower, { xPercent: -50, yPercent: -50, scale: 0, autoAlpha: 0, force3D: true });
+
+      const xTo = gsap.quickTo(follower, 'x', { duration: SERVICES.follow, ease: SERVICES.followEase });
+      const yTo = gsap.quickTo(follower, 'y', { duration: SERVICES.follow, ease: SERVICES.followEase });
+
+      let visible = false;
+      let layer = 0;
+
+      window.addEventListener('mousemove', (e) => {
+        if (!visible) return;
+        xTo(e.clientX);
+        yTo(e.clientY);
+      }, { signal });
+
+      function showFollower(e) {
+        if (visible) return;
+        visible = true;
+        // Jump to the pointer first, or the follower flies in from 0,0.
+        gsap.set(follower, { x: e.clientX, y: e.clientY });
+        gsap.to(follower, {
+          scale: 1,
+          autoAlpha: 1,
+          duration: reducedMotion ? 0 : SERVICES.show,
+          ease: SERVICES.showEase,
+          overwrite: 'auto'
+        });
+      }
+
+      function hideFollower() {
+        visible = false;
+        gsap.to(follower, {
+          scale: 0,
+          autoAlpha: 0,
+          duration: reducedMotion ? 0 : SERVICES.show,
+          ease: 'power3.inOut',
+          overwrite: 'auto',
+          onComplete: () => {
+            followerInner.querySelectorAll('*').forEach((el) => gsap.killTweensOf(el));
+            followerInner.replaceChildren();
+            layer = 0;
+          }
+        });
+      }
+
+      /* The cover. The clone lands on top of whatever is showing and
+         grows into it; when it arrives it takes the layers it covered
+         with it. Nothing is removed early, so the image underneath is
+         there for the whole grow and never flashes through. */
+      function pushVisual(source) {
+        const clone = source.cloneNode(true);
+        clone.removeAttribute('id');
+        clone.classList.add('services_follower__visual');
+        clone.setAttribute('loading', 'eager');
+        clone.setAttribute('aria-hidden', 'true');
+        clone.alt = '';
+
+        const covered = Array.from(followerInner.children);
+        followerInner.appendChild(clone);
+
+        const drop = () => covered.forEach((el) => { gsap.killTweensOf(el); el.remove(); });
+
+        gsap.set(clone, {
+          zIndex: ++layer,
+          transformOrigin: 'center center',
+          force3D: true,
+          scale: covered.length && !reducedMotion ? SERVICES.coverFrom : 1
+        });
+
+        if (!covered.length || reducedMotion) { drop(); return; }
+
+        gsap.to(clone, {
+          scale: 1,
+          duration: SERVICES.coverDuration,
+          ease: SERVICES.coverEase,
+          onComplete: drop
+        });
+      }
+
+      /* ---- rows ---- */
+
+      const records = items.map((item) => {
+        const inner = item.querySelector('.services_hover_inner');
+        const imgWrap = item.querySelector('.services_hover_img_wrap');
+        const img = imgWrap && imgWrap.querySelector('img');
+
+        /* The neon is set on the row itself in the Designer, which
+           paints it flat and leaves nothing to reveal. Read it off,
+           move it onto a layer we own, and hand the row its own
+           background back on teardown. data-services-fill overrides,
+           taking a literal or a variable name. */
+        const declared = resolve(item.getAttribute('data-services-fill'));
+        const painted = getComputedStyle(item).backgroundColor;
+        const colour = declared || (opaque(painted) ? painted : null);
+
+        const fill = document.createElement('div');
+        fill.className = 'services_hover_fill';
+        fill.setAttribute('aria-hidden', 'true');
+        Object.assign(fill.style, {
+          position: 'absolute',
+          inset: '0',
+          zIndex: '0',
+          pointerEvents: 'none',
+          background: colour || 'var(--_colour---color--color-neon)'
+        });
+        gsap.set(fill, { clipPath: 'inset(100% 0% 0% 0%)' });
+
+        const itemPos = item.style.position;
+        const itemBg = item.style.backgroundColor;
+        if (getComputedStyle(item).position === 'static') item.style.position = 'relative';
+        if (colour && !declared) item.style.backgroundColor = 'transparent';
+        item.prepend(fill);
+
+        /* The text has to sit over the wipe, and the source image is
+           only ever a source — it shows in the follower, not in the row. */
+        const innerPos = inner && inner.style.position;
+        const innerZ = inner && inner.style.zIndex;
+        if (inner) {
+          if (getComputedStyle(inner).position === 'static') inner.style.position = 'relative';
+          inner.style.zIndex = '1';
+        }
+        /* Taken out of the row's layout but left in the render tree.
+           display:none would stop a loading="lazy" image ever fetching,
+           and the clone would then land in the follower with nothing
+           decoded to show on the first hover. */
+        const wrapStyle = imgWrap && imgWrap.getAttribute('style');
+        if (imgWrap) Object.assign(imgWrap.style, {
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          opacity: '0',
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          zIndex: '-1'
+        });
+
+        restore.push(() => {
+          gsap.killTweensOf(fill);
+          fill.remove();
+          item.style.backgroundColor = itemBg;
+          item.style.position = itemPos || '';
+          if (inner) {
+            gsap.killTweensOf(inner);
+            gsap.set(inner, { clearProps: 'opacity' });
+            inner.style.position = innerPos || '';
+            inner.style.zIndex = innerZ || '';
+          }
+          if (imgWrap) {
+            if (wrapStyle === null) imgWrap.removeAttribute('style');
+            else imgWrap.setAttribute('style', wrapStyle);
+          }
+        });
+
+        return { item, inner, fill, img };
+      });
+
+      function wipe(rec, open) {
+        gsap.to(rec.fill, {
+          clipPath: open ? 'inset(0% 0% 0% 0%)' : 'inset(0% 0% 100% 0%)',
+          duration: reducedMotion ? 0 : SERVICES.fill,
+          ease: SERVICES.fillEase,
+          overwrite: 'auto',
+          /* Parked back at the bottom edge so the next wipe rises again
+             rather than dropping in from the top. */
+          onComplete: () => { if (!open) gsap.set(rec.fill, { clipPath: 'inset(100% 0% 0% 0%)' }); }
+        });
+      }
+
+      function dim(active) {
+        records.forEach((rec) => {
+          if (!rec.inner) return;
+          gsap.to(rec.inner, {
+            opacity: active && rec !== active ? SERVICES.dim : 1,
+            duration: reducedMotion ? 0 : SERVICES.fill,
+            ease: SERVICES.fillEase,
+            overwrite: 'auto'
+          });
+        });
+      }
+
+      records.forEach((rec) => {
+        rec.item.addEventListener('mouseenter', (e) => {
+          wipe(rec, true);
+          dim(rec);
+          if (rec.img) {
+            showFollower(e);
+            pushVisual(rec.img);
+          }
+        }, { signal });
+
+        rec.item.addEventListener('mouseleave', () => wipe(rec, false), { signal });
+      });
+
+      /* One leave for the whole list. The per-row leaves already put the
+         colour back; this is what ends the preview, and it does not fire
+         while the pointer is only crossing a border between rows. */
+      collection.addEventListener('mouseleave', () => {
+        /* The rows close themselves on their own leave, but a pointer
+           that jumps straight out of the window can skip that one. */
+        records.forEach((rec) => wipe(rec, false));
+        dim(null);
+        hideFollower();
+      }, { signal });
+
+      cleanups.push(() => {
+        controller.abort();
+        gsap.killTweensOf(follower);
+        followerInner.querySelectorAll('*').forEach((el) => gsap.killTweensOf(el));
+        follower.remove();
+        restore.forEach((fn) => fn());
+      });
+    });
+
+    return () => cleanups.forEach((fn) => fn());
+  });
+
+
   Modules.add('slider', function (root) {
     const instances = [];
     const resizeHandlers = [];
@@ -2187,7 +2565,48 @@
      ============================================================ */
 
   const NAV_SCROLL_AT = 10;
+
+  /* The footer is fixed behind the page and revealed by the page sliding
+     up off it, so how much of it is showing is just the distance left to
+     the bottom of the document. Once enough of it is out, the nav gets
+     out of the way — it is the only thing left overlapping a section that
+     is meant to read as a full-bleed panel.
+
+     Two thresholds rather than one. A single line at the same place
+     flickers the nav on and off while a scroll rests exactly on it, and
+     inertia scrolling rests on things constantly. */
+  const NAV_HIDE = {
+    hideAt: 0.5,          // fraction of the footer revealed → nav leaves
+    showAt: 0.35,         // scrolled back above this → nav returns
+    duration: 0.45,
+    ease: 'power2.out'
+  };
+
   let updateNavScroll = () => {};
+  /* Navigating from the footer starts with the nav parked off-screen, and
+     the scroll check cannot put it back on its own: is-transitioning is
+     still set while the pages animate, and it is dropped two frames after
+     the last scroll event of the navigation. */
+  let resetNav = () => {};
+
+  function footerRevealed() {
+    const footer = document.querySelector('.footer_wrap');
+    const height = footer ? footer.offsetHeight : 0;
+    if (!height) return 0;
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    if (max <= 0) return 0;
+    return Math.min(1, Math.max(0, (window.scrollY - (max - height)) / height));
+  }
+
+  /* An open mega panel outranks the footer: hiding the nav out from under
+     a menu the visitor just opened leaves them with a lock and no way
+     back. Same list the nav sync clears on navigation. */
+  function navMenuOpen() {
+    return !!document.querySelector(
+      '[data-nav-mobile].is-open, .meganav_mobile_open.is-open, ' +
+      '.meganav_panel.is-open, .meganav_backdrop.is-open'
+    );
+  }
 
   function initNavScroll() {
     const nav = findNav();
@@ -2197,16 +2616,47 @@
     }
 
     let scrolled = null;
+    let hidden = false;
     let queued = false;
+
+    const setHidden = (hide) => {
+      if (hide === hidden) return;
+      hidden = hide;
+      nav.classList.toggle('is-hidden', hide);
+      /* Travel only, no fade. pointer-events goes with it so the nav
+         cannot take a click meant for the footer during the slide, when
+         it is still overlapping the top of the screen. */
+      nav.style.pointerEvents = hide ? 'none' : '';
+      gsap.to(nav, {
+        yPercent: hide ? -100 : 0,
+        duration: reducedMotion ? 0 : NAV_HIDE.duration,
+        ease: NAV_HIDE.ease,
+        overwrite: 'auto'
+      });
+    };
+
+    resetNav = () => setHidden(false);
 
     /* Coalesced to one read per frame: a Lenis-driven page fires scroll
        continuously and every scrollY read forces layout. */
     const apply = () => {
       queued = false;
+
       const next = window.scrollY > NAV_SCROLL_AT;
-      if (next === scrolled) return;
-      scrolled = next;
-      nav.classList.toggle('is-scrolled', next);
+      if (next !== scrolled) {
+        scrolled = next;
+        nav.classList.toggle('is-scrolled', next);
+      }
+
+      /* Mid-transition both pages are fixed and the document height is
+         whatever the transition left behind, so the footer fraction is
+         meaningless. Hold the nav where it is until the page lands. */
+      if (document.documentElement.classList.contains('is-transitioning')) return;
+
+      const revealed = footerRevealed();
+      if (navMenuOpen()) setHidden(false);
+      else if (!hidden && revealed >= NAV_HIDE.hideAt) setHidden(true);
+      else if (hidden && revealed <= NAV_HIDE.showAt) setHidden(false);
     };
 
     updateNavScroll = () => {
@@ -2216,6 +2666,7 @@
     };
 
     window.addEventListener('scroll', updateNavScroll, { passive: true });
+    window.addEventListener('resize', updateNavScroll, { passive: true });
     apply();
   }
 
@@ -2370,6 +2821,11 @@
       willChange: 'transform, opacity', backfaceVisibility: 'hidden'
     });
 
+    if (footerAtLeave) {
+      liftFooterIntoLayer(wrapper, footerAtLeave.top);
+      footerAtLeave = null;
+    }
+
     /* Symmetry with the outgoing side, and the reason the home page
        composited onto itself. The outgoing page sits inside a fixed 100vh
        wrapper and keeps its own natural height. The incoming page used to
@@ -2426,7 +2882,66 @@
      children out before dropping the wrapper, never delete it wholesale.
      Runs before the parent is resolved, since a stale wrapper would
      otherwise be mistaken for it. */
+  /* The footer is fixed and lives outside .page_wrap, so it is not part of
+     the outgoing page and the transition used to hide it outright — click
+     a link in the footer and the thing you were looking at vanished a
+     frame before the page it belongs to started moving.
+
+     Move the real element into the outgoing layer for the duration,
+     pinned at the viewport position it already occupied. Inside a fixed
+     wrapper an absolute child resolves against the viewport rect, so the
+     footer does not move a pixel at the swap — it just stops being fixed
+     and starts being part of the card that scales away. Inserted before
+     the page, which keeps the page painting over it exactly as z-index 1
+     over z-index 0 did.
+
+     The element itself, not a clone: it carries links, a form and IX2
+     bindings, and a clone would drop all three. */
+  let footerLayer = null;
+  let footerAtLeave = null;
+
+  /* Read at beforeLeave, before FooterReveal.collapse() runs. Collapsing
+     the reserved space shortens the document, the browser clamps the
+     scroll position to the new bottom, and the page slides down over the
+     footer — so by the time the leave timeline measures anything, a footer
+     that filled half the screen looks like one nobody ever scrolled to. */
+  function captureFooterForLeave() {
+    const footer = document.querySelector('.footer_wrap');
+    const page = document.querySelector('.page_wrap');
+    footerAtLeave = null;
+    if (!footer || !page) return;
+    if (page.getBoundingClientRect().bottom >= window.innerHeight - 1) return;
+    footerAtLeave = { top: footer.getBoundingClientRect().top };
+  }
+
+  function liftFooterIntoLayer(wrapper, top) {
+    const footer = document.querySelector('.footer_wrap');
+    if (!footer || footerLayer) return;
+    footerLayer = { el: footer, parent: footer.parentElement, next: footer.nextSibling };
+    footer.classList.add('is-transition-layer');
+    wrapper.insertBefore(footer, wrapper.firstChild);
+    /* left/right rather than a width, and no height at all. An absolutely
+       positioned box with only left set shrinks to fit, and pinning the
+       measured offsetHeight as a CSS height adds the padding a second
+       time wherever box-sizing is content-box — the footer grew by its
+       own padding at the swap. Let it lay out at its natural height. */
+    gsap.set(footer, { position: 'absolute', top, left: 0, right: 0, zIndex: 0 });
+  }
+
+  function restoreFooterLayer() {
+    if (!footerLayer) return;
+    const { el, parent, next } = footerLayer;
+    footerLayer = null;
+    el.classList.remove('is-transition-layer');
+    gsap.set(el, { clearProps: 'position,top,left,right,width,height,zIndex' });
+    if (parent) parent.insertBefore(el, next);
+  }
+
   function sweepStaleLayers() {
+    /* Before the wrappers are dismantled: a stale layer is holding the
+       real footer, and lifting its children out would leave it inside
+       .page_wrap wearing the layer's inline styles. */
+    restoreFooterLayer();
     document.querySelectorAll('.page-transition__wrapper').forEach((el) => {
       const host = el.parentElement;
       if (host) while (el.firstChild) host.insertBefore(el.firstChild, el);
@@ -2442,6 +2957,7 @@
 
     const tl = gsap.timeline({
       onComplete: () => {
+        restoreFooterLayer();
         wrapper.remove();
         backdrop.remove();
         // Put the incoming page back where it belongs before dropping its
@@ -2522,6 +3038,9 @@
 
   barba.hooks.beforeLeave(() => {
     root.classList.add('is-transitioning');
+    resetNav();
+    restoreFooterLayer();
+    captureFooterForLeave();
     FooterReveal.collapse();
     leaveDone = new Promise((resolve) => { resolveLeave = resolve; });
   });

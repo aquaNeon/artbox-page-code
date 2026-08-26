@@ -148,7 +148,8 @@ rather than shared globally. A module that registers global listeners, a `rAF`
 loop or an observer must return a teardown, or it will leak on every navigation.
 
 Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
-`cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `tabs`, `faq`, `homeHero`,
+`cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `tabs`, `faq`, `servicesHover`,
+`homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
 ### textAnim — `[data-text-anim]`
@@ -191,6 +192,33 @@ Webflow text and link components are div-based and tag detection finds
 nothing on the real markup. A `<br><br>` inside a `-body` element reads as a
 paragraph break and its halves become separate staggered steps; a single
 `<br>` does not.
+
+**Inline images in a heading.** A hero that sets a square photo between
+the words — `<span class="hero-h1__img"><img></span>` inside the `<h1>` —
+gets three things without any extra attribute:
+
+- The line masks are padded above as well as below. `maskPad` only ever
+  cleared the descenders; an image at `height: 2em` stands proud of the
+  line box at both ends and the mask sliced its top off. Each line now
+  measures how far its tallest child pokes out and pads that much, with an
+  equal negative margin, so the clip box grows and the layout does not
+  move. The start offset grows with the pads, or the image would show
+  above the mask before its line rises.
+- The image scales up from `0.6` as its own line arrives. The **wrapper**
+  scales, not the `img`: the frame is an `aspect-ratio` box with
+  `object-fit: cover` inside, so scaling the picture alone would just show
+  the frame's background around a shrunken photo. Scale never reflows, so
+  the words on either side hold their positions the whole way — measured,
+  not assumed. Knobs: `imgFrom` (`0` turns it off), `imgDuration`,
+  `imgEase`, `imgOffset` after the line, `imgStagger` between images
+  sharing a line.
+- The split runs on the innermost element that holds the text, not on the
+  marked wrapper. Webflow marks the wrapper — a div with the style class
+  and an embedded `<h1>` inside — and SplitText hoists the lines out of
+  that `<h1>` and does not put them back on revert, so the first mount
+  used to leave the page with an empty `<h1>` for good. Splitting the
+  heading itself keeps the lines inside it and makes teardown lossless.
+  It also splits per line rather than treating the whole embed as one.
 
 Split and hidden start state happen at mount; the ScrollTriggers are created
 from the intro queue, since a trigger measured against the fixed 100vh
@@ -368,6 +396,60 @@ does not toggle it shut. Opening changes the document height, so each toggle
 ends in the same guarded `refreshScrollHeight()` the footer uses. Under
 `prefers-reduced-motion` the state flips instantly.
 
+### servicesHover — `.services_wrap`
+
+The service rows. Hovering one wipes the neon up behind its text, dims
+the other rows, and starts an image preview that follows the cursor.
+
+Driven off the classes the section already has, so there is nothing to
+add in the Designer:
+
+| Looked for | Role |
+| --- | --- |
+| `.services_wrap` | The section. Several per page is fine, each gets its own follower |
+| `.services_hover_items` | The list. One leave listener, so crossing a border between rows does not end the preview |
+| `.services_hover_item` | One row. Gets the colour layer and the hover listeners |
+| `.services_hover_inner` | The text. Lifted over the wipe and dimmed while another row is hovered |
+| `.services_hover_img_wrap img` | The preview image. Hidden in the row — it only ever shows in the follower |
+
+| Attribute | Where | Meaning |
+| --- | --- | --- |
+| `data-services-fill="--_colour---color--color-neon"` | a row | Wipe colour, as a literal or a variable name. Unset, the row's own background colour is used |
+
+The preview is **not** the masked filmstrip from the Osmo reference. Each
+new image is stacked on top of the one already showing, starts at 18% and
+centred, and grows until it covers it, so the change reads as the next
+service landing on the last. A layer is only removed by the tween that
+covered it, which is what makes a fast run down the list safe: whichever
+clone is on top wins and takes everything under it with it, and the image
+underneath is present for the whole grow so nothing flashes through.
+
+The neon in the Designer sits on `.services_hover_item` itself, which
+paints it flat and leaves nothing to reveal. The module reads that colour
+off, moves it onto a layer of its own, sets the row transparent, and hands
+the background back on teardown — so the Designer stays the place the
+colour is chosen. The wipe is `clip-path`, not `scaleY`, so reversing it
+mid-flight cannot jump: swapping a transform origin under a half-played
+scale moves the box, an inset just interpolates.
+
+The follower is appended to `<body>`, not to the section.
+`prepareForTransition` puts perspective on `.page_wrap`, and perspective
+creates a containing block for fixed-position descendants — a follower
+inside the container would stop resolving against the viewport. Its box
+(`.services_follower`) is the only part styled in `page-transition.css`;
+everything the module puts on a row is inline, where it outranks the
+Designer regardless of stylesheet order. It sits at `z-index: 90`, under
+the nav.
+
+Desktop pointers only (`(hover: hover) and (min-width: 992px)`) — below
+that the module returns before touching anything and the rows keep their
+Designer background, so set the mobile appearance there. Under
+`prefers-reduced-motion` the states still change, instantly, and images
+swap without the grow. Timing lives in the `SERVICES` object above the
+module. Teardown aborts every listener, kills the tweens, removes the
+follower and restores each row's background, `z-index` and hidden image
+wrap, so a container never leaves a follower behind after a swap.
+
 ### homeHero
 
 `.home_wrap` only. The heading is untouched by this module by design — put
@@ -396,6 +478,67 @@ video and form validation stop working after the first swap.
 Script tags placed inside the swapped container never execute on a Barba
 navigation. The three former inline section embeds now live here as modules —
 delete them in the Designer or they run twice on first load.
+
+## Footer and the transition
+
+The footer is `position: fixed` behind the page and revealed by the page
+sliding up off it, so it is not part of the Barba container and the
+transition used to hide it outright — click a link in the footer and the
+thing you were looking at vanished a frame before the page it belongs to
+started moving.
+
+If any of the footer is on screen when a navigation starts, the leave step
+now moves the real element into the outgoing layer, pinned at the viewport
+position it already occupied. Inside a fixed wrapper an absolute child
+resolves against the viewport rect, so nothing moves at the swap: the footer
+just stops being fixed and becomes part of the card that scales and rotates
+away. It goes back to `<body>` with its inline styles cleared when the
+timeline lands, and `sweepStaleLayers` restores it first thing if a
+transition is interrupted, so an aborted navigation cannot take the footer
+down with the layer.
+
+The element itself moves, never a clone — it carries links, a form and IX2
+bindings, and a clone would drop all three. While it is in the layer it
+wears `.is-transition-layer`, which is what exempts it from the
+`html.is-transitioning .footer_wrap { visibility: hidden }` rule that still
+covers the case where no part of it was showing.
+
+Whether it is showing is measured at `beforeLeave`, **before**
+`FooterReveal.collapse()` runs. Collapsing the reserved space shortens the
+document, the browser clamps the scroll position to the new bottom, and the
+page slides down over the footer — measure after that and a footer filling
+half the screen looks like one nobody ever scrolled to.
+
+## Nav
+
+The nav is persistent — it is never swapped — so its state is owned here
+rather than by an embed in the Designer.
+
+| State | When |
+| --- | --- |
+| `is-scrolled` | past 10px from the top |
+| `is-hidden` | the footer reveal is at least half out |
+
+The footer is fixed behind the page and revealed by the page sliding up
+off it, so how much of it is showing is just the distance left to the
+bottom of the document. Past `NAV_HIDE.hideAt` (0.5) the nav slides up by
+its own height and fades out; scrolling back above `NAV_HIDE.showAt`
+(0.35) brings it back. Two thresholds, not one: a single line at the same
+place flickers the nav on and off while a scroll rests exactly on it, and
+inertia scrolling rests on things constantly.
+
+It travels, it does not fade: opacity stays at 1 the whole way and the nav
+simply leaves upward. `pointer-events` goes to `none` with it, so it cannot
+take a click meant for the footer while it is still crossing the top of the
+screen. `is-hidden` is set alongside the tween if you want to style anything
+else off it.
+
+Two things outrank the footer. An open mega panel puts the nav back
+immediately — hiding it out from under a menu someone just opened leaves
+them with a scroll lock and no way out. And mid-transition the check is
+skipped entirely: both pages are `position: fixed` then, so the document
+height is whatever the transition left behind and the footer fraction is
+meaningless. Under `prefers-reduced-motion` the nav still goes, instantly.
 
 ## Before launch
 
