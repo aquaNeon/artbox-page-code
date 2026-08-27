@@ -494,10 +494,11 @@ html.is-menu-open {
   min-width: 0;
 }
 
+/* max-width only. height:auto made the image as tall as its intrinsic
+   ratio, which is not what a wrap with a fixed aspect and object-fit
+   wants — the column grew instead of the image fitting. */
 .post_contact_img_wrap img {
-  display: block;
   max-width: 100%;
-  height: auto;
 }
 
 /* An address or a phone number has no break opportunity, so it sets the
