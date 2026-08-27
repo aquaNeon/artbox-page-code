@@ -172,11 +172,6 @@ html.is-transitioning {
   width: 100%;
   height: 100dvh;
   max-width: none;
-  /* The sheet is a bare surface: every inset belongs to the inner, which
-     is where the container class lives. A container class left on the
-     panel would otherwise pad it as well and inset the content twice. */
-  padding-left: 0;
-  padding-right: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   background-color: var(--meganav-panel-bg);
@@ -245,19 +240,4 @@ html.is-transitioning {
    module — this is only the fallback for a page without it. */
 html.is-menu-open {
   overflow: hidden;
-}
-
-/* The square beside a link, sized to the cap height of its own label by
-   the linkIcons pass. Two classes deep so it outranks the component
-   variant rules, which pin a pixel size per variant — the class is
-   repeated to outrank .footer_link_hover_icon.w-variant-x on specificity
-   rather than on load order, which an embed could reverse. The em fallback is
-   only reached if the script has not run — it resolves against the
-   wrapper, which usually means 16px. */
-.footer_link_wrap .footer_link_hover_icon.footer_link_hover_icon {
-  width: var(--footer-icon-size, 0.72em);
-  height: var(--footer-icon-size, 0.72em);
-  aspect-ratio: 1;
-  flex: 0 0 auto;
-  align-self: center;
 }

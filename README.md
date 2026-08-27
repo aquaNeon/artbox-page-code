@@ -661,24 +661,6 @@ Dead with no markup left to match: `.meganav_mobile_dropdown`,
 old `.meganav_mobile_wrap` markup, which still holds another project's
 links — hidden by this file until it is deleted in the Designer.
 
-### Link icons
-
-The square beside a link (`.footer_link_hover_icon`) ships as a fixed pixel
-size per component variant, so an xl link in the sheet wore the same box as
-a small one in the footer. It is now cap height: 0.72 of its own label's
-font size — which is exactly the design's 16px against 22px in the bar and
-30px against 42px in the sheet — and always a square.
-
-An `em` would do this in CSS alone except the type style sits on the text
-div, not on the wrapper, so an em on the icon resolves against the
-wrapper's inherited 16px. CSS cannot read a sibling's font-size, so
-`sizeLinkIcons` measures it and hands the stylesheet `--footer-icon-size`.
-It runs at init for the persistent nav and footer, per container on mount,
-and again on resize, since the type scale is fluid.
-
-Override one link with `data-link-icon=0.8` on the wrap, or the site-wide
-ratio in the `LINK_ICON` object.
-
 ### Knobs
 
 | Variable | Default | |

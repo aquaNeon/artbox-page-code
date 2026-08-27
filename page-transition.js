@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-27-f';
+  const BUILD = '2026-08-27-d';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2102,56 +2102,6 @@
   });
 
 
-  /* ============================================================
-     LINK ICONS — .footer_link_hover_icon
-
-     The square next to a link is a fixed pixel size per component
-     variant, so the xl links in the meganav wear the same box as the
-     small ones in the footer. It should be cap height: 16px against
-     22px type in the bar, 30px against 42px in the sheet — both 0.72
-     of the font size, which is where the ratio below comes from.
-
-     An em would do this in CSS alone, except the type style sits on the
-     text div and not on the wrapper, so an em on the icon resolves
-     against the wrapper's inherited 16px and never grows. CSS cannot
-     read a sibling's font-size, so the size is measured here and handed
-     to the stylesheet as --footer-icon-size.
-
-     Per-link override: data-link-icon="0.8" on the wrap.
-     ============================================================ */
-
-  const LINK_ICON = { ratio: 0.72 };
-
-  function sizeLinkIcons(scope) {
-    const root = scope || document;
-    root.querySelectorAll('.footer_link_hover_icon').forEach((icon) => {
-      const wrap = icon.closest('.footer_link_wrap') || icon.parentElement;
-      if (!wrap) return;
-      const text = wrap.querySelector('[data-link-icon-text]')
-        || wrap.querySelector('.footer_link_text');
-      const size = parseFloat(getComputedStyle(text || wrap).fontSize);
-      if (!size) return;
-      const raw = parseFloat(wrap.dataset.linkIcon);
-      const ratio = Number.isFinite(raw) && raw > 0 ? raw : LINK_ICON.ratio;
-      icon.style.setProperty('--footer-icon-size', `${(size * ratio).toFixed(2)}px`);
-    });
-  }
-
-  /* The type scale is fluid, so the measured px is only right for the
-     width it was measured at. */
-  function watchLinkIcons() {
-    let queued = false;
-    window.addEventListener('resize', () => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => { queued = false; sizeLinkIcons(document); });
-    }, { passive: true });
-  }
-
-  Modules.add('linkIcons', function (root) {
-    sizeLinkIcons(root);
-  });
-
   Modules.add('slider', function (root) {
     const instances = [];
     const resizeHandlers = [];
@@ -2910,18 +2860,11 @@
     const inner = panel.querySelector('.meganav_panel_inner');
     const containerClass = Array.from(panel.classList)
       .find((c) => c === 'u-container' || c.startsWith('u-container'));
-    let containerRemoved = null;
-    let containerAdded = null;
-    if (inner && containerClass) {
-      /* Off the panel either way. Left on, its padding applies a second
-         time and the inner's max-width resolves inside an already inset
-         box — which reads as the content not being contained at all. */
+    let movedContainer = null;
+    if (inner && containerClass && !inner.classList.contains(containerClass)) {
       panel.classList.remove(containerClass);
-      containerRemoved = containerClass;
-      if (!inner.classList.contains(containerClass)) {
-        inner.classList.add(containerClass);
-        containerAdded = containerClass;
-      }
+      inner.classList.add(containerClass);
+      movedContainer = containerClass;
     }
 
     if (!panel.id) panel.id = 'meganav-panel';
@@ -3046,8 +2989,10 @@
     return () => {
       controller.abort();
       closeMeganav = () => {};
-      if (containerAdded) inner?.classList.remove(containerAdded);
-      if (containerRemoved) panel.classList.add(containerRemoved);
+      if (movedContainer) {
+        inner?.classList.remove(movedContainer);
+        panel.classList.add(movedContainer);
+      }
     };
   }
 
@@ -3103,8 +3048,6 @@
     onceFunctionsInitialized = true;
     initNavScroll();
     initMeganav();
-    sizeLinkIcons(document);
-    watchLinkIcons();
     // Persistent, non-swapped behaviour goes here
   }
 
