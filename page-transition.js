@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-27-c';
+  const BUILD = '2026-08-27-d';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2850,6 +2850,23 @@
       '.meganav_heading, .meganav_links_wrap .footer_link_wrap, [data-nav-content]'
     ));
 
+    /* The container class is on the panel in the Designer, but the panel
+       has to be full-bleed for the black to reach the edges — so its
+       max-width is overridden here and the content lost its margins with
+       it. Move the class down to the inner, where it constrains the
+       content and leaves the sheet alone. Done in script rather than in
+       CSS because the container's own rules (max-width, padding, the
+       auto margins) live in the Designer and are not ours to restate. */
+    const inner = panel.querySelector('.meganav_panel_inner');
+    const containerClass = Array.from(panel.classList)
+      .find((c) => c === 'u-container' || c.startsWith('u-container'));
+    let movedContainer = null;
+    if (inner && containerClass && !inner.classList.contains(containerClass)) {
+      panel.classList.remove(containerClass);
+      inner.classList.add(containerClass);
+      movedContainer = containerClass;
+    }
+
     if (!panel.id) panel.id = 'meganav-panel';
     panel.setAttribute('aria-hidden', 'true');
     toggles.forEach((t) => {
@@ -2972,6 +2989,10 @@
     return () => {
       controller.abort();
       closeMeganav = () => {};
+      if (movedContainer) {
+        inner?.classList.remove(movedContainer);
+        panel.classList.add(movedContainer);
+      }
     };
   }
 

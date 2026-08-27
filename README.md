@@ -628,6 +628,16 @@ The same reason `.meganav_root` does **not** get `height: 100vh`. It is a
 flow sibling of `.page_wrap`, so a full-height root would push the whole
 page down a viewport.
 
+### The container class
+
+`u-container` is on the panel in the Designer, but the sheet has to be
+full-bleed for the black to reach the edges — so its `max-width` is
+overridden here, and the content lost its margins along with it. On mount
+the module moves the container class down to `.meganav_panel_inner`, where
+it constrains the content and leaves the sheet alone, and puts it back on
+teardown. Moving it in the Designer instead is equally fine; the module
+sees it is already there and does nothing.
+
 ### Rules to delete from the nav's Webflow embed
 
 The rules in `page-transition.css` outrank the embed on specificity, not on
