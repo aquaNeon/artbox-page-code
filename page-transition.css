@@ -494,11 +494,24 @@ html.is-menu-open {
   min-width: 0;
 }
 
-/* max-width only. height:auto made the image as tall as its intrinsic
-   ratio, which is not what a wrap with a fixed aspect and object-fit
-   wants — the column grew instead of the image fitting. */
+/* The column carries aspect-ratio: 1/1, but a grid item stretches to its
+   row by default and stretch beats the ratio — so the column runs the
+   full height of the text beside it while the picture stays square, and
+   the gap underneath reads as the section being too tall. Let the wrap
+   and the image take that height instead of leaving it empty.
+
+   If the picture should stay square instead, drop these two rules and
+   give the column align-self: start — then the ratio governs and the
+   space goes away rather than being filled. */
+.post_contact_img_wrap {
+  height: 100%;
+}
+
 .post_contact_img_wrap img {
+  width: 100%;
+  height: 100%;
   max-width: 100%;
+  object-fit: cover;
 }
 
 /* An address or a phone number has no break opportunity, so it sets the
