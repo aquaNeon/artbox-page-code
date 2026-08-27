@@ -494,17 +494,24 @@ html.is-menu-open {
   min-width: 0;
 }
 
-/* The column carries aspect-ratio: 1/1, but a grid item stretches to its
-   row by default and stretch beats the ratio — so the column runs the
-   full height of the text beside it while the picture stays square, and
-   the gap underneath reads as the section being too tall. Let the wrap
-   and the image take that height instead of leaving it empty.
+/* Square, and only taller when the text beside it needs the room.
 
-   If the picture should stay square instead, drop these two rules and
-   give the column align-self: start — then the ratio governs and the
-   space goes away rather than being filled. */
+   aspect-ratio sets the height the wrap asks for, so a short text column
+   leaves the row exactly square. min-height: 100% is the concession: a
+   grid item stretches to its row, and when the copy is the taller of the
+   two the picture grows with it rather than leaving a hole underneath.
+   object-fit keeps the crop centred through both cases.
+
+   To pin it square regardless and accept the gap, set
+   --post-contact-img-grow: 0. */
 .post_contact_img_wrap {
-  height: 100%;
+  /* Width first: with only a ratio and a definite height, the box grows
+     sideways to stay square and spills out of its column. Pinning the
+     width means the concession is vertical only. */
+  width: 100%;
+  aspect-ratio: var(--post-contact-img-ratio, 1 / 1);
+  height: auto;
+  min-height: calc(100% * var(--post-contact-img-grow, 1));
 }
 
 .post_contact_img_wrap img {
@@ -512,6 +519,19 @@ html.is-menu-open {
   height: 100%;
   max-width: 100%;
   object-fit: cover;
+}
+
+/* With growth off, the column should sit at the top of its row rather
+   than being stretched by it. */
+.post_contact_content:has(.post_contact_img_wrap) {
+  align-self: var(--post-contact-img-align, stretch);
+
+  /* The ratio moves down to the wrap. Left on the column it fights the
+     grid: stretched to a tall row, a square column asks for a matching
+     WIDTH, the 1fr track grows to give it, and the section overflows
+     sideways. */
+  aspect-ratio: auto;
+  min-width: 0;
 }
 
 /* An address or a phone number has no break opportunity, so it sets the
