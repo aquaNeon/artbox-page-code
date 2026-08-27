@@ -127,3 +127,117 @@ html.is-transitioning {
     text-box: trim-both cap alphabetic;
   }
 }
+
+/* ============================================================
+   MEGANAV
+
+   The panel sits inside <nav class="meganav">, and the nav carries a
+   GSAP transform for the footer hide. Any non-none transform on an
+   ancestor makes position:fixed resolve against that ancestor instead
+   of the viewport — so the sheet is absolute and sized in viewport
+   units. The nav is fixed and pinned to the top edge, so that is the
+   same rectangle, without depending on the transform being identity.
+
+   These rules outrank the nav's own embed on specificity, not on
+   order: an embed inside the component renders in the body, after this
+   file, so a tie would go to the embed. Delete the superseded blocks
+   there when you get a chance — they are listed in the README.
+   ============================================================ */
+
+.meganav_root .meganav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+/* The bar rides above the sheet: logo and Meny stay legible on black. */
+.meganav_root .meganav_inner {
+  position: relative;
+  z-index: 2;
+}
+
+.meganav_root .meganav_panel {
+  --meganav-panel-bg: var(--_theme---background--background-primary, #191915);
+  --meganav-panel-text: var(--_colour---color--color-paper, #f7f7f5);
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  right: 0;
+  /* 100% of the fixed, full-width bar — not 100vw, which counts the
+     scrollbar and would push a horizontal one onto every page while the
+     sheet sits there clipped. */
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--meganav-panel-bg);
+  color: var(--meganav-panel-text);
+
+  /* Closed. clip-path rather than opacity so the module can swipe it
+     down from the top edge; visibility keeps it out of the tab order,
+     and the transition is cleared because GSAP owns these now. */
+  clip-path: inset(0% 0% 100% 0%);
+  opacity: 1;
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
+}
+
+.meganav_root .meganav_panel.is-open {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* The embed fades and lifts this; GSAP staggers the rows instead. */
+.meganav_root .meganav_panel_inner {
+  opacity: 1;
+  transform: none;
+  transition: none;
+  padding-top: var(--nav--height, 5rem);
+}
+
+/* Open state: the bar goes transparent over the sheet and its type
+   flips to the panel colour. Three classes deep so it beats the
+   embed's [data-transparent="true"].is-open, which is otherwise both
+   equal on specificity and later in the document. */
+.meganav_root .meganav.is-open,
+.meganav_root .meganav.is-open[data-transparent="true"],
+.meganav_root .meganav.is-open[data-transparent="false"] {
+  background-color: transparent;
+  color: var(--meganav-panel-text, #f7f7f5);
+}
+
+.meganav_root .meganav.is-open .meganav_logo_svg,
+.meganav_root .meganav.is-open .button_link_text,
+.meganav_root .meganav.is-open .button_link_arrow,
+.meganav_root .meganav.is-open .footer_link_text,
+.meganav_root .meganav.is-open .meganav_mobile_div {
+  color: var(--meganav-panel-text, #f7f7f5);
+}
+
+.meganav_root .meganav.is-open .meganav_mobile_div {
+  background-color: var(--meganav-panel-text, #f7f7f5);
+}
+
+/* The sheet is the mobile menu too. The old .meganav_mobile_wrap still
+   holds another project's links — hidden here so it cannot show,
+   delete it in the Designer. */
+@media screen and (max-width: 991px) {
+  .meganav_root .meganav_panel {
+    display: flex !important;
+  }
+
+  .meganav_root .meganav_mobile_wrap {
+    display: none !important;
+  }
+}
+
+/* Native scroll off while the sheet is up. Lenis is stopped in the
+   module — this is only the fallback for a page without it. */
+html.is-menu-open {
+  overflow: hidden;
+}

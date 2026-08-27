@@ -579,6 +579,86 @@ Script tags placed inside the swapped container never execute on a Barba
 navigation. The three former inline section embeds now live here as modules —
 delete them in the Designer or they run twice on first load.
 
+## Meganav
+
+The Meny button opens a full-viewport sheet that swipes down from the top
+edge, with its contents rising in behind the swipe. Init runs once from
+`initOnceFunctions`, not per container: the nav is persistent, and a
+per-container mount would bind a second set of listeners on every
+navigation while `sync: true` keeps the outgoing page alive.
+
+| Looked for | Role |
+| --- | --- |
+| `[data-nav]` / `.meganav` | the bar. Also the scroll-state target |
+| `[data-nav-panel]` / `.meganav_panel` | the sheet |
+| `[data-nav-toggle]`, `.meganav_button_nav_open-wrap`, `.meganav_mobile_open` | anything that opens it. The click is caught on the wrapper, so the `href="#"` anchor inside never jumps the page |
+| `.meganav_feature_text`, `.button_main_wrap`, `.meganav_heading`, `.footer_link_wrap`, `[data-nav-content]` | the rows that stagger in, in DOM order |
+
+Escape closes it, so does a click on any link inside, and `beforeLeave`
+closes it instantly at the start of a navigation — `syncNavFrom` drops the
+`is-open` class, but the inline `clip-path` set here would survive that and
+leave an invisible sheet over the incoming page.
+
+Scroll is locked through the Lenis instance (`lenis.stop()`), with
+`html.is-menu-open { overflow: hidden }` as the fallback. `overflow: hidden`
+alone does nothing while Lenis owns the scroll — that is the bug in the
+nav this was ported from.
+
+`.is-open` lands on both the nav and the panel, and on the way out the
+panel keeps it until the swipe finishes: `.is-open` carries `visibility`,
+so dropping it at the start made the sheet vanish instead of leaving.
+Pointer events go dead from the first frame of the close regardless.
+
+Timing lives in the `MENU` object. The curve is the reference nav's
+`cubic-bezier(0.05, 0.7, 0.1, 1)` over 0.89s.
+
+### Why the sheet is absolute, not fixed
+
+It sits inside `<nav class="meganav">`, which is where the Designer put it,
+and the nav carries a GSAP transform for the footer hide. Any non-none
+transform on an ancestor makes a `position: fixed` descendant resolve
+against that ancestor instead of the viewport — the sheet would be the size
+of the bar. So the nav is pinned `fixed` to the top edge and the sheet is
+`absolute` at `top: 0; right: 0; left: 0; height: 100dvh`, which is the same
+rectangle without depending on the transform being the identity. `width:
+100%`, not `100vw`: `100vw` counts the scrollbar and would push a
+horizontal one onto every page while the sheet sits there clipped.
+
+The same reason `.meganav_root` does **not** get `height: 100vh`. It is a
+flow sibling of `.page_wrap`, so a full-height root would push the whole
+page down a viewport.
+
+### Rules to delete from the nav's Webflow embed
+
+The rules in `page-transition.css` outrank the embed on specificity, not on
+order — an embed inside the component renders in the body, *after* this
+file, so a tie goes to the embed. These are superseded and only confuse the
+next reader:
+
+- `.meganav_panel` — `position: absolute; top: 100%`, the `opacity` /
+  `visibility` transitions, and `background-color: var(--_theme---nav--nav-menu)`
+  (the sheet is `#191915`, not the light navbar colour)
+- `.meganav_panel_inner` — the fade and lift; GSAP staggers the rows now
+- `@media (max-width: 991px) { .meganav_panel { display: none !important } }`
+  — the sheet *is* the mobile menu
+- `[data-transparent="true"].is-open { background-color: … }` — the bar goes
+  transparent over the sheet
+- `.meganav { z-index: 999999 }` — the root is at 100 and the page layers at 1–2
+
+Dead with no markup left to match: `.meganav_mobile_dropdown`,
+`.meganav_mobile_icon`, `.meganav_locale_*`, `.meganav_card`,
+`.meganav_link_sub`, `.meganav_link_group`, `.meganav_backdrop`. So is the
+old `.meganav_mobile_wrap` markup, which still holds another project's
+links — hidden by this file until it is deleted in the Designer.
+
+### Knobs
+
+| Variable | Default | |
+| --- | --- | --- |
+| `--meganav-panel-bg` | `--_theme---background--background-primary`, `#191915` | sheet |
+| `--meganav-panel-text` | `--_colour---color--color-paper`, `#f7f7f5` | sheet type, and the bar while open |
+| `--nav--height` | `5rem` | the sheet's top padding, so its content clears the bar |
+
 ## Footer and the transition
 
 The footer is `position: fixed` behind the page and revealed by the page

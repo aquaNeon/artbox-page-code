@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-27-b';
+  const BUILD = '2026-08-27-c';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2783,6 +2783,199 @@
     apply();
   }
 
+  /* ============================================================
+     MEGANAV
+
+     The Meny button opens a full-viewport sheet that swipes down from
+     the top edge, and its contents rise in behind the swipe.
+
+     The panel lives INSIDE <nav class="meganav">, which is where the
+     Designer put it, and the nav carries a GSAP transform for the
+     footer hide. Any non-none transform on an ancestor makes a
+     position:fixed descendant resolve against that ancestor rather than
+     the viewport, so the panel is absolute and sized in viewport units
+     instead: same rectangle, no dependency on the nav's transform being
+     the identity. The CSS half of this lives in page-transition.css.
+
+     Init runs once, not per container: the nav is persistent, and a
+     per-container mount would bind a second set of listeners on every
+     navigation while sync:true keeps the outgoing page alive.
+     ============================================================ */
+
+  const MENU = {
+    duration: 0.89,          // the swipe, matching the reference
+    ease: 'menuSwipe',
+    contentDelay: 0.18,      // content starts while the sheet is still moving
+    contentDuration: 0.6,
+    contentStagger: 0.05,
+    contentShift: 40,        // px the rows rise
+    contentEase: 'power3.out'
+  };
+
+  CustomEase.create('menuSwipe', '0.05, 0.7, 0.1, 1');
+
+  const CLOSED_CLIP = 'inset(0% 0% 100% 0%)';
+  const OPEN_CLIP = 'inset(0% 0% 0% 0%)';
+
+  /* Called from beforeLeave. A navigation started from inside the menu
+     has to leave nothing behind: syncNavFrom drops the is-open class,
+     but the inline clip-path and pointer-events set here would survive
+     it and leave an invisible sheet over the incoming page. */
+  let closeMeganav = () => {};
+
+  function initMeganav() {
+    const nav = findNav();
+    const panel = document.querySelector('[data-nav-panel]')
+      || document.querySelector('.meganav_panel');
+    if (!nav || !panel) return;
+
+    /* The Designer's toggle is a div wrapping an <a href="#">, and the
+       mobile burger is another anchor. Both are matched here, and the
+       click is intercepted on the wrapper so the inner anchor's default
+       is cancelled on the way past. */
+    const toggles = Array.from(new Set([
+      ...document.querySelectorAll('[data-nav-toggle]'),
+      ...document.querySelectorAll('.meganav_button_nav_open-wrap'),
+      ...document.querySelectorAll('.meganav_mobile_open')
+    ]));
+    if (!toggles.length) {
+      console.warn('[meganav] no toggle found — add data-nav-toggle to the Meny button');
+      return;
+    }
+
+    /* In DOM order, so the stagger reads down the sheet: the statement
+       and its button first, then each group heading and its links. */
+    const content = Array.from(panel.querySelectorAll(
+      '.meganav_feature_text, .meganav_feature_wrap .button_main_wrap, ' +
+      '.meganav_heading, .meganav_links_wrap .footer_link_wrap, [data-nav-content]'
+    ));
+
+    if (!panel.id) panel.id = 'meganav-panel';
+    panel.setAttribute('aria-hidden', 'true');
+    toggles.forEach((t) => {
+      t.setAttribute('aria-expanded', 'false');
+      t.setAttribute('aria-controls', panel.id);
+    });
+
+    let open = false;
+    let tl = null;
+
+    const lock = (on) => {
+      document.documentElement.classList.toggle('is-menu-open', on);
+      if (!hasLenis || !lenis) return;
+      /* Lenis owns the scroll, so overflow:hidden alone does nothing —
+         it would keep scrolling the page behind the sheet. */
+      if (on) lenis.stop(); else lenis.start();
+    };
+
+    /* aria and the bar flip immediately; .is-open is what carries
+       visibility on the panel, so on the way out it has to outlive the
+       swipe or the sheet disappears instead of leaving. */
+    const paint = () => {
+      nav.classList.toggle('is-open', open);
+      if (open) panel.classList.add('is-open');
+      panel.setAttribute('aria-hidden', String(!open));
+      toggles.forEach((t) => t.setAttribute('aria-expanded', String(open)));
+    };
+
+    function show() {
+      if (open) return;
+      open = true;
+      paint();
+      lock(true);
+      resetNav();               // the sheet is full height; the bar has to be on screen
+
+      tl?.kill();
+      gsap.killTweensOf(content);
+
+      if (reducedMotion) {
+        gsap.set(panel, { clipPath: OPEN_CLIP });
+        gsap.set(content, { y: 0, opacity: 1 });
+        return;
+      }
+
+      tl = gsap.timeline();
+      tl.fromTo(panel,
+        { clipPath: CLOSED_CLIP },
+        { clipPath: OPEN_CLIP, duration: MENU.duration, ease: MENU.ease },
+        0
+      );
+      if (content.length) {
+        tl.fromTo(content,
+          { y: MENU.contentShift, opacity: 0 },
+          {
+            y: 0, opacity: 1,
+            duration: MENU.contentDuration,
+            ease: MENU.contentEase,
+            stagger: MENU.contentStagger
+          },
+          MENU.contentDelay
+        );
+      }
+    }
+
+    function hide(instant) {
+      if (!open) return;
+      open = false;
+      paint();
+      lock(false);
+
+      tl?.kill();
+      gsap.killTweensOf(content);
+
+      /* Clicks pass through from the first frame of the close, but the
+       class stays until the swipe is done. */
+      gsap.set(panel, { pointerEvents: 'none' });
+
+      const done = () => {
+        panel.classList.remove('is-open');
+        /* Back to the CSS's own closed state, so a resize or a theme
+           change is not competing with a stale inline clip-path. */
+        gsap.set(panel, { clearProps: 'clipPath,pointerEvents' });
+        gsap.set(content, { clearProps: 'transform,opacity' });
+      };
+
+      if (instant || reducedMotion) { done(); return; }
+
+      tl = gsap.timeline({ onComplete: done });
+      tl.to(panel, { clipPath: CLOSED_CLIP, duration: MENU.duration, ease: MENU.ease }, 0);
+      tl.to(content, { opacity: 0, duration: 0.25, ease: 'power2.out' }, 0);
+    }
+
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    toggles.forEach((toggle) => {
+      toggle.addEventListener('click', (e) => {
+        /* The anchor inside is href="#": left alone it jumps the page to
+           the top and, on some templates, adds a history entry. */
+        e.preventDefault();
+        if (open) hide(); else show();
+      }, { signal });
+    });
+
+    /* A link inside the sheet is a normal navigation — barba's beforeLeave
+       closes the menu — but a link to the current page never fires it. */
+    panel.addEventListener('click', (e) => {
+      if (e.target.closest('a[href]')) hide();
+    }, { signal });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && open) {
+        hide();
+        toggles[0]?.focus?.();
+      }
+    }, { signal });
+
+    closeMeganav = () => hide(true);
+
+    return () => {
+      controller.abort();
+      closeMeganav = () => {};
+    };
+  }
+
+
   function findNav() {
     return document.querySelector('[data-nav]')
       || document.querySelector('.meganav')
@@ -2833,7 +3026,8 @@
     if (onceFunctionsInitialized) return;
     onceFunctionsInitialized = true;
     initNavScroll();
-    // Persistent, non-swapped behaviour goes here (meganav etc)
+    initMeganav();
+    // Persistent, non-swapped behaviour goes here
   }
 
   function initBeforeEnterFunctions(next) {
@@ -3165,6 +3359,7 @@
 
   barba.hooks.beforeLeave((data) => {
     root.classList.add('is-transitioning');
+    closeMeganav();
     resetNav();
     restoreFooterLayer();
     captureFooterForLeave(data?.current?.container);
