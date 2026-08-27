@@ -241,3 +241,128 @@ html.is-transitioning {
 html.is-menu-open {
   overflow: hidden;
 }
+
+/* ============================================================
+   UNDERLINE LINKS — [data-underline-link]
+
+   Two lines rather than one: the resting line wipes out to the right,
+   and a fresh one wipes in from the left behind it. One line scaling
+   out and back in reads as a retreat and a return; two read as a
+   replacement, which is the whole point of the effect.
+
+   Put the attribute on the element that should carry the line — the
+   text, or the wrap if the line runs under an icon too. The static
+   border on that element is turned transparent rather than removed, so
+   the space it reserves stays and nothing shifts.
+
+   Hover is taken from the marked element, from any ancestor link or
+   button, from an ancestor marked [data-hover], and from a Webflow
+   overlay anchor (.g_clickable_wrap) covering the component — which is
+   a SIBLING of the text, so the element itself never sees the pointer.
+   That last one is why this cannot be left to :hover alone.
+   ============================================================ */
+
+/* Doubled attribute: the static border is usually declared as a
+   shorthand on a class, and a shorthand later in the cascade beats a
+   single-attribute rule on a tie. Opt out per element with
+   data-underline-keep-border. */
+[data-underline-link]:not([data-underline-keep-border]),
+[data-underline-link][data-underline-link]:not([data-underline-keep-border]) {
+  border-bottom-color: transparent;
+}
+
+[data-underline-link] {
+  --underline-thickness: max(1px, 0.0625em);
+  --underline-offset: 0px;
+  --underline-duration: 0.735s;
+  --underline-delay: 0.3s;
+  --underline-ease: cubic-bezier(0.625, 0.05, 0, 1);
+
+  position: relative;
+  text-decoration: none;
+}
+
+[data-underline-link]::before,
+[data-underline-link]::after {
+  content: "";
+  position: absolute;
+  bottom: calc(var(--underline-offset) * -1);
+  left: 0;
+  width: 100%;
+  height: var(--underline-thickness);
+  background-color: currentColor;
+  pointer-events: none;
+  /* The hairline rotation keeps the scaled edge on the compositor
+     instead of snapping to a device pixel mid-tween. */
+  transform: scaleX(0) rotate(0.001deg);
+  transition: transform var(--underline-duration) var(--underline-ease);
+}
+
+/* At rest: ::before is the line you can see, ::after is the one waiting
+   off to the left. The delay on ::before is what makes the return trip
+   wait for the outgoing line to finish. */
+[data-underline-link]::before {
+  transform-origin: left;
+  transform: scaleX(1) rotate(0.001deg);
+  transition-delay: var(--underline-delay);
+}
+
+[data-underline-link]::after {
+  transform-origin: right;
+  transition-delay: 0s;
+}
+
+/* The single-line version, for a link that should just draw itself in. */
+[data-underline-link="simple"]::before {
+  transform-origin: right;
+  transform: scaleX(0) rotate(0.001deg);
+  transition-delay: 0s;
+}
+
+[data-underline-link="simple"]::after {
+  content: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-underline-link]:hover::before,
+  [data-underline-link]:focus-visible::before,
+  [data-hover]:hover [data-underline-link]::before,
+  a:hover [data-underline-link]::before,
+  button:hover [data-underline-link]::before,
+  *:has(> .g_clickable_wrap:hover) [data-underline-link]::before,
+  *:has(> .g_clickable_wrap:focus-visible) [data-underline-link]::before {
+    transform-origin: right;
+    transform: scaleX(0) rotate(0.001deg);
+    transition-delay: 0s;
+  }
+
+  [data-underline-link]:hover::after,
+  [data-underline-link]:focus-visible::after,
+  [data-hover]:hover [data-underline-link]::after,
+  a:hover [data-underline-link]::after,
+  button:hover [data-underline-link]::after,
+  *:has(> .g_clickable_wrap:hover) [data-underline-link]::after,
+  *:has(> .g_clickable_wrap:focus-visible) [data-underline-link]::after {
+    transform-origin: left;
+    transform: scaleX(1) rotate(0.001deg);
+    transition-delay: var(--underline-delay);
+  }
+
+  /* The simple variant has one line, so it draws in from the left and
+     retreats the way it came. */
+  [data-underline-link="simple"]:hover::before,
+  [data-hover]:hover [data-underline-link="simple"]::before,
+  a:hover [data-underline-link="simple"]::before,
+  *:has(> .g_clickable_wrap:hover) [data-underline-link="simple"]::before {
+    transform-origin: left;
+    transform: scaleX(1) rotate(0.001deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-underline-link]::before,
+  [data-underline-link]::after {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
+}

@@ -579,6 +579,47 @@ Script tags placed inside the swapped container never execute on a Barba
 navigation. The three former inline section embeds now live here as modules —
 delete them in the Designer or they run twice on first load.
 
+## Underline links — `[data-underline-link]`
+
+Hovering wipes the resting line out to the right while a fresh one wipes in
+from the left behind it. Two lines, not one: a single line scaling out and
+back reads as a retreat and a return, two read as a replacement.
+
+Put the attribute on the element that should carry the line — the text, or
+the wrap if the line runs under an icon too. Nothing else to add.
+
+| Attribute | Where | Meaning |
+| --- | --- | --- |
+| `data-underline-link` | the element with the line | The two-line wipe |
+| `data-underline-link="simple"` | same | One line, draws in from the left and retreats the way it came |
+| `data-hover` | an ancestor | That element's hover drives the line, for a trigger area bigger than the text |
+| `data-underline-keep-border` | the element | Leave its static border alone |
+
+Hover is also picked up from an ancestor `a` or `button`, and from a Webflow
+overlay anchor (`.g_clickable_wrap`) covering the component — that anchor is
+a **sibling** of the text, so the marked element never sees the pointer and
+`:hover` alone would never fire. Keyboard focus on either the element or the
+overlay triggers it too.
+
+The static border is turned transparent rather than removed, so the space it
+reserves stays and nothing shifts on hover. That rule is written twice over
+(`[data-underline-link][data-underline-link]`) because the border is usually
+a shorthand on a class, and a shorthand later in the cascade beats a
+single-attribute rule on a tie.
+
+Tuning, per element or globally:
+
+| Variable | Default |
+| --- | --- |
+| `--underline-thickness` | `max(1px, 0.0625em)` — scales with the type |
+| `--underline-offset` | `0px` below the box |
+| `--underline-duration` | `0.735s` |
+| `--underline-delay` | `0.3s` between the two lines |
+| `--underline-ease` | `cubic-bezier(0.625, 0.05, 0, 1)` |
+
+Desktop pointers only (`(hover: hover) and (pointer: fine)`), and under
+`prefers-reduced-motion` the lines swap instantly.
+
 ## Meganav
 
 The Meny button opens a full-viewport sheet that swipes down from the top
