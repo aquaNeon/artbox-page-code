@@ -660,6 +660,17 @@ only as far as its content needs, with `max-height: var(--meganav-mobile-max,
 100dvh)` to keep a long menu on screen and let it scroll rather than run off
 the bottom. Same clip-path swipe, same everything else.
 
+### The burger
+
+While the sheet is open the two bars cross into an X and turn the panel
+text colour. Each bar travels half the distance between them — the gap plus
+one bar's thickness, halved — so they meet on the centre line before they
+rotate. `--burger-gap` and `--burger-thickness` default to the values in the
+nav embed (5px / 1.5px); set them if the Designer ones change.
+
+Driven off `.meganav.is-open`, not off a class on the burger itself, so
+there is one state flag for the whole nav.
+
 ### Borders in the open state
 
 The open-state rules used to move only the type, so a link's underline —

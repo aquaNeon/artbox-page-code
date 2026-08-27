@@ -161,11 +161,6 @@ html.is-transitioning {
   --meganav-panel-bg: var(--_theme---background--background-primary, #191915);
   --meganav-panel-text: var(--_colour---color--color-paper, #f7f7f5);
 
-  /* Anything nested that themes itself off the site token — text inside
-     a component, not just the classes listed further down — follows the
-     sheet. Components with their own tokens (buttons) still need the
-     Designer theme class on the panel. */
-  --_theme---text-primary: var(--meganav-panel-text, #f7f7f5);
 
   position: absolute;
   top: 0;
@@ -255,6 +250,36 @@ html.is-transitioning {
 
 .meganav_root .meganav.is-open .meganav_mobile_div {
   background-color: var(--meganav-panel-text, #f7f7f5);
+}
+
+/* The burger crosses into an X while the sheet is open. Each bar travels
+   half the distance between them — the gap plus one bar's thickness,
+   halved — so they meet on the centre line before they rotate. Set
+   --burger-gap / --burger-thickness if the Designer values change; the
+   defaults are the ones in the nav embed. */
+.meganav_root .meganav_mobile_div {
+  --burger-gap: 5px;
+  --burger-thickness: 1.5px;
+  --burger-shift: calc((var(--burger-gap) + var(--burger-thickness)) / 2);
+
+  transform-origin: center;
+  transition:
+    transform 0.45s cubic-bezier(0.05, 0.7, 0.1, 1),
+    background-color 0.3s cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+.meganav_root .meganav.is-open .meganav_mobile_div:nth-child(1) {
+  transform: translateY(var(--burger-shift)) rotate(45deg);
+}
+
+.meganav_root .meganav.is-open .meganav_mobile_div:nth-child(2) {
+  transform: translateY(calc(var(--burger-shift) * -1)) rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meganav_root .meganav_mobile_div {
+    transition-duration: 0.01ms;
+  }
 }
 
 /* The sheet is the mobile menu too. The old .meganav_mobile_wrap still
