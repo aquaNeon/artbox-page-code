@@ -212,11 +212,30 @@ html.is-transitioning {
 }
 
 .meganav_root .meganav.is-open .meganav_logo_svg,
+.meganav_root .meganav.is-open .button_link_wrap,
 .meganav_root .meganav.is-open .button_link_text,
 .meganav_root .meganav.is-open .button_link_arrow,
+.meganav_root .meganav.is-open .footer_link_wrap,
 .meganav_root .meganav.is-open .footer_link_text,
 .meganav_root .meganav.is-open .meganav_mobile_div {
   color: var(--meganav-panel-text, #f7f7f5);
+}
+
+/* The rules above only ever moved the type. A link's underline is a real
+   border with a theme colour of its own, so it stayed dark on the black
+   sheet — a stray dark hairline under a white label.
+
+   Marked elements are excluded: [data-underline-link] holds its border at
+   transparent on purpose and draws the line as a pseudo-element in
+   currentColor, which the colour rule above already handles. Painting the
+   border back would put a static line under the animation. */
+.meganav_root .meganav.is-open .button_link_wrap:not([data-underline-link]),
+.meganav_root .meganav.is-open .button_link_text:not([data-underline-link]),
+.meganav_root .meganav.is-open .button_link_element:not([data-underline-link]),
+.meganav_root .meganav.is-open .footer_link_wrap:not([data-underline-link]),
+.meganav_root .meganav.is-open .footer_link_text:not([data-underline-link]),
+.meganav_root .meganav.is-open [data-nav-border]:not([data-underline-link]) {
+  border-color: var(--meganav-panel-text, #f7f7f5);
 }
 
 .meganav_root .meganav.is-open .meganav_mobile_div {

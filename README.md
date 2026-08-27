@@ -660,6 +660,19 @@ only as far as its content needs, with `max-height: var(--meganav-mobile-max,
 100dvh)` to keep a long menu on screen and let it scroll rather than run off
 the bottom. Same clip-path swipe, same everything else.
 
+### Borders in the open state
+
+The open-state rules used to move only the type, so a link's underline —
+a real border carrying its own theme colour — stayed dark on the black sheet.
+The bar's bordered elements now take `--meganav-panel-text` as their border
+colour while the menu is open, and `[data-nav-border]` on any other element
+opts it into the same treatment.
+
+`[data-underline-link]` is excluded on purpose: it holds its border at
+transparent and draws the line as a pseudo-element in `currentColor`, which
+the colour rules already flip. Painting the border back would leave a static
+line sitting under the animated one.
+
 ### The toggle label
 
 Opening swaps the toggle text to `Lukk` and closing puts it back, faded
