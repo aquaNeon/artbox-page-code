@@ -161,6 +161,12 @@ html.is-transitioning {
   --meganav-panel-bg: var(--_theme---background--background-primary, #191915);
   --meganav-panel-text: var(--_colour---color--color-paper, #f7f7f5);
 
+  /* Anything nested that themes itself off the site token — text inside
+     a component, not just the classes listed further down — follows the
+     sheet. Components with their own tokens (buttons) still need the
+     Designer theme class on the panel. */
+  --_theme---text-primary: var(--meganav-panel-text, #f7f7f5);
+
   position: absolute;
   top: 0;
   left: 0;
@@ -197,7 +203,16 @@ html.is-transitioning {
   opacity: 1;
   transform: none;
   transition: none;
+
+  /* The panel is outside .page_wrap, and the site container's page margin
+     comes from a variable that does not resolve out here — it hands the
+     inner a max-width and no padding, so the content ran to the edges.
+     Own the insets instead, from one variable: point --meganav-inline at
+     your own margin token to keep them in step. */
   padding-top: var(--nav--height, 5rem);
+  padding-bottom: var(--meganav-bottom, 3rem);
+  padding-left: var(--meganav-inline, 3rem);
+  padding-right: var(--meganav-inline, 3rem);
 }
 
 /* Open state: the bar goes transparent over the sheet and its type
@@ -257,6 +272,22 @@ html.is-transitioning {
 
   .meganav_root .meganav_mobile_wrap {
     display: none !important;
+  }
+
+  /* The inner is a two-column grid from the Designer, which at phone
+     width collapses the column the CTA sits in — the button measured
+     zero wide. Stack it, the way the mobile frame is drawn. */
+  .meganav_root .meganav_panel_inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--meganav-mobile-gap, 2rem);
+    padding-left: var(--meganav-inline-mobile, 1rem);
+    padding-right: var(--meganav-inline-mobile, 1rem);
+  }
+
+  .meganav_root .meganav_panel_inner > * {
+    width: 100%;
+    max-width: none;
   }
 }
 
