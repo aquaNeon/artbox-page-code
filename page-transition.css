@@ -475,3 +475,33 @@ html.is-menu-open {
 .meganav_root .meganav_panel .button_main_icon {
   color: var(--meganav-cta-text, var(--meganav-panel-bg, #191915));
 }
+
+/* ============================================================
+   POST CONTACT — .post_contact_wrap
+
+   Grid and flex children default to min-width:auto, which means they
+   refuse to shrink below their own content: a wide image or an
+   unbreakable string pushes the track past the container rather than
+   fitting inside it. min-width:0 lets them shrink, which is what makes
+   the image and the text stay in their parent.
+   ============================================================ */
+.post_contact_grid > *,
+.post_contact_inner_wrap,
+.post_contact_content,
+.post_contact_img_wrap,
+.post_contact_details,
+.post_contact_heading {
+  min-width: 0;
+}
+
+.post_contact_img_wrap img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* An address or a phone number has no break opportunity, so it sets the
+   minimum width of everything above it until it is allowed one. */
+.post_contact_details .button_link_text {
+  overflow-wrap: anywhere;
+}
