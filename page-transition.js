@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-26-f';
+  const BUILD = '2026-08-27-a';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -59,6 +59,19 @@
   const durationDefault = 0.6;
   CustomEase.create('osmo', '0.625, 0.05, 0, 1');
   gsap.defaults({ ease: 'osmo', duration: durationDefault });
+
+  /* The page transition itself: the outgoing page blurs and fades out
+     while the incoming one sharpens and fades in, both at once, both
+     filling the same rectangle. CustomEase takes the four numbers of a
+     CSS cubic-bezier as-is, so this is the same curve the reference CSS
+     used. */
+  CustomEase.create('pageFade', '0.25, 0.46, 0.45, 0.94');
+
+  const FADE = {
+    duration: 1,
+    blur: 5,          // px, on both layers
+    ease: 'pageFade'
+  };
 
 
   /* ============================================================
@@ -2741,8 +2754,14 @@
 
   /* ============================================================
      PAGE TRANSITIONS
-     3D side-by-side. Current page pushes back and exits left, new
-     page slides in from the right and comes forward.
+     Crossfade. Both pages occupy the same rectangle for a second:
+     the outgoing one blurs and fades out under the incoming one,
+     which sharpens and fades in on top of it.
+
+     The layer machinery below is unchanged from the 3D version and
+     is not decoration — the two pages have to be lifted out of flow
+     to overlap at all, which is the same thing swup's parallel
+     plugin does by keeping both containers in the DOM at once.
      ============================================================ */
 
   function runPageOnceAnimation(next) {
@@ -2809,10 +2828,14 @@
        100vh box at once and the whole page composited onto itself. The
        clip-path below does the clipping without that side effect;
        html.is-transitioning handles the scrollbars. */
+    /* The outgoing page sits UNDER the incoming one and stops taking
+       clicks the moment the swap starts — it is still in the DOM for a
+       full second and its links are still live otherwise. */
     gsap.set(wrapper, {
       position: 'fixed', top: -offsetY, left: -offsetX,
       width: '100%', height: '100vh',
-      zIndex: 2, transformStyle: 'preserve-3d', willChange: 'transform',
+      zIndex: 1, pointerEvents: 'none',
+      willChange: 'opacity, filter',
       clipPath: 'rect(0% 100% 100% 0% round 0em)'
     });
 
@@ -2842,9 +2865,9 @@
     gsap.set(nextWrapper, {
       position: 'fixed', top: -offsetY, left: -offsetX,
       width: '100%', height: '100vh',
-      zIndex: 1, transformStyle: 'preserve-3d',
-      willChange: 'transform, opacity', backfaceVisibility: 'hidden',
-      xPercent: 175, z: '-100vw', autoAlpha: 1,
+      zIndex: 2,
+      willChange: 'opacity, filter',
+      autoAlpha: 0, filter: `blur(${FADE.blur}px)`,
       clipPath: 'rect(0% 100% 100% 0% round 0em)'
     });
 
@@ -2905,9 +2928,14 @@
      scroll position to the new bottom, and the page slides down over the
      footer — so by the time the leave timeline measures anything, a footer
      that filled half the screen looks like one nobody ever scrolled to. */
-  function captureFooterForLeave() {
+  function captureFooterForLeave(current) {
     const footer = document.querySelector('.footer_wrap');
-    const page = document.querySelector('.page_wrap');
+    /* The OUTGOING container, not .page_wrap. sync:true runs beforeEnter
+       first, so by the time this fires the incoming container is already
+       sitting in .page_wrap and the wrapper measures twice as tall as the
+       page anybody is looking at — every navigation then reads as one
+       where the footer was nowhere near the screen. */
+    const page = current || document.querySelector('.page_wrap');
     footerAtLeave = null;
     if (!footer || !page) return;
     if (page.getBoundingClientRect().bottom >= window.innerHeight - 1) return;
@@ -2969,25 +2997,24 @@
           clearProps: 'perspective,perspectiveOrigin,transformStyle,overflow'
         });
         gsap.set(next, {
-          clearProps: 'position,inset,width,height,zIndex,transformStyle,willChange,backfaceVisibility,transform'
+          clearProps: 'position,inset,width,height,zIndex,transformStyle,willChange,backfaceVisibility,transform,filter,opacity,visibility'
         });
       }
     });
 
     if (reducedMotion) return tl.set(current, { autoAlpha: 0 });
 
+    /* Both at position 0. The overlap is the whole effect: a sequential
+       version reads as two separate fades with a flat gap between them. */
     tl.to(wrapper, {
-      z: '-100vw', duration: 0.9,
-      clipPath: 'rect(0% 100% 100% 0% round 0em)'
+      autoAlpha: 0, filter: `blur(${FADE.blur}px)`,
+      duration: FADE.duration, ease: FADE.ease
     }, 0);
 
-    tl.to(wrapper, { xPercent: -175, duration: 1, overwrite: 'auto' }, 0.25);
-    tl.to(nextWrapper, { xPercent: 0, duration: 1, overwrite: 'auto' }, '<');
-
     tl.to(nextWrapper, {
-      z: 0, duration: 0.9, overwrite: 'auto',
-      clipPath: 'rect(0% 100% 100% 0% round 0em)'
-    }, '>-=0.4');
+      autoAlpha: 1, filter: 'blur(0px)',
+      duration: FADE.duration, ease: FADE.ease
+    }, 0);
 
     return tl;
   }
@@ -3036,11 +3063,11 @@
 
   const root = document.documentElement;
 
-  barba.hooks.beforeLeave(() => {
+  barba.hooks.beforeLeave((data) => {
     root.classList.add('is-transitioning');
     resetNav();
     restoreFooterLayer();
-    captureFooterForLeave();
+    captureFooterForLeave(data?.current?.container);
     FooterReveal.collapse();
     leaveDone = new Promise((resolve) => { resolveLeave = resolve; });
   });

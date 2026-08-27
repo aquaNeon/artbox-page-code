@@ -114,16 +114,45 @@ resolving against the viewport.
 | `data-barba="container"` | `main.page_main` | The swapped element |
 | `data-barba-namespace` | `main.page_main` | Template identity |
 | `data-nav-transparent` | `main.page_main` | Copied to the persistent nav as `data-transparent`; defaults to `true` |
-| `data-transition-bg` | `main.page_main` | Colour of the 3D gap while navigating *to* this page. Accepts a literal (`#111`, `black`) or a variable name (`--swatch--brand`) |
+| `data-transition-bg` | `main.page_main` | Colour behind both pages while navigating *to* this page. Accepts a literal (`#111`, `black`) or a variable name (`--swatch--brand`) |
 | `data-barba-update` | nav links | `class` and `aria-current` are synced from the incoming page |
 | `data-barba-prevent` | any link | Opt that link out of the transition |
 
 Links are also skipped automatically for `target="_blank"`, `download`,
 `mailto:`/`tel:`, and same-page `#` hashes.
 
-## Transition background
+## The transition
 
-The colour visible in the gap between the two pages comes from
+A crossfade. Both pages occupy the same rectangle for one second: the
+outgoing page blurs to 5px and fades out underneath, while the incoming
+page sharpens from 5px and fades in on top. Both tweens start at position
+0 — the overlap is the whole effect, and a sequential version reads as two
+separate fades with a flat gap between them. Timing, blur radius and ease
+live in the `FADE` object; the curve is the CSS `cubic-bezier(0.25, 0.46,
+0.45, 0.94)` handed to `CustomEase` as the same four numbers.
+
+The layer machinery underneath it is not decoration. Both containers are
+lifted into fixed, viewport-sized wrappers so they can overlap at all —
+the same thing swup's parallel plugin does by keeping the old and new
+containers in the DOM together. Barba is already running `sync: true`, so
+the incoming page is mounted while the outgoing one is still animating,
+which is what makes the overlap possible without a second router.
+
+The outgoing wrapper sits at `z-index: 1` with `pointer-events: none` and
+the incoming one at `z-index: 2` — it is in the DOM for a full second with
+live links otherwise, exactly what swup's `#swup.is-previous-container`
+rule is for.
+
+**Not ported from the swup version:** the nested `#swup` scroll container.
+This site scrolls on `window`, and Lenis, ScrollTrigger, the sticky
+sections, the footer reveal and the nav state all measure against it. A
+`100dvh` shell with `overflow-y: auto` on the container would mean
+rewriting all five. The visual result is the same either way, since the
+crossfade only needs the two containers to overlap.
+
+### Transition background
+
+The colour behind both pages while they crossfade comes from
 `.page-transition__backdrop`, a div that exists only for the duration of a
 navigation. It is separate from the page background on purpose — changing it
 does not affect `.page_wrap`.
