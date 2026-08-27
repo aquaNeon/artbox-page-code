@@ -660,6 +660,14 @@ only as far as its content needs, with `max-height: var(--meganav-mobile-max,
 100dvh)` to keep a long menu on screen and let it scroll rather than run off
 the bottom. Same clip-path swipe, same everything else.
 
+### The panel CTA
+
+The button ships its palette per style variant, so on the black sheet the
+primary style kept rendering dark on dark whatever theme class the panel
+carried. It is stated here against the sheet's own two colours — light pill,
+dark label, as drawn — and retargeted with `--meganav-cta-bg` /
+`--meganav-cta-text` if the design changes.
+
 ### The burger
 
 While the sheet is open the two bars cross into an X and turn the panel

@@ -259,7 +259,16 @@ html.is-transitioning {
    defaults are the ones in the nav embed. */
 .meganav_root .meganav_mobile_div {
   --burger-gap: 5px;
-  --burger-thickness: 1.5px;
+  /* Whole pixels on purpose. A 1.5px bar lands on a half pixel wherever
+     the row does not, and the browser renders that as a lighter grey —
+     which is why one bar looked faded and the other did not. */
+  --burger-thickness: 2px;
+
+  /* Both bars, both states, one colour: they follow the type rather than
+     carrying a background of their own. */
+  height: var(--burger-thickness);
+  background-color: currentColor;
+  opacity: 1;
   --burger-shift: calc((var(--burger-gap) + var(--burger-thickness)) / 2);
 
   transform-origin: center;
@@ -445,4 +454,24 @@ html.is-menu-open {
     transition-duration: 0.01ms;
     transition-delay: 0s;
   }
+}
+
+/* The panel CTA. The Designer theme class should do this through the
+   button's own tokens, and when it does these rules resolve to the same
+   colours — but the button ships its palette per style variant, so on the
+   sheet it kept rendering dark on dark. Stated here against the sheet's
+   own two colours: light pill, dark label, which is what the design
+   shows. Retarget with --meganav-cta-bg / --meganav-cta-text. */
+.meganav_root .meganav_panel .button_main_wrap,
+.meganav_root .meganav_panel .button_main_padding,
+.meganav_root .meganav_panel .button_main_element {
+  background-color: var(--meganav-cta-bg, var(--meganav-panel-text, #f7f7f5));
+  color: var(--meganav-cta-text, var(--meganav-panel-bg, #191915));
+}
+
+.meganav_root .meganav_panel .button_main_text,
+.meganav_root .meganav_panel .button_main_icon_wrap,
+.meganav_root .meganav_panel .button_main_icon_arrow,
+.meganav_root .meganav_panel .button_main_icon {
+  color: var(--meganav-cta-text, var(--meganav-panel-bg, #191915));
 }
