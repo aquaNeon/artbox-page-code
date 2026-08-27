@@ -178,6 +178,7 @@ loop or an observer must return a teardown, or it will leak on every navigation.
 
 Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
 `cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `tabs`, `faq`, `servicesHover`,
+`filterSingle`,
 `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
@@ -478,6 +479,76 @@ swap without the grow. Timing lives in the `SERVICES` object above the
 module. Teardown aborts every listener, kills the tweens, removes the
 follower and restores each row's background, `z-index` and hidden image
 wrap, so a container never leaves a follower behind after a swap.
+
+### filterSingle — `.insights_filter_check`
+
+Webflow checkboxes that behave like radios: checking one clears the rest.
+Radios would do this for free except they cannot be unchecked by clicking
+again, which is what an "all" state needs.
+
+| Looked for | Role |
+| --- | --- |
+| `[data-filter-single]` or `.insights_filter_check` | A box in the set. Either the real `input` or the div Webflow paints — both resolve to the same pair |
+| `data-filter-single="year"` | That box's group name, if the page has more than one filter set |
+| `data-filter-single-group="year"` | The same, on a shared ancestor |
+
+Unnamed boxes are all one set. Fewer than two boxes and the module does
+nothing.
+
+Two things the obvious version gets wrong. Webflow paints the tick with
+`w--redirected-checked` and only toggles it on real user events, so a box
+cleared in script keeps its tick. And Finsweet reads its filters off change
+events, so a box cleared behind its back stays in the query — the list ends
+up filtered by a category whose box is visibly empty. The module removes the
+class and fires `input` and `change` on every box it clears, with a guard so
+those events do not come back through its own listener.
+
+It is a module rather than a `DOMContentLoaded` snippet in the page because
+`DOMContentLoaded` fires once. After the first Barba swap the listeners are
+bound to checkboxes that no longer exist.
+
+The module also mirrors each box's state onto its `<label>` as
+`filter-single` plus `is-checked`, set on mount and on every change. The
+idle styling hangs off that pair in `page-transition.css`:
+
+| | Unselected |
+| --- | --- |
+| Box border | `--filter-idle-border`, `rgba(25, 25, 21, 0.1)` |
+| Label text | `--filter-idle-text`, `rgba(25, 25, 21, 0.6)` |
+
+Only the idle state is declared — the checked state stays whatever the
+Designer says it is. Override either colour by redefining the variable on
+`.filter-single` or on any ancestor.
+
+Keying off our own class rather than Webflow's `w--redirected-checked`
+matters: that class lands on whichever element Webflow decided to own, and
+is absent entirely when the box is a plain input.
+
+The label text is also trimmed to its letters — `text-box: trim-both cap
+alphabetic` — so the row centres the box against the type instead of
+against the leading, which is what leaves a tick sitting visibly high next
+to its own label. Same problem as the descender padding in `textAnim`,
+solved from the other end. Behind `@supports`, so a browser without it
+keeps the line box it had. Alignment itself stays in the Designer; this
+only makes the text box honest about where the letters are.
+
+### Finsweet Attributes
+
+Not wired up here yet, but the same rule applies: Attributes scans the DOM
+on load, and a Barba swap replaces the list it scanned. When you add it,
+restart it per container rather than re-adding the script:
+
+```js
+Modules.add('finsweet', function () {
+  window.FinsweetAttributes?.modules?.list?.restart?.();
+});
+```
+
+The v2 API is `window.FinsweetAttributes` — `push([key, cb])` to run code
+once a solution has loaded, `modules.<key>` for that solution's controls
+(`restart`, `destroy`, `loading`), and `load(key)` to pull one in on demand.
+Keep the Attributes `<script>` itself in the Webflow footer embed, once,
+outside the swapped container.
 
 ### homeHero
 

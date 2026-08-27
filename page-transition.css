@@ -91,3 +91,39 @@ html.is-transitioning {
   height: 100%;
   object-fit: cover;
 }
+
+/* Filter checkboxes. .filter-single and .is-checked are set by the
+   filterSingle module on the label, so the idle state is one class on one
+   element no matter which piece of the Webflow checkbox is styled in the
+   Designer. Only the idle state is declared here — the checked state stays
+   whatever the Designer says it is. */
+.filter-single {
+  --filter-idle-border: rgba(25, 25, 21, 0.1);
+  --filter-idle-text: rgba(25, 25, 21, 0.6);
+}
+
+.filter-single:not(.is-checked) .insights_filter_check,
+.filter-single:not(.is-checked) .w-checkbox-input {
+  border-color: var(--filter-idle-border);
+}
+
+.filter-single:not(.is-checked) .w-form-label,
+.filter-single:not(.is-checked) [data-filter-label] {
+  color: var(--filter-idle-text);
+}
+
+/* Trim the label's line box down to the letters — cap height on top,
+   baseline underneath — so the box centres against the type instead of
+   against the leading, which is what leaves a tick sitting visibly high
+   next to its own label. Same problem as the descender padding in
+   textAnim, solved from the other end.
+
+   Progressive: browsers without text-box keep the line box they had, so
+   the row is no worse than it was. Alignment itself stays in the Designer
+   — this only makes the text box honest about where the letters are. */
+@supports (text-box: trim-both cap alphabetic) {
+  .filter-single .w-form-label,
+  .filter-single [data-filter-label] {
+    text-box: trim-both cap alphabetic;
+  }
+}

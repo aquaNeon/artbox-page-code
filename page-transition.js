@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-27-a';
+  const BUILD = '2026-08-27-b';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1999,6 +1999,106 @@
     });
 
     return () => cleanups.forEach((fn) => fn());
+  });
+
+
+  /* ============================================================
+     SINGLE-SELECT FILTER CHECKBOXES — .insights_filter_check
+
+     The insights filter is built out of Webflow checkboxes but should
+     behave like radios: checking one clears the rest. Radios would do
+     this for free, except they cannot be unchecked by clicking again,
+     which is what an "all" state needs.
+
+     Two things a naive version gets wrong. Webflow paints the tick with
+     a w--redirected-checked class that it only toggles on real user
+     events, so a box cleared in script keeps its tick. And Finsweet
+     reads its filters off change events, so a box cleared behind its
+     back stays in the query — the list ends up filtered by a category
+     whose box is visibly empty.
+
+     Groups: put the group's name in data-filter-single on each box, or
+     data-filter-single-group on a shared ancestor, if the page has more
+     than one filter set. Unnamed boxes are all one set.
+     ============================================================ */
+
+  Modules.add('filterSingle', function (root) {
+    const nodes = Array.from(new Set([
+      ...root.querySelectorAll('[data-filter-single]'),
+      ...root.querySelectorAll('.insights_filter_check')
+    ]));
+    if (!nodes.length) return;
+
+    /* The class can be on the real input or on the div Webflow paints —
+       they sit side by side in the same label and either one is a
+       reasonable thing to have named in the Designer. Resolve both from
+       whichever was matched. */
+    const boxes = [];
+    nodes.forEach((node) => {
+      const label = node.closest('label') || node.parentElement;
+      const input = node.matches('input[type="checkbox"]')
+        ? node
+        : label && label.querySelector('input[type="checkbox"]');
+      if (!input || boxes.some((b) => b.input === input)) return;
+
+      const group = node.getAttribute('data-filter-single')
+        || node.closest('[data-filter-single-group]')?.getAttribute('data-filter-single-group')
+        || 'default';
+
+      boxes.push({
+        input,
+        label,
+        visual: label ? label.querySelector('.w-checkbox-input') : null,
+        group
+      });
+    });
+    if (!boxes.length) return;
+
+    const controller = new AbortController();
+    let syncing = false;
+
+    /* is-checked on the label, mirrored from the input on every change
+       including the first paint. The idle border and text colours hang
+       off it rather than off w--redirected-checked, which sits on
+       whichever element Webflow decided to own and is absent entirely
+       when the box is a plain input. */
+    const paint = () => boxes.forEach((box) => {
+      box.label?.classList.toggle('is-checked', box.input.checked);
+    });
+
+    const clear = (box) => {
+      if (!box.input.checked) return;
+      box.input.checked = false;
+      box.visual?.classList.remove('w--redirected-checked');
+      box.input.classList.remove('w--redirected-checked');
+      box.input.dispatchEvent(new Event('input', { bubbles: true }));
+      box.input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    boxes.forEach((box) => {
+      box.label?.classList.add('filter-single');
+
+      box.input.addEventListener('change', () => {
+        /* syncing guards the change events we fire ourselves, which come
+           back through this same listener. */
+        if (syncing) return;
+        if (box.input.checked) {
+          syncing = true;
+          boxes.forEach((other) => {
+            if (other !== box && other.group === box.group) clear(other);
+          });
+          syncing = false;
+        }
+        paint();
+      }, { signal: controller.signal });
+    });
+
+    paint();
+
+    return () => {
+      controller.abort();
+      boxes.forEach((box) => box.label?.classList.remove('filter-single', 'is-checked'));
+    };
   });
 
 
