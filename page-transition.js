@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-27-i';
+  const BUILD = '2026-08-27-m';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2809,7 +2809,11 @@
     contentDuration: 0.6,
     contentStagger: 0.05,
     contentShift: 40,        // px the rows rise
-    contentEase: 'power3.out'
+    contentEase: 'power3.out',
+
+    labelClosed: 'Meny',
+    labelOpen: 'Lukk',
+    labelFade: 0.12       // out and back in, either side of the swap
   };
 
   CustomEase.create('menuSwipe', '0.05, 0.7, 0.1, 1');
@@ -2867,6 +2871,56 @@
       movedContainer = containerClass;
     }
 
+    /* The visible label and the screen-reader one, which live in
+       different elements of the Webflow component: the text div is
+       aria-hidden and the accessible name comes from the sr-only span
+       inside the overlay anchor. Both have to say the same thing.
+
+       Per-toggle overrides: data-nav-label-open / data-nav-label-closed. */
+    const labels = [];
+    toggles.forEach((toggle) => {
+      const els = Array.from(toggle.querySelectorAll(
+        '[data-nav-label], .footer_link_text, .u-sr-only'
+      ));
+      if (!els.length) return;
+      const override = toggle.getAttribute('data-nav-label-closed');
+      const opened = toggle.getAttribute('data-nav-label-open') || MENU.labelOpen;
+      /* Each element keeps its OWN resting text. The two are not the same
+         string — the visible label reads Meny and the screen-reader one
+         Menu — and taking the first element's text for both quietly
+         rewrote the visible label on the first close. */
+      els.forEach((el) => labels.push({
+        el,
+        closed: override || el.textContent.trim() || MENU.labelClosed,
+        opened
+      }));
+    });
+
+    /* Faded rather than swapped outright — a hard text change mid-swipe
+       reads as a glitch next to a second of eased motion. */
+    const setLabels = (isOpen, instant) => {
+      labels.forEach(({ el, closed, opened }) => {
+        const next = isOpen ? opened : closed;
+        if (el.textContent.trim() === next) return;
+        if (instant || reducedMotion) {
+          gsap.killTweensOf(el);
+          gsap.set(el, { clearProps: 'opacity' });
+          el.textContent = next;
+          return;
+        }
+        gsap.killTweensOf(el);
+        gsap.to(el, {
+          opacity: 0,
+          duration: MENU.labelFade,
+          ease: 'power1.out',
+          onComplete: () => {
+            el.textContent = next;
+            gsap.to(el, { opacity: 1, duration: MENU.labelFade, ease: 'power1.out' });
+          }
+        });
+      });
+    };
+
     if (!panel.id) panel.id = 'meganav-panel';
     panel.setAttribute('aria-hidden', 'true');
     toggles.forEach((t) => {
@@ -2888,11 +2942,12 @@
     /* aria and the bar flip immediately; .is-open is what carries
        visibility on the panel, so on the way out it has to outlive the
        swipe or the sheet disappears instead of leaving. */
-    const paint = () => {
+    const paint = (instant) => {
       nav.classList.toggle('is-open', open);
       if (open) panel.classList.add('is-open');
       panel.setAttribute('aria-hidden', String(!open));
       toggles.forEach((t) => t.setAttribute('aria-expanded', String(open)));
+      setLabels(open, instant);
     };
 
     function show() {
@@ -2934,7 +2989,7 @@
     function hide(instant) {
       if (!open) return;
       open = false;
-      paint();
+      paint(instant || reducedMotion);
       lock(false);
 
       tl?.kill();
@@ -2989,6 +3044,11 @@
     return () => {
       controller.abort();
       closeMeganav = () => {};
+      labels.forEach(({ el, closed }) => {
+        gsap.killTweensOf(el);
+        gsap.set(el, { clearProps: 'opacity' });
+        el.textContent = closed;
+      });
       if (movedContainer) {
         inner?.classList.remove(movedContainer);
         panel.classList.add(movedContainer);

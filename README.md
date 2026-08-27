@@ -653,6 +653,23 @@ Pointer events go dead from the first frame of the close regardless.
 Timing lives in the `MENU` object. The curve is the reference nav's
 `cubic-bezier(0.05, 0.7, 0.1, 1)` over 0.89s.
 
+### Mobile
+
+Below 992px the panel is a card, not a sheet: `height: auto` so it opens
+only as far as its content needs, with `max-height: var(--meganav-mobile-max,
+100dvh)` to keep a long menu on screen and let it scroll rather than run off
+the bottom. Same clip-path swipe, same everything else.
+
+### The toggle label
+
+Opening swaps the toggle text to `Lukk` and closing puts it back, faded
+either side of the change — a hard swap mid-swipe reads as a glitch next to
+a second of eased motion. The screen-reader label in the overlay anchor is
+swapped with it, and each element keeps its own resting string (the visible
+one says Meny, the accessible one Menu). Overrides per toggle:
+`data-nav-label-open`, `data-nav-label-closed`. The instant close at the
+start of a navigation swaps instantly too.
+
 ### Why the sheet is absolute, not fixed
 
 It sits inside `<nav class="meganav">`, which is where the Designer put it,
