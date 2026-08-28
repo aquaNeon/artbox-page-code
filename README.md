@@ -553,6 +553,21 @@ only makes the text box honest about where the letters are.
 
 ### Finsweet Attributes
 
+Paging controls are excluded from barba. Finsweet pages a list by clicking
+Webflow's own pagination anchor (`?…_page=2`) and reading the response —
+those are real same-origin links, so barba took them as navigations: pressing
+Load more ran a page transition and landed on page two. `prevent` now returns
+true for anything inside `.w-pagination-wrapper` or marked
+`fs-list-element="load-more" | "pagination-next" | "pagination-previous" |
+"page-button"`. Scoped to the controls, not to `[fs-list-element]` at large —
+the list itself carries that attribute and the cards inside it are ordinary
+links that should still transition.
+
+The load mode itself is Finsweet's: `fs-list-load="more"` on the list or its
+wrapper (`more`, `infinite`, `pagination`, `all`), with `fs-list-loadcount`
+for how many arrive per click.
+
+
 Not wired up here yet, but the same rule applies: Attributes scans the DOM
 on load, and a Barba swap replaces the list it scanned. When you add it,
 restart it per container rather than re-adding the script:

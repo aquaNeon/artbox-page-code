@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-28-c';
+  const BUILD = '2026-08-28-d';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3578,6 +3578,23 @@
     prevent: ({ el }) => {
       if (!el) return false;
       const href = el.getAttribute('href') || '';
+
+      /* Finsweet pages a list by clicking Webflow's own pagination anchor
+         (?…_page=2) and reading the response. Those are real same-origin
+         links, so barba took them as navigations: pressing Load more ran a
+         page transition and landed on page two showing one post. Leave every
+         paging control to whoever owns the list.
+
+         Scoped to the controls, not to [fs-list-element] generally — the
+         list itself carries that attribute, and the cards inside it are
+         ordinary links that should still transition. */
+      const paging = el.closest(
+        '.w-pagination-wrapper, [fs-list-element="load-more"], ' +
+        '[fs-list-element="pagination-next"], [fs-list-element="pagination-previous"], ' +
+        '[fs-list-element="page-button"]'
+      );
+      if (paging) return true;
+
       return (
         el.hasAttribute('data-barba-prevent') ||
         el.getAttribute('target') === '_blank' ||
