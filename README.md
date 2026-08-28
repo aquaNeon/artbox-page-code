@@ -512,6 +512,13 @@ up filtered by a category whose box is visibly empty. The module removes the
 class and fires `input` and `change` on every box it clears, with a guard so
 those events do not come back through its own listener.
 
+Finsweet keeps one value per field, written by whichever change event it
+saw last — and the events clearing the siblings all arrive after the user's
+own. Left there, the last thing it hears is an unchecked box, the condition
+lands on `""` and the list filters to nothing. The module re-announces the
+box that is actually checked as its final act, so Finsweet's last read is
+the real state.
+
 It is a module rather than a `DOMContentLoaded` snippet in the page because
 `DOMContentLoaded` fires once. After the first Barba swap the listeners are
 bound to checkboxes that no longer exist.

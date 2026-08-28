@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-28-a';
+  const BUILD = '2026-08-28-b';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2106,6 +2106,13 @@
           boxes.forEach((other) => {
             if (other !== box && other.group === box.group) clear(other);
           });
+          /* Finsweet keeps one value per field, written by whichever change
+             event it saw last — and ours, clearing the siblings, all arrive
+             after the user's. Without this the last thing it hears is an
+             unchecked box, so the condition lands on "" and the list filters
+             to nothing. Re-announce the box that is actually checked, inside
+             the guard so it does not come back through this listener. */
+          box.input.dispatchEvent(new Event('change', { bubbles: true }));
           syncing = false;
         }
         paint();
