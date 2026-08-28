@@ -512,12 +512,15 @@ up filtered by a category whose box is visibly empty. The module removes the
 class and fires `input` and `change` on every box it clears, with a guard so
 those events do not come back through its own listener.
 
-Finsweet keeps one value per field, written by whichever change event it
-saw last — and the events clearing the siblings all arrive after the user's
-own. Left there, the last thing it hears is an unchecked box, the condition
-lands on `""` and the list filters to nothing. The module re-announces the
-box that is actually checked as its final act, so Finsweet's last read is
-the real state.
+Finsweet-managed inputs are cleared **silently**. It binds a listener to
+each input and updates the field from that input's own state, so a change
+event for a box the module cleared is a second update in the same tick as
+the visitor's — and the pair resolves to an empty condition, which filters
+the list to nothing. Finsweet only needs the box that was actually clicked,
+and it hears that one itself. An input counts as managed if it carries
+`fs-list-field` or `fs-list-value`, or sits inside
+`[fs-list-element="filters"]`; everything else still gets `input` and
+`change`, since a Webflow form or a custom handler has no other way to know.
 
 It is a module rather than a `DOMContentLoaded` snippet in the page because
 `DOMContentLoaded` fires once. After the first Barba swap the listeners are

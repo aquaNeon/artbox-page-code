@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-28-b';
+  const BUILD = '2026-08-28-c';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2085,11 +2085,24 @@
       box.label?.classList.toggle('is-checked', box.input.checked);
     });
 
+    /* Finsweet binds a listener to each input and updates the field from
+       that input's own state, so a change event for a box we cleared is a
+       second update in the same tick as the user's — and the pair lands on
+       an empty condition, which filters the list to nothing. Clear those
+       silently: Finsweet only needs the box the visitor actually clicked,
+       and it hears that one itself. */
+    const finsweetManaged = (input) => input.hasAttribute('fs-list-field')
+      || input.hasAttribute('fs-list-value')
+      || !!input.closest('[fs-list-element="filters"]');
+
     const clear = (box) => {
       if (!box.input.checked) return;
       box.input.checked = false;
       box.visual?.classList.remove('w--redirected-checked');
       box.input.classList.remove('w--redirected-checked');
+      if (finsweetManaged(box.input)) return;
+      /* Anything else listening — a Webflow form, a custom handler — has
+         no way to know the box changed unless we say so. */
       box.input.dispatchEvent(new Event('input', { bubbles: true }));
       box.input.dispatchEvent(new Event('change', { bubbles: true }));
     };
@@ -2106,13 +2119,6 @@
           boxes.forEach((other) => {
             if (other !== box && other.group === box.group) clear(other);
           });
-          /* Finsweet keeps one value per field, written by whichever change
-             event it saw last — and ours, clearing the siblings, all arrive
-             after the user's. Without this the last thing it hears is an
-             unchecked box, so the condition lands on "" and the list filters
-             to nothing. Re-announce the box that is actually checked, inside
-             the guard so it does not come back through this listener. */
-          box.input.dispatchEvent(new Event('change', { bubbles: true }));
           syncing = false;
         }
         paint();
