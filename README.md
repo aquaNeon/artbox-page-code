@@ -196,6 +196,7 @@ so markup moves between the two sites as-is.
 | `data-text-anim-solo` | Breaks an element out into its own step |
 | `data-text-anim-list` | Repeated list, items wave in as a single step |
 | `data-text-anim-stagger` | On a shared ancestor: one trigger for every `[data-text-anim]` under it, plus a per-card delay (default `0.15`) |
+| `data-text-anim-with` | On a step: run it alongside the previous step instead of after it |
 
 Timing knobs, all optional:
 
@@ -207,6 +208,14 @@ Timing knobs, all optional:
 | step | `data-text-anim-speed="0.6"` | that one step's rate, on top of the group's |
 | step | `data-text-anim-delay="0.3"` | extra gap before that one step |
 | ancestor | `data-text-anim-stagger="0.12"` | spacing between the `[data-text-anim]` groups under it |
+
+`data-text-anim-with` starts a step at the same time as the one before it,
+so two cells sharing a grid row read as one move while staying separate
+elements — which they have to be when each carries its own border. It is an
+absolute position on the timeline, not an overlap: a relative one is measured
+from the timeline's end, and the previous step is still running. A step
+carrying both `-with` and a delay starts that many seconds after the step it
+joins.
 
 Overlap pulls a step earlier and delay pushes it later; a step carrying both
 resolves to one signed offset. Under a `-stagger` ancestor, card *i* starts at

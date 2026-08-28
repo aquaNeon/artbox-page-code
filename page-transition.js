@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-27-v';
+  const BUILD = '2026-08-28-a';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -647,6 +647,14 @@
     const splits = [];
     let bodyBuffer = [];
     let isFirst = true;
+    /* Where the step that was added last begins, for [data-text-anim-with]
+       to line up against. Read off the timeline rather than accumulated by
+       hand, so overlaps and delays are already accounted for. */
+    let lastStart = 0;
+    const remember = () => {
+      const step = tl.recent();
+      if (step) lastStart = step.startTime();
+    };
 
     /* A step's own rate. Applied as duration / speed rather than a nested
        timeScale, so the value reads the same way as the group root's. */
@@ -668,6 +676,13 @@
     const position = (el) => {
       const delay = stepDelay(el);
       if (isFirst) { isFirst = false; return delay; }
+      /* data-text-anim-with: run alongside the previous step instead of
+         after it. Two cells sharing a row read as one move that way,
+         while staying separate elements — which they have to be when
+         each carries its own border. An absolute time, because a
+         relative one is measured from the timeline's end and the
+         previous step is still running. */
+      if (el.hasAttribute('data-text-anim-with')) return lastStart + delay;
       const offset = delay - stepOverlap(el);
       return offset >= 0 ? `+=${offset}` : `-=${-offset}`;
     };
@@ -692,6 +707,7 @@
       if (BLUR) { from.filter = `blur(${TEXT.bodyBlur}px)`; to.filter = 'blur(0px)'; }
       gsap.set(el, from);
       tl.to(el, to, position(el));
+      remember();
     };
 
     const flushBody = () => {
@@ -708,6 +724,7 @@
       if (BLUR) { from.filter = `blur(${TEXT.bodyBlur}px)`; to.filter = 'blur(0px)'; }
       gsap.set(bodyBuffer, from);
       tl.to(bodyBuffer, to, position(bodyBuffer[0]));
+      remember();
       bodyBuffer = [];
     };
 
@@ -740,9 +757,10 @@
         };
         if (BLUR) to.filter = 'blur(0px)';
         tl.to(inners, to, position(el));
+        remember();
         /* recent(), because timeline.to() returns the timeline — the
            images need the line tween's own start time to sit on. */
-        addHeadingImages(tl, inners, tl.recent().startTime(), speed);
+        addHeadingImages(tl, inners, lastStart, speed);
       } else if (el.hasAttribute('data-text-anim-list')) {
         const items = listItems(el);
         if (items.length) {
@@ -753,6 +771,7 @@
             duration: TEXT.listDuration / speed, ease: TEXT.listEase,
             stagger: TEXT.listStagger / speed
           }, position(el));
+          remember();
         }
       } else {
         /* -solo, and -heading when SplitText did not load. The fallback is
