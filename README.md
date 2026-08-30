@@ -406,6 +406,16 @@ box. And the autoplay ScrollTrigger is created from the intro queue, for the
 same reason — a trigger measured during the transition fires at the wrong
 scroll position.
 
+The opening detail's own content rises and fades in as the height animates —
+the same move `data-text-anim-solo` makes, but tied to the tab rather than to
+the scroll. Do **not** put `data-text-anim-solo` on text inside a detail:
+textAnim fires once when the section passes the trigger, so a closed tab
+animates text nobody can see and is already at rest when it opens, and a tab
+whose group never fires opens onto text still holding its hidden start
+state. Knobs: `textShift`, `textDuration`, `textDelay` in the `TABS` object.
+
+In the stacked mobile shape the text is simply visible — nothing animates.
+
 **Below 992px the section is a plain stack.** Tabs are a desktop
 affordance: on a phone the module moves each visual in beside its own text,
 opens every detail, hides the progress bars and leaves autoplay off, so the

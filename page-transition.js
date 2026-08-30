@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-h';
+  const BUILD = '2026-08-30-i';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1262,7 +1262,16 @@
     outProgress: 0.3,   // how long the leaving progress bar takes to empty,
                         // and how long the incoming visual waits
     shift: 3,           // xPercent the visual travels while fading
-    autoplayMs: 5000
+    autoplayMs: 5000,
+
+    /* The opening detail's own content rises as the height animates, the
+       same move data-text-anim-solo makes. It belongs here rather than on
+       the attribute: textAnim fires once when the section scrolls past,
+       which for a closed tab means animating text nobody can see and
+       leaving it at rest by the time the tab is opened. */
+    textShift: 12,      // px the detail's content rises
+    textDuration: 0.5,
+    textDelay: 0.12     // after the height starts, so it arrives with the room
   };
 
   Modules.add('tabs', function (root) {
@@ -1285,6 +1294,12 @@
 
       const detail = (i) => contentItems[i].querySelector('[data-tabs="item-details"]');
       const bar = (i) => contentItems[i].querySelector('[data-tabs="item-progress"]');
+      /* What actually moves: the detail itself is the box being resized, so
+         animating it as well would fight the height tween. */
+      const detailInner = (i) => {
+        const d = detail(i);
+        return d ? d.firstElementChild : null;
+      };
 
       const autoplay = wrapper.dataset.tabsAutoplay === 'true' && !reducedMotion;
       const duration = parseInt(wrapper.dataset.tabsAutoplayDuration, 10) || TABS.autoplayMs;
@@ -1322,6 +1337,8 @@
           if (d) gsap.set(d, { height: 'auto' });
           const b = bar(i);
           if (b) gsap.set(b, { clearProps: 'transform' });
+          const inner = detailInner(i);
+          if (inner) gsap.set(inner, { clearProps: 'opacity,visibility,transform' });
           gsap.set(visualItems[i], { clearProps: 'opacity,visibility,transform' });
         });
       }
@@ -1386,6 +1403,12 @@
         contentItems.forEach((item, i) => {
           const d = detail(i);
           if (d) gsap.set(d, { height: i === index ? 'auto' : 0 });
+          const inner = detailInner(i);
+          if (inner) {
+            gsap.set(inner, i === index
+              ? { autoAlpha: 1, y: 0 }
+              : { autoAlpha: 0, y: TABS.textShift });
+          }
           const b = bar(i);
           if (b) gsap.set(b, { scaleX: 0, transformOrigin: 'left center' });
           gsap.set(visualItems[i], i === index
@@ -1430,6 +1453,12 @@
         }
         switchTl.to(visualItems[outIndex], { autoAlpha: 0, xPercent: TABS.shift }, 0);
         if (outDetail) switchTl.to(outDetail, { height: 0 }, 0);
+        const outInner = detailInner(outIndex);
+        if (outInner) {
+          switchTl.to(outInner, {
+            autoAlpha: 0, y: TABS.textShift, duration: TABS.outProgress
+          }, 0);
+        }
 
         switchTl.fromTo(
           visualItems[index],
@@ -1439,6 +1468,14 @@
         );
         const inDetail = detail(index);
         if (inDetail) switchTl.fromTo(inDetail, { height: 0 }, { height: 'auto' }, 0);
+        const inInner = detailInner(index);
+        if (inInner) {
+          switchTl.fromTo(inInner,
+            { autoAlpha: 0, y: TABS.textShift },
+            { autoAlpha: 1, y: 0, duration: TABS.textDuration },
+            TABS.textDelay
+          );
+        }
         const inBar = bar(index);
         if (inBar) switchTl.set(inBar, { scaleX: 0, transformOrigin: 'left center' }, 0);
       }
