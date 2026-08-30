@@ -728,3 +728,35 @@ html.is-menu-open {
     padding-right: var(--slider-inset-mobile, 0px);
   }
 }
+
+/* ============================================================
+   TABS — stacked below 992px
+
+   The module moves each visual in beside its own text and adds
+   .is-stacked. These rules undo the desktop presentation: the visual
+   column is usually a pile of absolutely positioned panels, which is
+   meaningless once they are in the flow one after another.
+   ============================================================ */
+
+[data-tabs="wrapper"].is-stacked [data-tabs="visual-item"] {
+  position: static;
+  inset: auto;
+  width: 100%;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+[data-tabs="wrapper"].is-stacked [data-tabs="item-details"] {
+  height: auto;
+  overflow: visible;
+}
+
+[data-tabs="wrapper"].is-stacked [data-tabs="item-progress"] {
+  display: none;
+}
+
+/* Nothing is selectable, so nothing should look it. */
+[data-tabs="wrapper"].is-stacked [data-tabs="content-item"] {
+  cursor: auto;
+}

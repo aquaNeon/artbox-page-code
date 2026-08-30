@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-e';
+  const BUILD = '2026-08-30-g';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1298,6 +1298,52 @@
       let switchTl = null;
       let trigger = null;
 
+      /* Below 992 the section is a plain stack: every visual sits with its
+         own text, everything open, nothing playing. Tabs are a desktop
+         affordance — on a phone the same content reads as image, text,
+         image, text, and a progress bar advancing a tab nobody can see the
+         rest of is noise. */
+      const desktopMQ = window.matchMedia('(min-width: 992px)');
+      let stacked = !desktopMQ.matches;
+
+      /* A comment node left in each visual's place, so the desktop layout
+         can be restored exactly. Sibling references do not survive the
+         move: once the second visual has been relocated too, the first
+         one's stored nextSibling is no longer a child of the old parent
+         and insertBefore throws. */
+      const markers = visualItems.map(() => document.createComment('tabs-visual'));
+
+      function openAll() {
+        contentItems.forEach((item, i) => {
+          item.classList.remove('active');
+          item.removeAttribute('aria-selected');
+          item.removeAttribute('tabindex');
+          const d = detail(i);
+          if (d) gsap.set(d, { height: 'auto' });
+          const b = bar(i);
+          if (b) gsap.set(b, { clearProps: 'transform' });
+          gsap.set(visualItems[i], { clearProps: 'opacity,visibility,transform' });
+        });
+      }
+
+      function applyStack() {
+        wrapper.classList.add('is-stacked');
+        visualItems.forEach((visual, i) => {
+          if (contentItems[i].contains(visual)) return;
+          visual.parentNode?.insertBefore(markers[i], visual);
+          contentItems[i].insertBefore(visual, contentItems[i].firstChild);
+        });
+        openAll();
+      }
+
+      function undoStack() {
+        wrapper.classList.remove('is-stacked');
+        visualItems.forEach((visual, i) => {
+          const marker = markers[i];
+          if (marker.parentNode) marker.parentNode.replaceChild(visual, marker);
+        });
+      }
+
       function markState(index) {
         contentItems.forEach((item, i) => {
           item.classList.toggle('active', i === index);
@@ -1309,7 +1355,7 @@
 
       function startProgress(index) {
         progressTween?.kill();
-        if (!autoplay || dead) return;
+        if (!autoplay || dead || stacked) return;
         const el = bar(index);
         if (!el) return;
         gsap.set(el, { scaleX: 0, transformOrigin: 'left center' });
@@ -1338,7 +1384,7 @@
       }
 
       function switchTab(index) {
-        if (dead || isAnimating || index === currentIndex) return;
+        if (dead || stacked || isAnimating || index === currentIndex) return;
         const outIndex = currentIndex;
         progressTween?.kill();
         switchTl?.kill();
@@ -1396,10 +1442,32 @@
         }, { signal: controller.signal });
       });
 
-      setState(0);
+      if (stacked) applyStack();
+      else setState(0);
+
+      /* Crossing the breakpoint rebuilds the other shape in place, so a
+         rotated phone or a dragged window does not leave a stack with dead
+         tabs behind it. */
+      const onBreakpoint = (e) => {
+        const nowStacked = !e.matches;
+        if (nowStacked === stacked || dead) return;
+        stacked = nowStacked;
+        progressTween?.kill();
+        switchTl?.kill();
+        isAnimating = false;
+        if (stacked) {
+          applyStack();
+        } else {
+          undoStack();
+          setState(0);
+          if (autoplay && autoplayReady) startProgress(0);
+        }
+        refreshScrollHeight();
+      };
+      desktopMQ.addEventListener('change', onBreakpoint);
 
       Intro.add(root, () => {
-        if (dead || !autoplay) return;
+        if (dead || !autoplay || stacked) return;
         if (!hasScrollTrigger) {
           autoplayReady = true;
           startProgress(currentIndex);
@@ -1419,9 +1487,13 @@
       cleanups.push(() => {
         dead = true;
         controller.abort();
+        desktopMQ.removeEventListener('change', onBreakpoint);
         progressTween?.kill();
         switchTl?.kill();
         trigger?.kill();
+        /* The visuals were moved, so put the markup back the way the
+           Designer wrote it before the container is discarded. */
+        if (stacked) undoStack();
       });
     });
 

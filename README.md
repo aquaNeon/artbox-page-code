@@ -406,6 +406,20 @@ box. And the autoplay ScrollTrigger is created from the intro queue, for the
 same reason — a trigger measured during the transition fires at the wrong
 scroll position.
 
+**Below 992px the section is a plain stack.** Tabs are a desktop
+affordance: on a phone the module moves each visual in beside its own text,
+opens every detail, hides the progress bars and leaves autoplay off, so the
+content reads as image, text, image, text. The wrapper gets `is-stacked`,
+and `page-transition.css` undoes the desktop presentation — a visual column
+is usually a pile of absolutely positioned panels, which means nothing once
+they are in the flow.
+
+Crossing the breakpoint rebuilds the other shape in place, so a rotated
+phone is not left with a stack of dead tabs. Each visual leaves a comment
+node behind when it moves, and that is what it is put back against: sibling
+references do not survive the move, since the next visual has been
+relocated too by the time the first one is restored.
+
 Under `prefers-reduced-motion` the tabs still switch, instantly, and autoplay
 is off. Teardown kills the progress tween, the switch timeline, the
 ScrollTrigger and both listeners, so a group never survives its container.
