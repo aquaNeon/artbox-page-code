@@ -849,25 +849,6 @@ html.is-menu-open {
 /* In the stacked shape there is nothing to hover, so the icon belongs to
    whichever row is showing rather than to a pointer. */
 @media screen and (max-width: 991px) {
-  /* The stacked rows are a screen each, so the image fills the row rather
-     than keeping whatever ratio it is given on desktop. */
-  .services_hover_items.is-stacked .services_hover_img_wrap {
-    position: relative;
-    width: 100%;
-    height: var(--services-stack-img-height, 100%);
-    aspect-ratio: auto;
-    opacity: 1;
-    overflow: hidden;
-    z-index: auto;
-  }
-
-  .services_hover_items.is-stacked .services_hover_img_wrap img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
   .services_hover_items.is-stacked .services_hover_icon {
     transform: scale(1);
   }
