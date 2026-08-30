@@ -614,6 +614,15 @@ html.is-menu-open {
    the card on its own compositing layer — separately rasterised layers
    round to different subpixels mid-transform, which is the hairline that
    only showed while the slider was moving. */
+/* Any slide, whatever component it is built from. max-width would clamp
+   the width Swiper just calculated, so the track would step further than
+   the cards actually sit apart. */
+.c_slider_swiper .swiper-slide {
+  max-width: none;
+  min-width: 0;
+  height: auto;
+}
+
 .c_slider_swiper .card_hover_wrap {
   max-width: none;
   border: 0;

@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-c';
+  const BUILD = '2026-08-30-d';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2137,6 +2137,7 @@
   Modules.add('slider', function (root) {
     const instances = [];
     const resizeHandlers = [];
+    const slideTags = [];
 
     root.querySelectorAll('.c_slider_swiper').forEach((el) => {
       const num = (attr, fallback) => {
@@ -2198,6 +2199,24 @@
       };
 
       const wrap = el.closest('.c_slider_wrap');
+
+      /* Swiper finds slides by class, and a card component built in the
+         Designer arrives without it — the slider then initialises against
+         zero slides, so nothing is given a width and the track never
+         moves. Tag the wrapper's own children when none of them carry it,
+         which is what putting cards in a slider is meant to express. */
+      const track = el.querySelector('.swiper-wrapper, .c_slider_swiper_wrap');
+      if (track && !track.querySelector(':scope > .swiper-slide')) {
+        const children = Array.from(track.children);
+        children.forEach((child) => {
+          child.classList.add('swiper-slide');
+          slideTags.push(child);
+        });
+        if (children.length) {
+          console.info('[slider] tagged', children.length,
+            'cards as swiper-slide — add the class in the Designer to make it explicit');
+        }
+      }
 
       const loop = bool('data-loop', false);
 
@@ -2297,6 +2316,8 @@
     return function cleanup() {
       resizeHandlers.forEach((fn) => window.removeEventListener('resize', fn));
       instances.forEach((s) => s.destroy(true, true));
+      /* Only the ones this mount added, so the markup is left as it was. */
+      slideTags.forEach((el) => el.classList.remove('swiper-slide'));
     };
   });
 
