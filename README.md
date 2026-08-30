@@ -358,6 +358,26 @@ The matching CSS, in the section's embed:
 }
 ```
 
+### slider — `.c_slider_swiper`
+
+The rail is full-bleed and the first card is aligned to the page container
+by `slidesOffsetBefore`, measured against the container in the same section
+and re-measured on resize. Two things follow from that:
+
+- The same offset is applied as `slidesOffsetAfter`. Without it the track
+  stops with the last card against the viewport rather than the page margin,
+  so the card reads as cut off — and with loop and rewind both off there is
+  nothing left to scroll.
+- A `slidesPerView` of exactly **1** is raised to `width / (width - insets)`.
+  Swiper divides the rail by the per-view number, and the rail is the whole
+  viewport, so one-per-view produces a viewport-wide slide that the left
+  offset then pushes off the right edge — the sliver of overflow on phones.
+  Fractional values are left alone, since a peek is deliberate.
+
+Cards need the `swiper-slide` class. The module adds it to the wrapper's
+children when none of them carry it and logs that it did, but the class
+belongs in the Designer.
+
 ### tabs — `[data-tabs="wrapper"]`
 
 A content column of clickable items beside a visual column of matching

@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-d';
+  const BUILD = '2026-08-30-e';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2198,6 +2198,27 @@
         return delta > 0 ? Math.round(delta) : 0;
       };
 
+      /* The rail runs edge to edge, so without a matching offset at the far
+         end Swiper stops with the last card's right edge against the
+         viewport rather than against the page margin — the card reads as
+         cut off, and with loop and rewind both off there is nothing left to
+         scroll. Symmetry also gives the track somewhere to travel to. */
+      const measureOffsetAfter = () => measureOffset();
+
+      /* One-per-view means one WHOLE card. Swiper divides the rail by the
+         per-view number, and the rail is the full viewport, so a slide
+         comes out viewport-wide and the left offset then pushes its right
+         edge off screen — the sliver of overflow on phones. Ask for
+         slightly more than one so the card fits between the two margins.
+         Fractional values are left alone: a peek is the author's intent. */
+      const fitPerView = (authored) => {
+        if (authored !== 1) return authored;
+        const width = el.clientWidth;
+        const inset = measureOffset() + measureOffsetAfter();
+        if (!width || inset <= 0 || width - inset <= 0) return authored;
+        return width / (width - inset);
+      };
+
       const wrap = el.closest('.c_slider_wrap');
 
       /* Swiper finds slides by class, and a card component built in the
@@ -2221,7 +2242,7 @@
       const loop = bool('data-loop', false);
 
       const swiper = new Swiper(el, {
-        slidesPerView: num('data-slides-mobile', 1),
+        slidesPerView: fitPerView(num('data-slides-mobile', 1)),
         spaceBetween: measureGap(),
         loop,
         /* Mutually exclusive in Swiper 11: with both set the loop
@@ -2242,6 +2263,7 @@
         watchOverflow: true,
 
         slidesOffsetBefore: measureOffset(),
+        slidesOffsetAfter: measureOffsetAfter(),
 
         /* slidesPerView 2.25 divides the container into fractional widths
            (605.778px) and translates the track by fractional amounts. Every
@@ -2253,7 +2275,7 @@
         roundLengths: true,
         breakpoints: {
           768: {
-            slidesPerView: num('data-slides-per-view', 1.25)
+            slidesPerView: fitPerView(num('data-slides-per-view', 1.25))
           }
         },
         navigation: {
@@ -2295,8 +2317,20 @@
           applyGap();
           const gap = measureGap();
           const offset = measureOffset();
-          if (swiper.params.slidesOffsetBefore !== offset) {
+          const perView = fitPerView(mq.matches
+            ? num('data-slides-mobile', 1)
+            : num('data-slides-per-view', 1.25));
+
+          if (swiper.params.slidesOffsetBefore !== offset
+            || swiper.params.slidesOffsetAfter !== offset
+            || swiper.params.slidesPerView !== perView) {
             swiper.params.slidesOffsetBefore = offset;
+            swiper.params.slidesOffsetAfter = offset;
+            swiper.params.slidesPerView = perView;
+            if (swiper.params.breakpoints && swiper.params.breakpoints[768]) {
+              swiper.params.breakpoints[768].slidesPerView =
+                fitPerView(num('data-slides-per-view', 1.25));
+            }
             swiper.update();
           }
           if (swiper.params.spaceBetween === gap) return;
