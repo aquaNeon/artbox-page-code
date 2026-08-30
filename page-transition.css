@@ -559,13 +559,30 @@ html.is-menu-open {
    ============================================================ */
 
 .c_slider_wrap {
-  overflow: visible;
+  /* clip, not hidden: clip does not make this a scrollport, so a sticky
+     descendant still resolves against the page. It is here to absorb the
+     few px the full-bleed rule below overshoots by — 100vw counts the
+     scrollbar and the content box does not. */
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
-/* Full bleed. The text alignment comes from slidesOffsetBefore, not from
-   a margin here — a margin would clip the left bleed. */
+/* Full bleed. Negative side margins the width of the container gutter pull
+   the rail out to the viewport edges no matter how deeply the section is
+   nested — 50% is half the parent, 50vw half the viewport, so the
+   difference is exactly the inset to cancel.
+
+   Margins rather than a transform on purpose: a transform would make this
+   the containing block for any fixed-position descendant, which is the
+   trap the nav panel and the footer layer both hit.
+
+   The first card still lines up with the page text — that comes from
+   slidesOffsetBefore, which the module measures against the container in
+   the same section and re-measures on resize. */
 .c_slider_offset {
-  margin-left: 0;
+  width: auto;
+  max-width: none;
+  margin-inline: calc(50% - 50vw);
 }
 
 /* clip, not hidden: a hidden overflow makes this the scrollport that any
@@ -692,10 +709,13 @@ html.is-menu-open {
   flex-shrink: 0;
 }
 
-/* The inset that went missing with the truncated declaration. */
+/* Opt-in mobile inset. Zero by default, because an inset here is the
+   thing that stops the rail reaching the edges; the first card is aligned
+   by slidesOffsetBefore instead. Set --slider-inset-mobile if you want the
+   card to sit inside the margins rather than bleed. */
 @media (max-width: 767px) {
   .c_slider_offset {
-    padding-left: var(--_sizes---grid--margin, 1rem);
-    padding-right: var(--_sizes---grid--margin, 1rem);
+    padding-left: var(--slider-inset-mobile, 0px);
+    padding-right: var(--slider-inset-mobile, 0px);
   }
 }
