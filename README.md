@@ -544,8 +544,16 @@ the nav.
 follow, so the rows are lifted into a `.services_stack_viewport` that sticks
 to the top of the screen, layered on top of each other, and the list itself
 is given the scroll height — one screen per row by default. A scrubbed
-trigger dissolves row N into row N+1 as you scroll; nothing moves, only
-opacity. The container padding is dropped so the rows run edge to edge.
+Crossing a step boundary **triggers** the dissolve into the next row at its
+own pace; it is not scrubbed. Tying the fade to the wheel means a trackpad
+flick blinks the rows past half-drawn. Nothing moves, only opacity, and the
+container padding is dropped so the rows run edge to edge.
+
+One boundary per gap, positioned a screen apart as a function so a refresh
+recomputes it — a phone's viewport changes height when its address bar does.
+Scrolling back fires `onLeaveBack`, not `onEnterBack`: the trigger element is
+the whole track, so the boundary is crossed by leaving through its start
+rather than re-entering from beyond its end.
 
 A viewport element is created rather than making each row sticky in flow:
 sticky rows stack, with the next sliding up over the last, and this is meant

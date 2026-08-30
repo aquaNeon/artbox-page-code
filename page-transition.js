@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-l';
+  const BUILD = '2026-08-30-n';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1942,8 +1942,9 @@
      ------------------------------------------------------------ */
 
   const SERVICES_STACK = {
-    screens: 1,        // screens of scroll per row
-    overlap: 0.5       // fraction of a step the dissolve occupies
+    screens: 1,          // screens of scroll per row
+    duration: 0.6,       // the dissolve, once it is triggered
+    ease: 'power2.out'
   };
 
   function buildServicesStack(root) {
@@ -1970,38 +1971,49 @@
       gsap.set(items, { opacity: 0 });
       gsap.set(items[0], { opacity: 1 });
 
-      const setters = items.map((item) => gsap.quickSetter(item, 'opacity'));
-      const steps = items.length - 1;
+      /* Triggered, not scrubbed: crossing a step boundary plays the
+         dissolve at its own pace, so the swap reads the same whether the
+         visitor eased down or flicked. A scrub ties the fade to the
+         scroll wheel, which on a trackpad flick means the rows blink
+         past half-drawn. */
+      let active = 0;
 
-      const paint = (progress) => {
-        const pos = progress * steps;
-        items.forEach((_, i) => {
-          const distance = Math.abs(pos - i);
-          /* Full at its own step, gone one step away, and the crossfade
-             happens across the middle of the gap so two rows are only
-             both visible while they are actually swapping. */
-          const eased = 1 - (distance - (1 - SERVICES_STACK.overlap)) / SERVICES_STACK.overlap;
-          setters[i](Math.max(0, Math.min(1, distance <= 1 - SERVICES_STACK.overlap ? 1 : eased)));
+      const show = (index) => {
+        if (index === active || index < 0 || index >= items.length) return;
+        active = index;
+        items.forEach((item, i) => {
+          gsap.to(item, {
+            opacity: i === index ? 1 : 0,
+            duration: reducedMotion ? 0 : SERVICES_STACK.duration,
+            ease: SERVICES_STACK.ease,
+            overwrite: 'auto'
+          });
         });
       };
 
-      if (!hasScrollTrigger || reducedMotion) {
+      if (!hasScrollTrigger) {
         gsap.set(items, { opacity: 1 });
       } else {
         /* Built from the intro queue: a trigger measured while the
            container is still the transition's fixed rectangle starts at
            the wrong scroll position. */
         Intro.add(root, () => {
-          const trigger = ScrollTrigger.create({
-            trigger: list,
-            start: 'top top',
-            end: 'bottom bottom',
-            scrub: true,
-            invalidateOnRefresh: true,
-            onUpdate: (self) => paint(self.progress),
-            onRefresh: (self) => paint(self.progress)
-          });
-          cleanups.push(() => trigger.kill());
+          /* One boundary per gap between rows. Positions are functions so
+             they are recomputed on refresh — the step is a screen tall and
+             a phone's screen changes when its address bar does. */
+          for (let i = 1; i < items.length; i += 1) {
+            const boundary = ScrollTrigger.create({
+              trigger: list,
+              start: () => `top top-=${i * window.innerHeight * SERVICES_STACK.screens}`,
+              invalidateOnRefresh: true,
+              onEnter: () => show(i),
+              /* Leave, not enter: the trigger element is the whole track, so the
+                 boundary is crossed by scrolling back out through its start,
+                 not by re-entering from beyond its end. */
+              onLeaveBack: () => show(i - 1)
+            });
+            cleanups.push(() => boundary.kill());
+          }
         });
       }
 
