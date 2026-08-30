@@ -569,6 +569,18 @@ sticky child holds only while its container is passing. Without the hold the
 final dissolve lands exactly as the section lets go, so the last row is never
 seen still.
 
+The shape is chosen on **width alone**, not on hover capability. The CSS half
+of the stack is a `max-width: 991px` block, so keying the script on
+`hover: none` meant a touchscreen laptop — or a device-emulation window at
+desktop width — built the stack while the CSS left the rows in flow: a screen
+of white per row and a very long scroll. A wide touch device now gets the
+hover build and simply never fires a hover, which is inert rather than broken.
+
+The row icon opens on hover like the link icons — zero wide until it is
+wanted, so the text does not shift when it appears. `--services-icon-size`
+(1.25rem) and `--services-icon-gap` set the shape; in the stacked view it is
+always open, since there is no pointer to earn it.
+
 The section swaps shape when the viewport crosses the breakpoint: the build
 in place is torn down and the other one made, so dragging a window past 992
 never leaves a follower with nothing to follow or a stack nobody can

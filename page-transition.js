@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-p';
+  const BUILD = '2026-08-30-q';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2305,7 +2305,14 @@
   Modules.add('servicesHover', function (root) {
     if (!root.querySelector('.services_wrap')) return;
 
-    const pointer = window.matchMedia('(hover: hover) and (min-width: 992px)');
+    /* Width, not hover capability. The CSS half of the stack lives in a
+       max-width: 991px block, so keying the JS on hover:none meant a
+       touchscreen laptop — or a device-emulation window at desktop width —
+       built the stack while the CSS left the rows in flow: a screen of
+       white per row and a very long scroll. Both halves read the same line
+       now. A wide touch device gets the hover build and simply never fires
+       a hover, which is inert rather than broken. */
+    const pointer = window.matchMedia('(min-width: 992px)');
     let teardown = null;
     let built = false;
 

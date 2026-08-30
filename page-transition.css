@@ -817,3 +817,48 @@ html.is-menu-open {
     background-color: var(--services-stack-bg, var(--_theme---background--background-primary, #191915));
   }
 }
+
+/* The row icon opens on hover, the same move the link icons make: a box
+   that is zero wide until it is wanted, so the text does not shift when it
+   appears — only what follows it slides across.
+
+   Sized from --services-icon-size rather than an em: the type style sits on
+   the text element, not on the row, so an em here would resolve against the
+   wrapper and never grow. */
+.services_hover_item .services_hover_icon {
+  --services-icon-size: 1.25rem;
+  --services-icon-gap: 0.5rem;
+  --services-icon-ease: cubic-bezier(0.625, 0.05, 0, 1);
+
+  flex: none;
+  width: 0;
+  height: var(--services-icon-size);
+  margin-right: 0;
+  overflow: hidden;
+  transition:
+    width 0.5s var(--services-icon-ease),
+    margin-right 0.5s var(--services-icon-ease);
+}
+
+@media (hover: hover) and (min-width: 992px) {
+  .services_hover_item:hover .services_hover_icon,
+  .services_hover_item:focus-within .services_hover_icon {
+    width: var(--services-icon-size);
+    margin-right: var(--services-icon-gap);
+  }
+}
+
+/* In the stacked shape there is nothing to hover, so the icon belongs to
+   whichever row is showing rather than to a pointer. */
+@media screen and (max-width: 991px) {
+  .services_hover_items.is-stacked .services_hover_icon {
+    width: var(--services-icon-size);
+    margin-right: var(--services-icon-gap);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .services_hover_item .services_hover_icon {
+    transition-duration: 0.01ms;
+  }
+}
