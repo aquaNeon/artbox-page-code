@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-x';
+  const BUILD = '2026-08-31-a';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2487,6 +2487,34 @@
     ease: 'power3.out',
     start: 'top 70%'
   };
+
+  /* ============================================================
+     FINSWEET ATTRIBUTES
+
+     Attributes scans the DOM once, on load. A barba swap hands it a
+     list it has never seen, so a page reached by navigating had filters
+     that did nothing — the markup was right and nothing was listening.
+     Restart the list solution for each container that carries one.
+
+     Only on a swap: on the first load the solution is still fetching
+     when modules mount, so `restart` is not there yet and Attributes is
+     about to initialise itself anyway. Calling it then would either
+     throw or re-run an init that had not finished.
+     ============================================================ */
+
+  Modules.add('finsweet', function (root) {
+    if (!root.querySelector || !root.querySelector('[fs-list-element="list"]')) return;
+
+    const restart = window.FinsweetAttributes?.modules?.list?.restart;
+    if (typeof restart !== 'function') return;
+
+    try {
+      restart();
+    } catch (err) {
+      console.warn('[finsweet] list restart failed', err);
+    }
+  });
+
 
   Modules.add('textSwap', function (root) {
     const wraps = root.querySelectorAll('[data-swap]');

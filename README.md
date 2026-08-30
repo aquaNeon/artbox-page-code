@@ -668,6 +668,23 @@ only makes the text box honest about where the letters are.
 
 ### Finsweet Attributes
 
+Attributes scans the DOM once, on load, so a page reached by navigating had
+filters that did nothing — the markup was right and nothing was listening.
+The `finsweet` module restarts the list solution for any container that
+carries `[fs-list-element="list"]`, which covers every filtered page without
+naming them.
+
+Only on a swap: on the first load the solution is still fetching when modules
+mount, so `restart` is not there yet and Attributes is about to initialise
+itself anyway. Calling it then would either throw or re-run an init that had
+not finished.
+
+Keep the Attributes `<script>` in the Webflow footer embed, once, site-wide,
+outside the swapped container. The v2 API is `window.FinsweetAttributes` —
+`push([key, cb])` to run code once a solution has loaded, `modules.<key>` for
+its controls (`restart`, `destroy`, `loading`), and `load(key)` to pull one in
+on demand.
+
 Paging controls are excluded from barba. Finsweet pages a list by clicking
 Webflow's own pagination anchor (`?…_page=2`) and reading the response —
 those are real same-origin links, so barba took them as navigations: pressing
