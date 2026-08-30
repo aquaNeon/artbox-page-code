@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-28-d';
+  const BUILD = '2026-08-30-a';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2724,7 +2724,15 @@
     hideAt: 0.5,          // fraction of the footer revealed → nav leaves
     showAt: 0.35,         // scrolled back above this → nav returns
     duration: 0.45,
-    ease: 'power2.out'
+    ease: 'power2.out',
+
+    /* Direction hiding. offset keeps the nav put over the first screen,
+       where a small scroll is usually someone settling rather than
+       travelling; threshold is the movement needed to count as a
+       direction at all, which is what stops an inertia wobble from
+       flickering it. */
+    offset: 120,          // px from the top before hiding is allowed
+    threshold: 6          // px of movement before a direction is read
   };
 
   let updateNavScroll = () => {};
@@ -2763,6 +2771,7 @@
     let scrolled = null;
     let hidden = false;
     let queued = false;
+    let lastY = window.scrollY;
 
     const setHidden = (hide) => {
       if (hide === hidden) return;
@@ -2780,7 +2789,12 @@
       });
     };
 
-    resetNav = () => setHidden(false);
+    resetNav = () => {
+      /* The incoming page starts at the top, so the old reading would
+         read as a large scroll up on the next event. */
+      lastY = 0;
+      setHidden(false);
+    };
 
     /* Coalesced to one read per frame: a Lenis-driven page fires scroll
        continuously and every scrollY read forces layout. */
@@ -2798,10 +2812,28 @@
          meaningless. Hold the nav where it is until the page lands. */
       if (document.documentElement.classList.contains('is-transitioning')) return;
 
+      /* Three inputs, in priority order: an open menu pins the nav on
+         screen, the footer reveal takes it away, and otherwise the
+         scroll direction decides. Between the two footer thresholds the
+         state is held rather than recomputed — that dead band is what
+         keeps an inertia scroll resting on the line from flickering it. */
       const revealed = footerRevealed();
-      if (navMenuOpen()) setHidden(false);
-      else if (!hidden && revealed >= NAV_HIDE.hideAt) setHidden(true);
-      else if (hidden && revealed <= NAV_HIDE.showAt) setHidden(false);
+      const y = Math.max(0, window.scrollY);   // iOS rubber-banding goes negative
+      const moved = y - lastY;
+
+      if (navMenuOpen()) {
+        setHidden(false);
+      } else if (revealed >= NAV_HIDE.hideAt) {
+        setHidden(true);
+      } else if (revealed <= NAV_HIDE.showAt) {
+        if (y <= NAV_HIDE.offset) {
+          setHidden(false);
+        } else if (Math.abs(moved) >= NAV_HIDE.threshold) {
+          setHidden(moved > 0);
+        }
+      }
+
+      if (Math.abs(moved) >= NAV_HIDE.threshold) lastY = y;
     };
 
     updateNavScroll = () => {

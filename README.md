@@ -831,7 +831,18 @@ rather than by an embed in the Designer.
 | State | When |
 | --- | --- |
 | `is-scrolled` | past 10px from the top |
-| `is-hidden` | the footer reveal is at least half out |
+| `is-hidden` | scrolling down past `offset`, or the footer reveal at least half out |
+
+It hides on the way down and returns on the way up, at every breakpoint.
+Three inputs decide, in priority order: an open menu pins it on screen, the
+footer reveal takes it away, and otherwise the scroll direction rules.
+`NAV_HIDE.offset` (120px) keeps it put over the first screen, where a small
+scroll is usually someone settling rather than travelling, and
+`NAV_HIDE.threshold` (6px) is the movement needed to read as a direction at
+all — without it an inertia wobble flickers the nav. Negative `scrollY` from
+iOS rubber-banding is clamped, and a navigation resets the reference point,
+since the incoming page starts at the top and would otherwise read as one
+large scroll up.
 
 The footer is fixed behind the page and revealed by the page sliding up
 off it, so how much of it is showing is just the distance left to the
