@@ -539,3 +539,163 @@ html.is-menu-open {
 .post_contact_details .button_link_text {
   overflow-wrap: anywhere;
 }
+
+/* ============================================================
+   SLIDER SECTION — .c_slider_wrap
+
+   Lifted out of the section embed, where several declarations had been
+   truncated mid-value — a broken one makes the parser skip to the next
+   ; or }, so it swallows whatever follows until it resyncs. The mobile
+   inset was one of the casualties, which is why the slider measured the
+   full viewport and Swiper wrote a slide as wide as the screen.
+
+   Variable names that could not be recovered from the fragment carry a
+   fallback, so a wrong guess degrades instead of painting nothing.
+
+   The track is full-bleed and clipped; the first slide is offset in line
+   with the page container by the slider module (slidesOffsetBefore), so
+   a card sliding out to the left stays visible to the viewport edge
+   while the slides Swiper relocates for the loop stay hidden.
+   ============================================================ */
+
+.c_slider_wrap {
+  overflow: visible;
+}
+
+/* Full bleed. The text alignment comes from slidesOffsetBefore, not from
+   a margin here — a margin would clip the left bleed. */
+.c_slider_offset {
+  margin-left: 0;
+}
+
+/* clip, not hidden: a hidden overflow makes this the scrollport that any
+   position:sticky descendant resolves against. */
+.c_slider_swiper {
+  width: 100%;
+  overflow: clip;
+}
+
+/* Slides, whichever element is the slide. */
+.c_slider_swiper_wrap > * {
+  min-width: 0;
+  height: auto;
+}
+
+/* Old structure only: several cards inside one slide. */
+.c_slider_swiper_slide {
+  display: flex;
+  gap: 1rem;
+}
+
+.c_slider_swiper_slide .c_slider_card {
+  width: 100%;
+  min-width: 0;
+}
+
+/* max-width would clamp the width Swiper just calculated, so the track
+   would step further than the cards actually sit apart. translateZ puts
+   the card on its own compositing layer — separately rasterised layers
+   round to different subpixels mid-transform, which is the hairline that
+   only showed while the slider was moving. */
+.c_slider_swiper .card_hover_wrap {
+  max-width: none;
+  border: 0;
+  overflow: clip;
+  transform: translateZ(0);
+}
+
+.card_hover_bg_hover {
+  transform: scale(1.01);
+  transform-origin: center;
+}
+
+.card_hover_img_wrap {
+  inset: 1px;
+}
+
+.c_slider_card_image_wrap,
+.card_hover_img_wrap {
+  overflow: clip;
+}
+
+.c_slider_card_image_wrap img,
+.card_hover_img_wrap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Secondary card text: stop the double transition. The card already
+   animates its colour, so this follows it with the alpha baked in
+   instead of running a timer of its own. */
+.c_slider_swiper .card_hover_wrap .card_hover_details_name,
+.c_slider_swiper .card_hover_wrap .u-color-secondary {
+  color: color-mix(in srgb, currentColor 60%, transparent) !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+.c_slider_swiper .card_hover_wrap .card_hover_details_position {
+  transition: none !important;
+}
+
+/* Arrows */
+.c_slider_button_prev,
+.c_slider_button_next {
+  background-color: var(--_theme---swiper--bg);
+  border: 1px solid var(--_theme---swiper--border, currentColor);
+  cursor: pointer;
+  transition: background-color 200ms, border-color 200ms;
+}
+
+.c_slider_button_prev svg,
+.c_slider_button_next svg {
+  color: var(--_theme---swiper--icon);
+  transition: color 200ms;
+}
+
+@media (hover: hover) {
+  .c_slider_button_prev:not(.is-inactive):hover,
+  .c_slider_button_next:not(.is-inactive):hover {
+    background-color: var(--_theme---swiper--bg-hover);
+    border-color: var(--_theme---swiper--border-hover);
+  }
+
+  .c_slider_button_prev:not(.is-inactive):hover svg,
+  .c_slider_button_next:not(.is-inactive):hover svg {
+    color: var(--_theme---swiper--icon-hover, var(--_theme---swiper--icon));
+  }
+}
+
+.c_slider_button_prev.is-inactive,
+.c_slider_button_next.is-inactive {
+  background-color: var(--_theme---swiper--bg-inactive);
+  border-color: var(--_theme---swiper--border-inactive, var(--_theme---swiper--border, currentColor));
+  cursor: not-allowed;
+  pointer-events: all;
+}
+
+.c_slider_button_prev.is-inactive svg,
+.c_slider_button_next.is-inactive svg {
+  color: var(--_theme---swiper--icon-inactive, color-mix(in srgb, currentColor 40%, transparent));
+}
+
+/* Designer preview, where Swiper is not running. */
+.wf-design-mode .c_slider_swiper_wrap {
+  display: flex;
+  gap: 120px;
+}
+
+.wf-design-mode .c_slider_swiper_wrap > * {
+  width: calc((100% - 120px) / 1.5);
+  flex-shrink: 0;
+}
+
+/* The inset that went missing with the truncated declaration. */
+@media (max-width: 767px) {
+  .c_slider_offset {
+    padding-left: var(--_sizes---grid--margin, 1rem);
+    padding-right: var(--_sizes---grid--margin, 1rem);
+  }
+}
