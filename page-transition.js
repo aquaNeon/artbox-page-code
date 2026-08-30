@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-j';
+  const BUILD = '2026-08-30-k';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1269,9 +1269,10 @@
        the attribute: textAnim fires once when the section scrolls past,
        which for a closed tab means animating text nobody can see and
        leaving it at rest by the time the tab is opened. */
-    textShift: 12,      // px the detail's content rises
-    textDuration: 0.5,
-    textDelay: 0.12,    // after the height starts, so it arrives with the room
+    textShift: 28,      // px the detail's content rises. Small values are
+                        // swallowed by the box expanding underneath them
+    textDuration: 0.6,
+    textDelay: 0.15,    // after the height starts, so it arrives with the room
 
     /* The stacked shape has no tab to open, so each pair reveals itself on
        the way past instead — the same rise data-text-anim-solo makes. */
