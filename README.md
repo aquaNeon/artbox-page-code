@@ -576,10 +576,13 @@ desktop width — built the stack while the CSS left the rows in flow: a screen
 of white per row and a very long scroll. A wide touch device now gets the
 hover build and simply never fires a hover, which is inert rather than broken.
 
-The row icon opens on hover like the link icons — zero wide until it is
-wanted, so the text does not shift when it appears. `--services-icon-size`
-(1.25rem) and `--services-icon-gap` set the shape; in the stacked view it is
-always open, since there is no pointer to earn it.
+The row icon grows out of its own middle on hover — the move the preview
+images make, not the sideways open the link icons use. It keeps its square
+whether or not it is showing, so the text beside it holds still: a transform
+never reflows. `--services-icon-size` (1.25rem) sets the box; in the stacked
+view the icon is always at full size, since there is no pointer to earn it.
+
+The preview itself is square, `--services-follower-ratio` (1 / 1).
 
 The section swaps shape when the viewport crosses the breakpoint: the build
 in place is torn down and the other one made, so dragging a window past 992
