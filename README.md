@@ -414,6 +414,12 @@ and `page-transition.css` undoes the desktop presentation — a visual column
 is usually a pile of absolutely positioned panels, which means nothing once
 they are in the flow.
 
+The wrapper is switched to a single column and the emptied visual column is
+hidden — otherwise the stack sits in half the width with a blank space
+beside it. That column is only hidden when it holds nothing else: a column
+that also contains the text items is the wrapper itself, and hiding that
+would take the section with it.
+
 Crossing the breakpoint rebuilds the other shape in place, so a rotated
 phone is not left with a stack of dead tabs. Each visual leaves a comment
 node behind when it moves, and that is what it is put back against: sibling

@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-g';
+  const BUILD = '2026-08-30-h';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1326,6 +1326,15 @@
         });
       }
 
+      /* The column the visuals came out of. Emptied by the stack, it would
+         otherwise still hold its half of the layout and leave the cards in
+         a narrow strip beside a blank space. Not hidden blindly: a column
+         that also holds the text is the wrapper itself, and hiding that
+         would take the section with it. */
+      const visualColumns = [...new Set(
+        visualItems.map((v) => v.parentElement).filter(Boolean)
+      )].filter((col) => col !== wrapper && !contentItems.some((item) => col.contains(item)));
+
       function applyStack() {
         wrapper.classList.add('is-stacked');
         visualItems.forEach((visual, i) => {
@@ -1333,6 +1342,7 @@
           visual.parentNode?.insertBefore(markers[i], visual);
           contentItems[i].insertBefore(visual, contentItems[i].firstChild);
         });
+        visualColumns.forEach((col) => col.classList.add('is-tabs-visuals-empty'));
         openAll();
       }
 
@@ -1342,6 +1352,7 @@
           const marker = markers[i];
           if (marker.parentNode) marker.parentNode.replaceChild(visual, marker);
         });
+        visualColumns.forEach((col) => col.classList.remove('is-tabs-visuals-empty'));
       }
 
       function markState(index) {

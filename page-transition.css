@@ -738,6 +738,22 @@ html.is-menu-open {
    meaningless once they are in the flow one after another.
    ============================================================ */
 
+/* One column: the wrapper is a two-column layout on desktop, and the
+   stack would otherwise sit in half the width with the emptied visual
+   column holding the rest. */
+[data-tabs="wrapper"].is-stacked {
+  display: block;
+}
+
+[data-tabs="wrapper"].is-stacked .is-tabs-visuals-empty {
+  display: none;
+}
+
+[data-tabs="wrapper"].is-stacked [data-tabs="content-item"] {
+  width: 100%;
+  max-width: none;
+}
+
 [data-tabs="wrapper"].is-stacked [data-tabs="visual-item"] {
   position: static;
   inset: auto;
