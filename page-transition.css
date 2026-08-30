@@ -776,3 +776,44 @@ html.is-menu-open {
 [data-tabs="wrapper"].is-stacked [data-tabs="content-item"] {
   cursor: auto;
 }
+
+/* ============================================================
+   SERVICES — pinned crossfade below 992px
+
+   The module lifts the rows into .services_stack_viewport and gives the
+   list the scroll height. These rules make that layerable: the list is
+   the tall track, the viewport is the screen that stays put, and the
+   rows sit on top of each other inside it.
+   ============================================================ */
+
+@media screen and (max-width: 991px) {
+  /* Full bleed — the section container would otherwise inset a layout
+     that is meant to run edge to edge. */
+  .services_wrap .services_contain {
+    max-width: none;
+    padding-left: var(--services-stack-inline, 0px);
+    padding-right: var(--services-stack-inline, 0px);
+  }
+
+  .services_hover_items.is-stacked {
+    position: relative;
+  }
+
+  .services_stack_viewport {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: hidden;
+  }
+
+  .services_hover_items.is-stacked .services_hover_item {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    /* Every row paints the full screen, so the one underneath cannot
+       show through the one fading in over it. */
+    background-color: var(--services-stack-bg, var(--_theme---background--background-primary, #191915));
+  }
+}

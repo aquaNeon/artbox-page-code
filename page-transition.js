@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-k';
+  const BUILD = '2026-08-30-l';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1930,13 +1930,106 @@
     dim: 0.45                // the rows that are not hovered
   };
 
+  /* ------------------------------------------------------------
+     The tablet-and-down shape of the services section.
+
+     The rows are lifted into a sticky viewport and layered on top of
+     each other, and the list itself is given the scroll height — one
+     screen per row — so a scrubbed trigger can dissolve row N into row
+     N+1. A viewport element is created rather than making each row
+     sticky in flow: sticky rows stack, with the next sliding up over
+     the last, and this is meant to be a crossfade with nothing moving.
+     ------------------------------------------------------------ */
+
+  const SERVICES_STACK = {
+    screens: 1,        // screens of scroll per row
+    overlap: 0.5       // fraction of a step the dissolve occupies
+  };
+
+  function buildServicesStack(root) {
+    const sections = root.querySelectorAll('.services_wrap');
+    if (!sections.length) return;
+
+    const cleanups = [];
+
+    sections.forEach((section) => {
+      const list = section.querySelector('.services_hover_items');
+      const items = list ? Array.from(list.querySelectorAll('.services_hover_item')) : [];
+      if (!list || items.length < 2) return;
+
+      const viewport = document.createElement('div');
+      viewport.className = 'services_stack_viewport';
+      list.appendChild(viewport);
+      items.forEach((item) => viewport.appendChild(item));
+      list.classList.add('is-stacked');
+      list.style.height = `${items.length * SERVICES_STACK.screens * 100}svh`;
+
+      /* The first row is the one on screen at rest; the rest wait at zero
+         rather than being hidden, so their images are already decoded by
+         the time they are needed. */
+      gsap.set(items, { opacity: 0 });
+      gsap.set(items[0], { opacity: 1 });
+
+      const setters = items.map((item) => gsap.quickSetter(item, 'opacity'));
+      const steps = items.length - 1;
+
+      const paint = (progress) => {
+        const pos = progress * steps;
+        items.forEach((_, i) => {
+          const distance = Math.abs(pos - i);
+          /* Full at its own step, gone one step away, and the crossfade
+             happens across the middle of the gap so two rows are only
+             both visible while they are actually swapping. */
+          const eased = 1 - (distance - (1 - SERVICES_STACK.overlap)) / SERVICES_STACK.overlap;
+          setters[i](Math.max(0, Math.min(1, distance <= 1 - SERVICES_STACK.overlap ? 1 : eased)));
+        });
+      };
+
+      if (!hasScrollTrigger || reducedMotion) {
+        gsap.set(items, { opacity: 1 });
+      } else {
+        /* Built from the intro queue: a trigger measured while the
+           container is still the transition's fixed rectangle starts at
+           the wrong scroll position. */
+        Intro.add(root, () => {
+          const trigger = ScrollTrigger.create({
+            trigger: list,
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: true,
+            invalidateOnRefresh: true,
+            onUpdate: (self) => paint(self.progress),
+            onRefresh: (self) => paint(self.progress)
+          });
+          cleanups.push(() => trigger.kill());
+        });
+      }
+
+      cleanups.push(() => {
+        gsap.killTweensOf(items);
+        gsap.set(items, { clearProps: 'opacity' });
+        list.classList.remove('is-stacked');
+        list.style.removeProperty('height');
+        items.forEach((item) => list.appendChild(item));
+        viewport.remove();
+      });
+    });
+
+    if (!cleanups.length) return;
+    return () => cleanups.forEach((fn) => fn());
+  }
+
   Modules.add('servicesHover', function (root) {
     const sections = root.querySelectorAll('.services_wrap');
     if (!sections.length) return;
 
-    /* No hover, no preview. The rows keep their Designer background
-       and nothing below runs. */
-    if (!window.matchMedia('(hover: hover) and (min-width: 992px)').matches) return;
+    /* Tablet and down has no pointer to follow, so the section becomes a
+       pinned crossfade instead: the rows are layered in one sticky
+       viewport and scrolling dissolves each into the next, a screen of
+       scroll per row. The hover build below never runs there. */
+    if (!window.matchMedia('(hover: hover) and (min-width: 992px)').matches) {
+      return buildServicesStack(root);
+    }
 
     const resolve = (v) => {
       if (!v) return null;

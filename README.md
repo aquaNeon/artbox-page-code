@@ -540,6 +540,24 @@ everything the module puts on a row is inline, where it outranks the
 Designer regardless of stylesheet order. It sits at `z-index: 90`, under
 the nav.
 
+**Below 992px it is a pinned crossfade instead.** There is no pointer to
+follow, so the rows are lifted into a `.services_stack_viewport` that sticks
+to the top of the screen, layered on top of each other, and the list itself
+is given the scroll height — one screen per row by default. A scrubbed
+trigger dissolves row N into row N+1 as you scroll; nothing moves, only
+opacity. The container padding is dropped so the rows run edge to edge.
+
+A viewport element is created rather than making each row sticky in flow:
+sticky rows stack, with the next sliding up over the last, and this is meant
+to be a dissolve with nothing in motion. Every row paints an opaque
+background (`--services-stack-bg`) so the one underneath cannot show through
+the one fading in over it.
+
+Knobs: `SERVICES_STACK.screens` (scroll per row) and `overlap` (how much of
+a step the dissolve occupies). The trigger is built from the intro queue,
+and teardown puts the rows back in the list and removes the viewport.
+
+
 Desktop pointers only (`(hover: hover) and (min-width: 992px)`) — below
 that the module returns before touching anything and the rows keep their
 Designer background, so set the mobile appearance there. Under
