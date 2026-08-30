@@ -414,7 +414,17 @@ animates text nobody can see and is already at rest when it opens, and a tab
 whose group never fires opens onto text still holding its hidden start
 state. Knobs: `textShift`, `textDuration`, `textDelay` in the `TABS` object.
 
-In the stacked mobile shape the text is simply visible — nothing animates.
+In the stacked mobile shape there is no tab to open, so each pair reveals
+itself on the way past instead: a 24px rise and fade, once, at `top 85%`.
+Same feel as `data-text-anim-solo`, but owned by the module so it exists
+only where the stack does — desktop keeps the tab-open reveal and never sees
+a hidden start state. Knobs: `stackShift`, `stackDuration`, `stackEase`,
+`stackStart`.
+
+The triggers are built from the intro queue on first load, since one measured
+while the container is still the transition's fixed rectangle fires at the
+wrong scroll position, and directly when the breakpoint is crossed later.
+Crossing back to desktop kills them and clears the start state.
 
 **Below 992px the section is a plain stack.** Tabs are a desktop
 affordance: on a phone the module moves each visual in beside its own text,

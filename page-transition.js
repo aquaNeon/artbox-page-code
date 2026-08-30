@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-i';
+  const BUILD = '2026-08-30-j';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1271,7 +1271,14 @@
        leaving it at rest by the time the tab is opened. */
     textShift: 12,      // px the detail's content rises
     textDuration: 0.5,
-    textDelay: 0.12     // after the height starts, so it arrives with the room
+    textDelay: 0.12,    // after the height starts, so it arrives with the room
+
+    /* The stacked shape has no tab to open, so each pair reveals itself on
+       the way past instead — the same rise data-text-anim-solo makes. */
+    stackShift: 24,     // px each pair rises
+    stackDuration: 0.7,
+    stackEase: 'power3.out',
+    stackStart: 'top 85%'
   };
 
   Modules.add('tabs', function (root) {
@@ -1352,6 +1359,36 @@
         visualItems.map((v) => v.parentElement).filter(Boolean)
       )].filter((col) => col !== wrapper && !contentItems.some((item) => col.contains(item)));
 
+      let stackTriggers = [];
+
+      function killStackReveal() {
+        stackTriggers.forEach((t) => t.kill());
+        stackTriggers = [];
+        gsap.killTweensOf(contentItems);
+        gsap.set(contentItems, { clearProps: 'opacity,visibility,transform' });
+      }
+
+      /* One reveal per pair, played once on the way past. Built from the
+         intro queue on first load — a trigger measured while the container
+         is still the transition's fixed rectangle fires at the wrong scroll
+         position — and directly when the breakpoint is crossed later, where
+         the page is already settled. */
+      function buildStackReveal() {
+        killStackReveal();
+        if (!stacked || dead || reducedMotion) return;
+        contentItems.forEach((item) => {
+          gsap.set(item, { autoAlpha: 0, y: TABS.stackShift });
+          const play = () => gsap.to(item, {
+            autoAlpha: 1, y: 0,
+            duration: TABS.stackDuration, ease: TABS.stackEase
+          });
+          if (!hasScrollTrigger) { play(); return; }
+          stackTriggers.push(ScrollTrigger.create({
+            trigger: item, start: TABS.stackStart, once: true, onEnter: play
+          }));
+        });
+      }
+
       function applyStack() {
         wrapper.classList.add('is-stacked');
         visualItems.forEach((visual, i) => {
@@ -1364,6 +1401,7 @@
       }
 
       function undoStack() {
+        killStackReveal();
         wrapper.classList.remove('is-stacked');
         visualItems.forEach((visual, i) => {
           const marker = markers[i];
@@ -1493,6 +1531,8 @@
       if (stacked) applyStack();
       else setState(0);
 
+      Intro.add(root, () => { if (stacked) buildStackReveal(); });
+
       /* Crossing the breakpoint rebuilds the other shape in place, so a
          rotated phone or a dragged window does not leave a stack with dead
          tabs behind it. */
@@ -1505,6 +1545,7 @@
         isAnimating = false;
         if (stacked) {
           applyStack();
+          buildStackReveal();
         } else {
           undoStack();
           setState(0);
@@ -1539,6 +1580,7 @@
         progressTween?.kill();
         switchTl?.kill();
         trigger?.kill();
+        killStackReveal();
         /* The visuals were moved, so put the markup back the way the
            Designer wrote it before the container is discarded. */
         if (stacked) undoStack();
