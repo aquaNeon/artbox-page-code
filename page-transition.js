@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-v';
+  const BUILD = '2026-08-30-w';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2504,6 +2504,12 @@
 
       wrap.classList.add('is-swapping');
 
+      /* Set inline, not by class. Webflow writes grid placement against the
+         node id it puts on each child (#w-node-…), and an id outranks any
+         class rule this file could write — the statements would keep their
+         separate columns and take turns side by side. */
+      list.forEach((el) => { el.style.gridArea = '1 / 1'; });
+
       let index = 0;
       let timer = null;
       let tl = null;
@@ -2574,6 +2580,7 @@
         trigger?.kill();
         wrap.classList.remove('is-swapping');
         hidden.forEach((el) => el.style.removeProperty('display'));
+        list.forEach((el) => el.style.removeProperty('grid-area'));
         gsap.set(list, { clearProps: 'opacity,visibility,transform' });
       });
     });
