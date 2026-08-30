@@ -867,6 +867,3 @@ html.is-menu-open {
   display: grid;
 }
 
-[data-swap].is-swapping > * {
-  grid-area: 1 / 1;
-}

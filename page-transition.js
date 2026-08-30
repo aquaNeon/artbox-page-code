@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-w';
+  const BUILD = '2026-08-30-x';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2504,11 +2504,31 @@
 
       wrap.classList.add('is-swapping');
 
-      /* Set inline, not by class. Webflow writes grid placement against the
-         node id it puts on each child (#w-node-…), and an id outranks any
-         class rule this file could write — the statements would keep their
-         separate columns and take turns side by side. */
-      list.forEach((el) => { el.style.gridArea = '1 / 1'; });
+      /* Stack them where the FIRST one already sits, rather than in cell
+         1/1: that cell is a single track, so a statement styled to span
+         half the grid came out a column wide. The placement is read off
+         the first item, which is the one the layout was designed around.
+
+         Set inline, because Webflow writes placement against the node id on
+         each child (#w-node-…) and an id outranks any class rule here — by
+         class alone the statements keep their own columns and take turns
+         side by side. Override the whole thing with data-swap-area. */
+      const track = (start, end) => {
+        const span = /span\s+(\d+)/.exec(start) || /span\s+(\d+)/.exec(end);
+        if (start !== 'auto' && !/span/.test(start)) return `${start} / ${end}`;
+        return `1 / span ${span ? span[1] : 1}`;
+      };
+
+      const anchor = getComputedStyle(list[0]);
+      const area = wrap.dataset.swapArea;
+      const column = track(anchor.gridColumnStart, anchor.gridColumnEnd);
+      const row = track(anchor.gridRowStart, anchor.gridRowEnd);
+
+      list.forEach((el) => {
+        if (area) { el.style.gridArea = area; return; }
+        el.style.gridColumn = column;
+        el.style.gridRow = row;
+      });
 
       let index = 0;
       let timer = null;
@@ -2580,7 +2600,11 @@
         trigger?.kill();
         wrap.classList.remove('is-swapping');
         hidden.forEach((el) => el.style.removeProperty('display'));
-        list.forEach((el) => el.style.removeProperty('grid-area'));
+        list.forEach((el) => {
+          el.style.removeProperty('grid-area');
+          el.style.removeProperty('grid-column');
+          el.style.removeProperty('grid-row');
+        });
         gsap.set(list, { clearProps: 'opacity,visibility,transform' });
       });
     });

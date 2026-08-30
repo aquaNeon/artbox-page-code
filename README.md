@@ -713,10 +713,17 @@ nothing.
 | `data-swap-hold="4000"` | the wrapper | ms each statement holds, default 3500 |
 | `data-swap-loop="false"` | the wrapper | Stop on the last one instead of cycling |
 
-The items are laid over each other in one grid cell rather than positioned
-absolutely: absolute children would collapse the wrapper and the section
-would lose its height, while in a shared cell the tallest statement still
-sets the box and nothing jumps as they take turns.
+The items are laid over each other rather than positioned absolutely:
+absolute children would collapse the wrapper and the section would lose its
+height, while stacked in the grid the tallest statement still sets the box
+and nothing jumps as they take turns.
+
+They stack **where the first one already sits**, not in cell 1/1 — that cell
+is a single track, so a statement styled to span half the grid came out a
+column wide. The placement is read off the first item and written inline,
+because Webflow writes placement against the node id on each child
+(`#w-node-…`) and an id outranks any class rule this file could add.
+`data-swap-area` on the wrapper overrides the lot, e.g. `1 / 1 / 2 / 7`.
 
 An item the Designer hid — `display: none` on the second one is how these
 usually arrive — is put back into the flow at mount, since it can never take
