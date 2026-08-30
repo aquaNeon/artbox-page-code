@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-o';
+  const BUILD = '2026-08-30-p';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1951,7 +1951,7 @@
     ease: 'power2.inOut'
   };
 
-  function buildServicesStack(root) {
+  function buildServicesStack(root, immediate) {
     const sections = root.querySelectorAll('.services_wrap');
     if (!sections.length) return;
 
@@ -2004,10 +2004,13 @@
       if (!hasScrollTrigger) {
         gsap.set(items, { opacity: 1 });
       } else {
-        /* Built from the intro queue: a trigger measured while the
-           container is still the transition's fixed rectangle starts at
-           the wrong scroll position. */
-        Intro.add(root, () => {
+        /* Built from the intro queue on first mount: a trigger measured
+           while the container is still the transition's fixed rectangle
+           starts at the wrong scroll position. A rebuild after a resize
+           has no such problem — and the queue for this container has
+           already been played and dropped, so a callback added now would
+           never run. */
+        const createTriggers = () => {
           /* One boundary per gap between rows. Positions are functions so
              they are recomputed on refresh — the step is a screen tall and
              a phone's screen changes when its address bar does. */
@@ -2024,7 +2027,10 @@
             });
             cleanups.push(() => boundary.kill());
           }
-        });
+        };
+
+        if (immediate) createTriggers();
+        else Intro.add(root, createTriggers);
       }
 
       cleanups.push(() => {
@@ -2041,17 +2047,10 @@
     return () => cleanups.forEach((fn) => fn());
   }
 
-  Modules.add('servicesHover', function (root) {
+  function buildServicesHover(root) {
     const sections = root.querySelectorAll('.services_wrap');
     if (!sections.length) return;
 
-    /* Tablet and down has no pointer to follow, so the section becomes a
-       pinned crossfade instead: the rows are layered in one sticky
-       viewport and scrolling dissolves each into the next, a screen of
-       scroll per row. The hover build below never runs there. */
-    if (!window.matchMedia('(hover: hover) and (min-width: 992px)').matches) {
-      return buildServicesStack(root);
-    }
 
     const resolve = (v) => {
       if (!v) return null;
@@ -2296,6 +2295,45 @@
     });
 
     return () => cleanups.forEach((fn) => fn());
+  }
+
+  /* The section has two shapes and the viewport decides which: a pointer
+     follows the rows on a desktop, and below that they dissolve into one
+     another in a pinned stack. Rebuilt on the way across, so dragging a
+     window past the breakpoint does not leave a follower with nothing to
+     follow, or a stack nobody can scrub. */
+  Modules.add('servicesHover', function (root) {
+    if (!root.querySelector('.services_wrap')) return;
+
+    const pointer = window.matchMedia('(hover: hover) and (min-width: 992px)');
+    let teardown = null;
+    let built = false;
+
+    const build = (immediate) => {
+      teardown = pointer.matches
+        ? buildServicesHover(root)
+        : buildServicesStack(root, immediate);
+      built = true;
+    };
+
+    const rebuild = () => {
+      if (!built) return;
+      teardown?.();
+      teardown = null;
+      build(true);
+      /* The stack adds a few screens of height, or gives them back. */
+      if (hasScrollTrigger) ScrollTrigger.refresh();
+      refreshScrollHeight();
+    };
+
+    build(false);
+    pointer.addEventListener('change', rebuild);
+
+    return () => {
+      pointer.removeEventListener('change', rebuild);
+      teardown?.();
+      teardown = null;
+    };
   });
 
 

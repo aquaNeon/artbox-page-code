@@ -569,6 +569,13 @@ sticky child holds only while its container is passing. Without the hold the
 final dissolve lands exactly as the section lets go, so the last row is never
 seen still.
 
+The section swaps shape when the viewport crosses the breakpoint: the build
+in place is torn down and the other one made, so dragging a window past 992
+never leaves a follower with nothing to follow or a stack nobody can
+scrub. A rebuild creates its triggers immediately rather than through the
+intro queue — that queue has already been played and dropped for this
+container, so a callback added then would never run.
+
 The triggers are built from the intro queue, and teardown puts the rows back
 in the list and removes the viewport.
 
