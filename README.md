@@ -561,9 +561,16 @@ to be a dissolve with nothing in motion. Every row paints an opaque
 background (`--services-stack-bg`) so the one underneath cannot show through
 the one fading in over it.
 
-Knobs: `SERVICES_STACK.screens` (scroll per row) and `overlap` (how much of
-a step the dissolve occupies). The trigger is built from the intro queue,
-and teardown puts the rows back in the list and removes the viewport.
+Knobs in `SERVICES_STACK`: `screens` (scroll between one row and the next),
+`hold` (screens the last row keeps the screen to itself before the pin
+releases), `duration` and `ease`. The track is sized from those — a step per
+gap, then the hold, then the screen the viewport itself occupies — because a
+sticky child holds only while its container is passing. Without the hold the
+final dissolve lands exactly as the section lets go, so the last row is never
+seen still.
+
+The triggers are built from the intro queue, and teardown puts the rows back
+in the list and removes the viewport.
 
 
 Desktop pointers only (`(hover: hover) and (min-width: 992px)`) — below

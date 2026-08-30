@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-n';
+  const BUILD = '2026-08-30-o';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1942,9 +1942,13 @@
      ------------------------------------------------------------ */
 
   const SERVICES_STACK = {
-    screens: 1,          // screens of scroll per row
-    duration: 0.6,       // the dissolve, once it is triggered
-    ease: 'power2.out'
+    screens: 1,          // screens of scroll between one row and the next
+    hold: 1,             // screens the last row keeps the screen to itself
+                         // before the pin releases. Without it the final
+                         // dissolve lands exactly as the section lets go,
+                         // so the last row is never seen still.
+    duration: 0.9,       // the dissolve, once it is triggered
+    ease: 'power2.inOut'
   };
 
   function buildServicesStack(root) {
@@ -1963,7 +1967,13 @@
       list.appendChild(viewport);
       items.forEach((item) => viewport.appendChild(item));
       list.classList.add('is-stacked');
-      list.style.height = `${items.length * SERVICES_STACK.screens * 100}svh`;
+      /* A sticky child holds while its container is passing, so the pinned
+         scroll is the track minus one screen. Size the track from what
+         happens inside it: a step per gap, then the hold, then the screen
+         the viewport itself occupies. */
+      const screens = (items.length - 1) * SERVICES_STACK.screens
+        + SERVICES_STACK.hold + 1;
+      list.style.height = `${screens * 100}svh`;
 
       /* The first row is the one on screen at rest; the rest wait at zero
          rather than being hidden, so their images are already decoded by
