@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-30-t';
+  const BUILD = '2026-08-30-v';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2454,6 +2454,132 @@
       controller.abort();
       boxes.forEach((box) => box.label?.classList.remove('filter-single', 'is-checked'));
     };
+  });
+
+
+  /* ============================================================
+     TEXT SWAP — [data-swap]
+
+     One statement at a time in the same spot: the one showing leaves
+     upward, the next arrives from below. Marked on the wrapper, so the
+     items stay whatever the Designer made them.
+
+     The items are laid over each other in a single grid cell rather
+     than being positioned absolutely — absolute children collapse the
+     wrapper to nothing and the section loses its height. In one cell
+     the tallest statement still sets the box, so nothing jumps as they
+     take turns.
+
+       data-swap                  the wrapper
+       data-swap-item             optional, marks the items. Without it
+                                  the wrapper's element children are used
+       data-swap-hold="4000"      ms each statement holds, default 3500
+       data-swap-loop="false"     stop on the last one instead of cycling
+
+     Starts when the section arrives rather than on load: a statement
+     that changed twice before anybody scrolled to it has said nothing.
+     ============================================================ */
+
+  const SWAP = {
+    hold: 3500,
+    duration: 0.7,
+    shift: 24,          // px travelled, out upward and in from below
+    ease: 'power3.out',
+    start: 'top 70%'
+  };
+
+  Modules.add('textSwap', function (root) {
+    const wraps = root.querySelectorAll('[data-swap]');
+    if (!wraps.length) return;
+
+    const cleanups = [];
+
+    wraps.forEach((wrap) => {
+      const items = Array.from(wrap.querySelectorAll('[data-swap-item]'));
+      const list = items.length ? items : Array.from(wrap.children);
+      if (list.length < 2) return;
+
+      const hold = parseInt(wrap.dataset.swapHold, 10) || SWAP.hold;
+      const loop = wrap.dataset.swapLoop !== 'false';
+
+      wrap.classList.add('is-swapping');
+
+      let index = 0;
+      let timer = null;
+      let tl = null;
+      let dead = false;
+
+      /* A statement the Designer hid — display:none on the second one is how
+         these usually arrive — cannot take its turn. Put it back in the flow
+         and let opacity decide who is showing, which is the whole point of
+         the swap. Recorded so teardown returns the markup as it was. */
+      const hidden = list.filter((el) => getComputedStyle(el).display === 'none');
+      hidden.forEach((el) => { el.style.display = 'block'; });
+
+      gsap.set(list, { autoAlpha: 0, y: SWAP.shift });
+      gsap.set(list[0], { autoAlpha: 1, y: 0 });
+
+      const queue = () => {
+        clearTimeout(timer);
+        if (dead) return;
+        if (!loop && index === list.length - 1) return;
+        timer = setTimeout(() => swap((index + 1) % list.length), hold);
+      };
+
+      function swap(next) {
+        if (dead || next === index) return;
+        const current = list[index];
+        index = next;
+
+        tl?.kill();
+        if (reducedMotion) {
+          gsap.set(list, { autoAlpha: 0, y: 0 });
+          gsap.set(list[index], { autoAlpha: 1 });
+          queue();
+          return;
+        }
+
+        tl = gsap.timeline({ onComplete: queue });
+        tl.to(current, {
+          autoAlpha: 0, y: -SWAP.shift,
+          duration: SWAP.duration, ease: SWAP.ease
+        }, 0);
+        tl.fromTo(list[index],
+          { autoAlpha: 0, y: SWAP.shift },
+          { autoAlpha: 1, y: 0, duration: SWAP.duration, ease: SWAP.ease },
+          SWAP.duration * 0.35
+        );
+      }
+
+      let trigger = null;
+
+      /* Queued rather than started here: mount runs while the container is
+         still the transition's fixed rectangle, and a trigger measured
+         against that fires at the wrong scroll position. */
+      Intro.add(root, () => {
+        if (dead) return;
+        if (!hasScrollTrigger) { queue(); return; }
+        trigger = ScrollTrigger.create({
+          trigger: wrap,
+          start: SWAP.start,
+          once: true,
+          onEnter: queue
+        });
+      });
+
+      cleanups.push(() => {
+        dead = true;
+        clearTimeout(timer);
+        tl?.kill();
+        trigger?.kill();
+        wrap.classList.remove('is-swapping');
+        hidden.forEach((el) => el.style.removeProperty('display'));
+        gsap.set(list, { clearProps: 'opacity,visibility,transform' });
+      });
+    });
+
+    if (!cleanups.length) return;
+    return () => cleanups.forEach((fn) => fn());
   });
 
 

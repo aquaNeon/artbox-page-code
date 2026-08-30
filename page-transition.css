@@ -859,3 +859,14 @@ html.is-menu-open {
     transition-duration: 0.01ms;
   }
 }
+
+/* Text swap: the statements share one grid cell so they sit on top of each
+   other and the tallest still sets the height. Absolute children would
+   collapse the wrapper and the section would lose its box. */
+[data-swap].is-swapping {
+  display: grid;
+}
+
+[data-swap].is-swapping > * {
+  grid-area: 1 / 1;
+}

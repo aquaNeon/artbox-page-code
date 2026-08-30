@@ -699,6 +699,32 @@ once a solution has loaded, `modules.<key>` for that solution's controls
 Keep the Attributes `<script>` itself in the Webflow footer embed, once,
 outside the swapped container.
 
+### textSwap — `[data-swap]`
+
+One statement at a time in the same spot: the one showing leaves upward, the
+next arrives from below, on a timer that starts when the section comes into
+view. A statement that changed twice before anybody scrolled to it has said
+nothing.
+
+| Attribute | Where | Meaning |
+| --- | --- | --- |
+| `data-swap` | the wrapper | Marks the group |
+| `data-swap-item` | each item | Optional. Without it the wrapper's element children are used |
+| `data-swap-hold="4000"` | the wrapper | ms each statement holds, default 3500 |
+| `data-swap-loop="false"` | the wrapper | Stop on the last one instead of cycling |
+
+The items are laid over each other in one grid cell rather than positioned
+absolutely: absolute children would collapse the wrapper and the section
+would lose its height, while in a shared cell the tallest statement still
+sets the box and nothing jumps as they take turns.
+
+An item the Designer hid — `display: none` on the second one is how these
+usually arrive — is put back into the flow at mount, since it can never take
+its turn otherwise. Teardown restores it, along with the transforms.
+
+Timing lives in the `SWAP` object. Under `prefers-reduced-motion` the
+statements change without moving.
+
 ### homeHero
 
 `.home_wrap` only. The heading is untouched by this module by design — put
