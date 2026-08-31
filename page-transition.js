@@ -1770,12 +1770,10 @@
      ============================================================ */
 
   const HERO = {
-    imgFrom: 0.6,
-    imgDuration: 0.9,
-    imgStagger: 0.08,
-    imgEase: 'power2.out',
-    imgDelay: 0.15,
-    imgStaggerFrom: 'start',   // 'start' | 'center' | 'edges' | 'random'
+    /* The entrance is a @keyframes in the .home_wrap section embed, not
+       a timeline here — see the note on the module. Its numbers live
+       there: 0.9s, 0.6 start scale, 0.08 stagger, 0.15s delay. Change
+       them in the embed, there is nothing to keep in sync here. */
 
     bump: true,
     bumpStrength: 0.12,
@@ -1795,67 +1793,83 @@
     const wraps = section.querySelectorAll('.home_img_wrap');
     const imgs = section.querySelectorAll('.home_img_wrap img');
 
-    /* The section's own CSS embed pre-hides the images so they cannot
-       flash at full opacity before gsap owns them. Nothing below is
-       allowed to leave that class off: a blank grid is worse than an
-       unanimated one. */
-    const reveal = () => document.documentElement.classList.add('hero-anim-off');
-    if (!imgs.length) { reveal(); return; }
-
-    const watchdog = setTimeout(reveal, 2500);
-
-    if (reducedMotion) {
-      reveal();
-      gsap.set(imgs, { opacity: 1, scale: 1 });
-      clearTimeout(watchdog);
-      return;
-    }
+    if (!imgs.length) return;
+    if (reducedMotion) return;
 
     const cleanups = [];
+    let dead = false;
+
+    /* The entrance used to be a gsap timeline here, with the embed
+       holding the images at opacity 0 until it started. That made the
+       hero wait on this file, and on GSAP, ScrollTrigger and SplitText
+       before it — an element at opacity 0 is not painted, so LCP could
+       not fire until the whole chain had landed. It is a @keyframes in
+       the embed now: same fade, same scale, same stagger, but the paint
+       waits on a stylesheet instead of a bundle.
+
+       What stays here is what CSS cannot do — a pointer bump and a
+       scrubbed parallax. */
+
+    /* A swapped container is inserted while it is still the transition's
+       fixed rectangle, so its keyframes have already burned through by
+       the time the page settles and the entrance would go unseen. Replay
+       them from the intro queue, where the old timeline played. */
+    if (root !== document) {
+      Intro.add(root, () => {
+        if (dead) return;
+        imgs.forEach((img) => {
+          img.style.animation = 'none';
+          void img.offsetWidth;              // reflow, or the restart coalesces away
+          img.style.removeProperty('animation');
+        });
+      });
+    }
+
+    /* animation-fill-mode: both keeps the keyframe's end state applied
+       after it finishes, and a filled CSS animation outranks an inline
+       transform — so anything gsap writes to the img afterwards is
+       silently ignored and the bump never moves. The end state is
+       scale(1), the img's own base, so dropping the animation once it is
+       done looks identical and hands the transform back. */
+    const afterEntrance = (img, fn) => {
+      const done = () => {
+        if (dead) return;
+        img.style.animation = 'none';
+        fn();
+      };
+      if (getComputedStyle(img).animationName === 'none') { done(); return; }
+      img.addEventListener('animationend', done, { once: true });
+      cleanups.push(() => img.removeEventListener('animationend', done));
+    };
 
     const ctx = gsap.context(() => {
-      /* Built paused and handed to the queue. Created here rather than
-         inside the callback so the context owns it and revert() takes it
-         with everything else. */
-      gsap.set(imgs, { opacity: 0, scale: HERO.imgFrom, transformOrigin: 'center center' });
-
-      const intro = gsap.timeline({ paused: true, defaults: { force3D: true } });
-      intro.to(imgs, {
-        opacity: 1,
-        scale: 1,
-        duration: HERO.imgDuration,
-        ease: HERO.imgEase,
-        stagger: { each: HERO.imgStagger, from: HERO.imgStaggerFrom },
-        onStart: reveal
-      }, HERO.imgDelay);
-
-      Intro.add(root, () => intro.play());
-
       if (HERO.bump && window.matchMedia('(hover: hover)').matches) {
         wraps.forEach((wrap) => {
           const img = wrap.querySelector('img');
           if (!img) return;
 
-          const xTo = gsap.quickTo(img, 'x', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
-          const yTo = gsap.quickTo(img, 'y', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
-          let rect = null;
+          afterEntrance(img, () => {
+            const xTo = gsap.quickTo(img, 'x', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
+            const yTo = gsap.quickTo(img, 'y', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
+            let rect = null;
 
-          const onEnter = () => { rect = wrap.getBoundingClientRect(); };
-          const onMove = (e) => {
-            if (!rect) rect = wrap.getBoundingClientRect();
-            xTo((e.clientX - (rect.left + rect.width / 2)) * HERO.bumpStrength);
-            yTo((e.clientY - (rect.top + rect.height / 2)) * HERO.bumpStrength);
-          };
-          const onLeave = () => { xTo(0); yTo(0); rect = null; };
+            const onEnter = () => { rect = wrap.getBoundingClientRect(); };
+            const onMove = (e) => {
+              if (!rect) rect = wrap.getBoundingClientRect();
+              xTo((e.clientX - (rect.left + rect.width / 2)) * HERO.bumpStrength);
+              yTo((e.clientY - (rect.top + rect.height / 2)) * HERO.bumpStrength);
+            };
+            const onLeave = () => { xTo(0); yTo(0); rect = null; };
 
-          wrap.addEventListener('mouseenter', onEnter);
-          wrap.addEventListener('mousemove', onMove);
-          wrap.addEventListener('mouseleave', onLeave);
+            wrap.addEventListener('mouseenter', onEnter);
+            wrap.addEventListener('mousemove', onMove);
+            wrap.addEventListener('mouseleave', onLeave);
 
-          cleanups.push(() => {
-            wrap.removeEventListener('mouseenter', onEnter);
-            wrap.removeEventListener('mousemove', onMove);
-            wrap.removeEventListener('mouseleave', onLeave);
+            cleanups.push(() => {
+              wrap.removeEventListener('mouseenter', onEnter);
+              wrap.removeEventListener('mousemove', onMove);
+              wrap.removeEventListener('mouseleave', onLeave);
+            });
           });
         });
       }
@@ -1885,9 +1899,12 @@
     }, section);
 
     return () => {
-      clearTimeout(watchdog);
+      dead = true;
       cleanups.forEach((fn) => fn());
       ctx.revert();
+      /* The keyframe was cleared inline once it finished. Handing the
+         markup back means letting the embed own it again. */
+      imgs.forEach((img) => img.style.removeProperty('animation'));
     };
   });
 
@@ -2485,7 +2502,8 @@
     duration: 0.7,
     shift: 24,          // px travelled, out upward and in from below
     ease: 'power3.out',
-    start: 'top 70%'
+    start: 'top 70%',
+    stack: '(max-width: 767px)'   // below this the statements go full width
   };
 
   /* ============================================================
@@ -2547,16 +2565,48 @@
         return `1 / span ${span ? span[1] : 1}`;
       };
 
-      const anchor = getComputedStyle(list[0]);
-      const area = wrap.dataset.swapArea;
-      const column = track(anchor.gridColumnStart, anchor.gridColumnEnd);
-      const row = track(anchor.gridRowStart, anchor.gridRowEnd);
+      const stacked = window.matchMedia(SWAP.stack);
 
-      list.forEach((el) => {
-        if (area) { el.style.gridArea = area; return; }
-        el.style.gridColumn = column;
-        el.style.gridRow = row;
-      });
+      /* Re-read on every resize. Measured once at mount, the desktop track
+         was written inline to each statement, and inline outranks the
+         Designer's tablet and mobile rules — so below 992 the text kept a
+         column count that breakpoint no longer has. */
+      const place = () => {
+        /* Cleared first. list[0] is carrying whatever the last pass wrote,
+           and measuring that back would only re-freeze it. */
+        list.forEach((el) => {
+          el.style.removeProperty('grid-area');
+          el.style.removeProperty('grid-column');
+          el.style.removeProperty('grid-row');
+        });
+
+        const area = wrap.dataset.swapArea;
+        if (area) {
+          list.forEach((el) => { el.style.gridArea = area; });
+          return;
+        }
+
+        const anchor = getComputedStyle(list[0]);
+        /* Full width on mobile: one column, nothing sits beside the text. */
+        const column = stacked.matches
+          ? '1 / -1'
+          : track(anchor.gridColumnStart, anchor.gridColumnEnd);
+        const row = track(anchor.gridRowStart, anchor.gridRowEnd);
+
+        list.forEach((el) => {
+          el.style.gridColumn = column;
+          el.style.gridRow = row;
+        });
+      };
+
+      place();
+
+      let placeTimer = null;
+      const onResize = () => {
+        clearTimeout(placeTimer);
+        placeTimer = setTimeout(place, 150);
+      };
+      window.addEventListener('resize', onResize, { passive: true });
 
       let index = 0;
       let timer = null;
@@ -2624,6 +2674,8 @@
       cleanups.push(() => {
         dead = true;
         clearTimeout(timer);
+        clearTimeout(placeTimer);
+        window.removeEventListener('resize', onResize);
         tl?.kill();
         trigger?.kill();
         wrap.classList.remove('is-swapping');
@@ -3132,6 +3184,87 @@
       observer.disconnect();
       detachers.forEach((fn) => fn());
     };
+  });
+
+
+  /* ============================================================
+     VIDEO POSTER — [data-video="component"]
+
+     base-lib drops the poster the moment it decides to play, which is
+     before any frame exists. Webflow ships <source> carrying both
+     data-src and src, so base-lib's lazyLoadVideo takes its early-out
+     and resolves without loading anything; preload="none" means not a
+     byte has been fetched. The poster leaves, the video box is still
+     empty, and the section background shows through as a grey frame.
+     Intermittent, because it is a race the cache sometimes wins.
+
+     So the poster is held here instead and faded on the first PAINTED
+     frame — requestVideoFrameCallback, or the playing event plus a rAF
+     where that is missing. Nothing else is taken over: base-lib keeps
+     its lazy load, its scroll-in play and its pause. If the video never
+     arrives — an expired or 404 url — no frame is painted, nothing
+     fades, and the poster simply stays. That is the correct fallback
+     and the current code has it backwards.
+
+     Registered ahead of baseLib so the poster is under this module's
+     control before video-min touches it.
+     ============================================================ */
+
+  Modules.add('videoPoster', function (root) {
+    const wraps = root.querySelectorAll('[data-video="component"]');
+    if (!wraps.length) return;
+
+    const cleanups = [];
+
+    wraps.forEach((wrap) => {
+      const video = wrap.querySelector('video[data-video="video"]');
+      const poster = wrap.querySelector('[data-video="poster"]');
+      if (!video || !poster) return;
+
+      /* Both of these are Designer defaults working against a hero: the
+         poster is the first thing anyone sees, and the video wants to be
+         arriving before the section scrolls in. Corrected here rather
+         than left as two attributes somebody has to remember. */
+      if (video.preload === 'none') video.preload = 'metadata';
+      poster.setAttribute('loading', 'eager');
+      poster.setAttribute('fetchpriority', 'high');
+
+      let dead = false;
+      let handle = null;
+
+      const reveal = () => {
+        if (dead) return;
+        wrap.classList.add('is-video-playing');
+      };
+
+      const onPlaying = () => {
+        if (dead) return;
+        if (typeof video.requestVideoFrameCallback === 'function') {
+          handle = video.requestVideoFrameCallback(reveal);
+          return;
+        }
+        /* No rVFC. `playing` means a frame is presentable, not that it
+           has been composited, so wait for the frame after the next. */
+        requestAnimationFrame(() => requestAnimationFrame(reveal));
+      };
+
+      /* Already running by the time this mounts — a swap back to a page
+         whose video kept playing never fires `playing` again. */
+      if (!video.paused && video.readyState >= 3) onPlaying();
+      video.addEventListener('playing', onPlaying);
+
+      cleanups.push(() => {
+        dead = true;
+        video.removeEventListener('playing', onPlaying);
+        if (handle && typeof video.cancelVideoFrameCallback === 'function') {
+          video.cancelVideoFrameCallback(handle);
+        }
+        wrap.classList.remove('is-video-playing');
+      });
+    });
+
+    if (!cleanups.length) return;
+    return () => cleanups.forEach((fn) => fn());
   });
 
 

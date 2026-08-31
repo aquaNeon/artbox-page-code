@@ -867,3 +867,39 @@ html.is-menu-open {
   display: grid;
 }
 
+/* Mobile: one explicit track, so the JS placing the statements at
+   1 / -1 has a real end line to reach. Without a template the wrap's
+   columns are implicit, -1 resolves back to line 1, and the statements
+   auto-place into columns of their own instead of stacking full width. */
+@media (max-width: 767px) {
+  [data-swap].is-swapping {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Video poster handoff, see the videoPoster module.
+
+   display is pinned with !important on purpose: video-min.js sets
+   `poster.style.display = 'none'` inline the moment it plays, and an
+   element pulled out of the flow cannot be faded. Pinning it leaves
+   opacity as the only thing deciding who is showing, so base-lib's
+   toggle becomes a no-op instead of something to patch around.
+
+   The poster sits over the video rather than beside it, so there is
+   never a frame where neither is painted — which is the grey. */
+[data-video="component"] [data-video="poster"] {
+  display: block !important;
+  opacity: 1;
+  transition: opacity 400ms ease;
+  pointer-events: none;
+}
+
+[data-video="component"].is-video-playing [data-video="poster"] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-video="component"] [data-video="poster"] {
+    transition-duration: 0.01ms;
+  }
+}
