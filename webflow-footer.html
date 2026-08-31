@@ -17,7 +17,21 @@
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/SplitText.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@barba/core@2.10.3/dist/barba.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.17/dist/lenis.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+<!-- ON DEMAND, do not add tags for these.
+
+     Swiper (43 KiB + a render-blocking stylesheet) and Finsweet
+     Attributes (~45 KiB, and it fans out into twenty-odd ESM chunks
+     that formed the longest critical chain on the site) are fetched by
+     page-transition.js, once, for a container whose markup needs them:
+     .c_slider_swiper for Swiper, [fs-list-element="list"] for
+     Attributes. Home has neither and now pays for neither.
+
+     Both tags must be REMOVED from Webflow's site-wide code, including
+     the Attributes one under Site Settings. Left in place they load on
+     every page again and the lazy path is dead weight — it detects the
+     library is already there and resolves without fetching, so nothing
+     breaks, but nothing is saved either. -->
 
 <script src="https://cdn.jsdelivr.net/gh/MadeYouLookAB/base-lib@main/code-base/form-validation.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/MadeYouLookAB/base-lib@main/code-base/match-container.min.js"></script>

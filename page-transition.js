@@ -2553,14 +2553,25 @@
   Modules.add('finsweet', function (root) {
     if (!root.querySelector || !root.querySelector('[fs-list-element="list"]')) return;
 
-    const restart = window.FinsweetAttributes?.modules?.list?.restart;
-    if (typeof restart !== 'function') return;
+    let dead = false;
 
-    try {
-      restart();
-    } catch (err) {
-      console.warn('[finsweet] list restart failed', err);
-    }
+    /* Fetched here rather than from the site-wide embed, so a page with
+       no list never pays for it. Resolves immediately when it is already
+       in the document, which is every visit after the first list. */
+    Assets.finsweet().then(() => {
+      if (dead) return;
+
+      const restart = window.FinsweetAttributes?.modules?.list?.restart;
+      if (typeof restart !== 'function') return;
+
+      try {
+        restart();
+      } catch (err) {
+        console.warn('[finsweet] list restart failed', err);
+      }
+    }).catch((err) => console.error('[finsweet] failed to load', err));
+
+    return () => { dead = true; };
   });
 
 
@@ -2724,220 +2735,301 @@
   });
 
 
+  /* ============================================================
+     LAZY ASSETS
+
+     Swiper and Finsweet Attributes were loaded from the site-wide
+     embeds, so every page paid for them. Home uses neither. Together
+     they are about 90 KiB, and Attributes fans out into twenty-odd ESM
+     chunks that made the longest critical chain on the page — the
+     entry cannot even start resolving them until it has been parsed.
+
+     Fetched here instead, once, and only for a container that has the
+     markup. The promise is cached per asset, so a second slider on the
+     page, or a swap back to one, reuses the first fetch rather than
+     appending a second tag.
+     ============================================================ */
+
+  const Assets = (function () {
+    const cache = new Map();
+
+    const once = (key, make) => {
+      if (!cache.has(key)) cache.set(key, make());
+      return cache.get(key);
+    };
+
+    const script = (src, attrs) => new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      Object.keys(attrs || {}).forEach((k) => el.setAttribute(k, attrs[k]));
+      el.src = src;
+      el.onload = () => resolve();
+      el.onerror = () => reject(new Error('could not load ' + src));
+      document.head.appendChild(el);
+    });
+
+    /* Resolves either way. A stylesheet that 404s leaves an ugly slider,
+       refusing to build one over it leaves no slider at all. */
+    const style = (href) => new Promise((resolve) => {
+      const el = document.createElement('link');
+      el.rel = 'stylesheet';
+      el.href = href;
+      el.onload = el.onerror = () => resolve();
+      document.head.appendChild(el);
+    });
+
+    return {
+      swiper() {
+        return once('swiper', () => {
+          if (window.Swiper) return Promise.resolve();
+          return Promise.all([
+            style('https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css'),
+            script('https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js')
+          ]);
+        });
+      },
+
+      /* type=module is not optional: the entry is ESM and its first line
+         is a bare import. As a classic script it is a syntax error. */
+      finsweet() {
+        return once('finsweet', () => {
+          if (window.FinsweetAttributes) return Promise.resolve();
+          return script(
+            'https://cdn.jsdelivr.net/npm/@finsweet/attributes@2/attributes.js',
+            { type: 'module', async: '' }
+          );
+        });
+      }
+    };
+  })();
+
+
   Modules.add('slider', function (root) {
+    /* Nothing to build and, more to the point, nothing to fetch. */
+    if (!root.querySelector('.c_slider_swiper')) return;
+
     const instances = [];
     const resizeHandlers = [];
     const slideTags = [];
+    let dead = false;
 
-    root.querySelectorAll('.c_slider_swiper').forEach((el) => {
-      const num = (attr, fallback) => {
-        const v = el.getAttribute(attr);
-        return v !== null && v !== '' ? parseFloat(v) : fallback;
-      };
-      const bool = (attr, fallback) => {
-        const v = el.getAttribute(attr);
-        return v !== null && v !== '' ? v === 'true' : fallback;
-      };
-      const str = (attr) => {
-        const v = el.getAttribute(attr);
-        return v !== null && v.trim() !== '' ? v.trim() : null;
-      };
+    const build = () => {
+      if (dead) return;
+      root.querySelectorAll('.c_slider_swiper').forEach((el) => {
+        const num = (attr, fallback) => {
+          const v = el.getAttribute(attr);
+          return v !== null && v !== '' ? parseFloat(v) : fallback;
+        };
+        const bool = (attr, fallback) => {
+          const v = el.getAttribute(attr);
+          return v !== null && v !== '' ? v === 'true' : fallback;
+        };
+        const str = (attr) => {
+          const v = el.getAttribute(attr);
+          return v !== null && v.trim() !== '' ? v.trim() : null;
+        };
 
-      const gapAttr = str('data-gap');
-      const gapMobileAttr = str('data-gap-mobile');
-      const mq = window.matchMedia('(max-width: 767px)');
+        const gapAttr = str('data-gap');
+        const gapMobileAttr = str('data-gap-mobile');
+        const mq = window.matchMedia('(max-width: 767px)');
 
-      const applyGap = () => {
-        const value = mq.matches ? (gapMobileAttr || gapAttr) : gapAttr;
-        if (value) el.style.setProperty('--slider-gap', value);
-      };
+        const applyGap = () => {
+          const value = mq.matches ? (gapMobileAttr || gapAttr) : gapAttr;
+          if (value) el.style.setProperty('--slider-gap', value);
+        };
 
-      /* Rounded. A rem-based gap measures fractional (23.84px), Swiper
-         multiplies it into every slide offset, and the accumulated
-         fraction lands slide edges on half pixels — which is the hairline
-         of the neighbouring image showing along the edge of a slide. */
-      const measureGap = () => {
-        const probe = document.createElement('div');
-        probe.className = 'c_slider_gap_probe';
-        el.appendChild(probe);
-        const px = probe.getBoundingClientRect().width;
-        probe.remove();
-        return Math.round(px);
-      };
+        /* Rounded. A rem-based gap measures fractional (23.84px), Swiper
+           multiplies it into every slide offset, and the accumulated
+           fraction lands slide edges on half pixels — which is the hairline
+           of the neighbouring image showing along the edge of a slide. */
+        const measureGap = () => {
+          const probe = document.createElement('div');
+          probe.className = 'c_slider_gap_probe';
+          el.appendChild(probe);
+          const px = probe.getBoundingClientRect().width;
+          probe.remove();
+          return Math.round(px);
+        };
 
-      applyGap();
+        applyGap();
 
-      /* Left bleed with a loop, without showing the loop's own machinery.
-         The track runs full-bleed and the first slide is pushed in to line
-         up with the page text, so the clipping edge is the viewport rather
-         than the text margin — a slide leaving to the left stays visible
-         all the way out, while the slides Swiper relocates far off-screen
-         stay hidden.
+        /* Left bleed with a loop, without showing the loop's own machinery.
+           The track runs full-bleed and the first slide is pushed in to line
+           up with the page text, so the clipping edge is the viewport rather
+           than the text margin — a slide leaving to the left stays visible
+           all the way out, while the slides Swiper relocates far off-screen
+           stay hidden.
 
-         Set data-align-to to a selector inside the section whose left edge
-         the first slide should match; defaults to the section's container.
-         Requires the track itself to be full width: drop the margin-left
-         from .c_slider_offset. */
-      const alignSel = str('data-align-to') || '.u-container';
-      const section = el.closest('section') || el.parentElement;
+           Set data-align-to to a selector inside the section whose left edge
+           the first slide should match; defaults to the section's container.
+           Requires the track itself to be full width: drop the margin-left
+           from .c_slider_offset. */
+        const alignSel = str('data-align-to') || '.u-container';
+        const section = el.closest('section') || el.parentElement;
 
-      const measureOffset = () => {
-        const target = section && section.querySelector(alignSel);
-        if (!target || target.contains(el)) return 0;
-        const delta = target.getBoundingClientRect().left - el.getBoundingClientRect().left;
-        return delta > 0 ? Math.round(delta) : 0;
-      };
+        const measureOffset = () => {
+          const target = section && section.querySelector(alignSel);
+          if (!target || target.contains(el)) return 0;
+          const delta = target.getBoundingClientRect().left - el.getBoundingClientRect().left;
+          return delta > 0 ? Math.round(delta) : 0;
+        };
 
-      /* The rail runs edge to edge, so without a matching offset at the far
-         end Swiper stops with the last card's right edge against the
-         viewport rather than against the page margin — the card reads as
-         cut off, and with loop and rewind both off there is nothing left to
-         scroll. Symmetry also gives the track somewhere to travel to. */
-      const measureOffsetAfter = () => measureOffset();
+        /* The rail runs edge to edge, so without a matching offset at the far
+           end Swiper stops with the last card's right edge against the
+           viewport rather than against the page margin — the card reads as
+           cut off, and with loop and rewind both off there is nothing left to
+           scroll. Symmetry also gives the track somewhere to travel to. */
+        const measureOffsetAfter = () => measureOffset();
 
-      /* One-per-view means one WHOLE card. Swiper divides the rail by the
-         per-view number, and the rail is the full viewport, so a slide
-         comes out viewport-wide and the left offset then pushes its right
-         edge off screen — the sliver of overflow on phones. Ask for
-         slightly more than one so the card fits between the two margins.
-         Fractional values are left alone: a peek is the author's intent. */
-      const fitPerView = (authored) => {
-        if (authored !== 1) return authored;
-        const width = el.clientWidth;
-        const inset = measureOffset() + measureOffsetAfter();
-        if (!width || inset <= 0 || width - inset <= 0) return authored;
-        return width / (width - inset);
-      };
+        /* One-per-view means one WHOLE card. Swiper divides the rail by the
+           per-view number, and the rail is the full viewport, so a slide
+           comes out viewport-wide and the left offset then pushes its right
+           edge off screen — the sliver of overflow on phones. Ask for
+           slightly more than one so the card fits between the two margins.
+           Fractional values are left alone: a peek is the author's intent. */
+        const fitPerView = (authored) => {
+          if (authored !== 1) return authored;
+          const width = el.clientWidth;
+          const inset = measureOffset() + measureOffsetAfter();
+          if (!width || inset <= 0 || width - inset <= 0) return authored;
+          return width / (width - inset);
+        };
 
-      const wrap = el.closest('.c_slider_wrap');
+        const wrap = el.closest('.c_slider_wrap');
 
-      /* Swiper finds slides by class, and a card component built in the
-         Designer arrives without it — the slider then initialises against
-         zero slides, so nothing is given a width and the track never
-         moves. Tag the wrapper's own children when none of them carry it,
-         which is what putting cards in a slider is meant to express. */
-      const track = el.querySelector('.swiper-wrapper, .c_slider_swiper_wrap');
-      if (track && !track.querySelector(':scope > .swiper-slide')) {
-        const children = Array.from(track.children);
-        children.forEach((child) => {
-          child.classList.add('swiper-slide');
-          slideTags.push(child);
-        });
-        if (children.length) {
-          console.info('[slider] tagged', children.length,
-            'cards as swiper-slide — add the class in the Designer to make it explicit');
-        }
-      }
-
-      const loop = bool('data-loop', false);
-
-      const swiper = new Swiper(el, {
-        slidesPerView: fitPerView(num('data-slides-mobile', 1)),
-        spaceBetween: measureGap(),
-        loop,
-        /* Mutually exclusive in Swiper 11: with both set the loop
-           re-orders slides while rewind also tries to jump the index back
-           to the start, and the two fight on the same transition — the
-           jump you see at the ends. rewind only applies without loop. */
-        rewind: loop ? false : bool('data-rewind', true),
-        loopAdditionalSlides: num('data-loop-extra', 4),
-        speed: num('data-speed', 600),
-
-        /* The module mounts at beforeEnter, while the container is a fixed
-           100vh rectangle mid-transition, so the first measurement is
-           taken against a box that is about to change. These make Swiper
-           re-measure itself rather than keeping those numbers. */
-        observer: true,
-        observeParents: true,
-        resizeObserver: true,
-        watchOverflow: true,
-
-        slidesOffsetBefore: measureOffset(),
-        slidesOffsetAfter: measureOffsetAfter(),
-
-        /* slidesPerView 2.25 divides the container into fractional widths
-           (605.778px) and translates the track by fractional amounts. Every
-           layer inside a card then rounds independently, so a colour panel
-           at inset:0 can land a pixel short of the image beneath it and let
-           an edge of it show. Rounding lengths and translates to whole
-           pixels removes the seam at the source — padding the panel instead
-           just makes it overhang the card. */
-        roundLengths: true,
-        breakpoints: {
-          768: {
-            slidesPerView: fitPerView(num('data-slides-per-view', 1.25))
-          }
-        },
-        navigation: {
-          prevEl: wrap ? wrap.querySelector('.c_slider_button_prev') : null,
-          nextEl: wrap ? wrap.querySelector('.c_slider_button_next') : null,
-          disabledClass: 'is-inactive'
-        }
-      });
-
-      /* loop parks duplicate slides just outside the container on both
-         sides and re-orders them as you cross the seam. The container's
-         clipping is what keeps that machinery off screen — without it the
-         duplicates read as a sliver of the neighbouring image along the
-         edges, and the re-order reads as a jump. */
-      if (loop) {
-        const overflow = getComputedStyle(el).overflowX;
-        if (overflow === 'visible') {
-          console.warn(
-            '[slider] data-loop is on but this slider does not clip:',
-            el, 'overflow-x is visible, so the loop duplicates are on ' +
-            'screen and every seam crossing looks like a jump. Set ' +
-            'overflow: clip on .c_slider_swiper (clip, not hidden — hidden ' +
-            'makes it a scrollport and breaks sticky sections).'
-          );
-        }
-      }
-
-      /* Belt and braces on top of the observers: one explicit update once
-         the page is actually laid out. Cheap, and it closes the window
-         where a slide starts at the wrong offset and snaps on first drag. */
-      Intro.add(root, () => {
-        if (!swiper.destroyed) swiper.update();
-      });
-
-      let t;
-      const onResize = () => {
-        clearTimeout(t);
-        t = setTimeout(() => {
-          applyGap();
-          const gap = measureGap();
-          const offset = measureOffset();
-          const perView = fitPerView(mq.matches
-            ? num('data-slides-mobile', 1)
-            : num('data-slides-per-view', 1.25));
-
-          if (swiper.params.slidesOffsetBefore !== offset
-            || swiper.params.slidesOffsetAfter !== offset
-            || swiper.params.slidesPerView !== perView) {
-            swiper.params.slidesOffsetBefore = offset;
-            swiper.params.slidesOffsetAfter = offset;
-            swiper.params.slidesPerView = perView;
-            if (swiper.params.breakpoints && swiper.params.breakpoints[768]) {
-              swiper.params.breakpoints[768].slidesPerView =
-                fitPerView(num('data-slides-per-view', 1.25));
-            }
-            swiper.update();
-          }
-          if (swiper.params.spaceBetween === gap) return;
-          swiper.params.spaceBetween = gap;
-          Object.keys(swiper.params.breakpoints).forEach((bp) => {
-            swiper.params.breakpoints[bp].spaceBetween = gap;
+        /* Swiper finds slides by class, and a card component built in the
+           Designer arrives without it — the slider then initialises against
+           zero slides, so nothing is given a width and the track never
+           moves. Tag the wrapper's own children when none of them carry it,
+           which is what putting cards in a slider is meant to express. */
+        const track = el.querySelector('.swiper-wrapper, .c_slider_swiper_wrap');
+        if (track && !track.querySelector(':scope > .swiper-slide')) {
+          const children = Array.from(track.children);
+          children.forEach((child) => {
+            child.classList.add('swiper-slide');
+            slideTags.push(child);
           });
-          swiper.update();
-        }, 150);
-      };
+          if (children.length) {
+            console.info('[slider] tagged', children.length,
+              'cards as swiper-slide — add the class in the Designer to make it explicit');
+          }
+        }
 
-      window.addEventListener('resize', onResize);
-      resizeHandlers.push(onResize);
-      instances.push(swiper);
-    });
+        const loop = bool('data-loop', false);
+
+        const swiper = new Swiper(el, {
+          slidesPerView: fitPerView(num('data-slides-mobile', 1)),
+          spaceBetween: measureGap(),
+          loop,
+          /* Mutually exclusive in Swiper 11: with both set the loop
+             re-orders slides while rewind also tries to jump the index back
+             to the start, and the two fight on the same transition — the
+             jump you see at the ends. rewind only applies without loop. */
+          rewind: loop ? false : bool('data-rewind', true),
+          loopAdditionalSlides: num('data-loop-extra', 4),
+          speed: num('data-speed', 600),
+
+          /* The module mounts at beforeEnter, while the container is a fixed
+             100vh rectangle mid-transition, so the first measurement is
+             taken against a box that is about to change. These make Swiper
+             re-measure itself rather than keeping those numbers. */
+          observer: true,
+          observeParents: true,
+          resizeObserver: true,
+          watchOverflow: true,
+
+          slidesOffsetBefore: measureOffset(),
+          slidesOffsetAfter: measureOffsetAfter(),
+
+          /* slidesPerView 2.25 divides the container into fractional widths
+             (605.778px) and translates the track by fractional amounts. Every
+             layer inside a card then rounds independently, so a colour panel
+             at inset:0 can land a pixel short of the image beneath it and let
+             an edge of it show. Rounding lengths and translates to whole
+             pixels removes the seam at the source — padding the panel instead
+             just makes it overhang the card. */
+          roundLengths: true,
+          breakpoints: {
+            768: {
+              slidesPerView: fitPerView(num('data-slides-per-view', 1.25))
+            }
+          },
+          navigation: {
+            prevEl: wrap ? wrap.querySelector('.c_slider_button_prev') : null,
+            nextEl: wrap ? wrap.querySelector('.c_slider_button_next') : null,
+            disabledClass: 'is-inactive'
+          }
+        });
+
+        /* loop parks duplicate slides just outside the container on both
+           sides and re-orders them as you cross the seam. The container's
+           clipping is what keeps that machinery off screen — without it the
+           duplicates read as a sliver of the neighbouring image along the
+           edges, and the re-order reads as a jump. */
+        if (loop) {
+          const overflow = getComputedStyle(el).overflowX;
+          if (overflow === 'visible') {
+            console.warn(
+              '[slider] data-loop is on but this slider does not clip:',
+              el, 'overflow-x is visible, so the loop duplicates are on ' +
+              'screen and every seam crossing looks like a jump. Set ' +
+              'overflow: clip on .c_slider_swiper (clip, not hidden — hidden ' +
+              'makes it a scrollport and breaks sticky sections).'
+            );
+          }
+        }
+
+        /* Belt and braces on top of the observers: one explicit update once
+           the page is actually laid out. Cheap, and it closes the window
+           where a slide starts at the wrong offset and snaps on first drag. */
+        Intro.add(root, () => {
+          if (!swiper.destroyed) swiper.update();
+        });
+
+        let t;
+        const onResize = () => {
+          clearTimeout(t);
+          t = setTimeout(() => {
+            applyGap();
+            const gap = measureGap();
+            const offset = measureOffset();
+            const perView = fitPerView(mq.matches
+              ? num('data-slides-mobile', 1)
+              : num('data-slides-per-view', 1.25));
+
+            if (swiper.params.slidesOffsetBefore !== offset
+              || swiper.params.slidesOffsetAfter !== offset
+              || swiper.params.slidesPerView !== perView) {
+              swiper.params.slidesOffsetBefore = offset;
+              swiper.params.slidesOffsetAfter = offset;
+              swiper.params.slidesPerView = perView;
+              if (swiper.params.breakpoints && swiper.params.breakpoints[768]) {
+                swiper.params.breakpoints[768].slidesPerView =
+                  fitPerView(num('data-slides-per-view', 1.25));
+              }
+              swiper.update();
+            }
+            if (swiper.params.spaceBetween === gap) return;
+            swiper.params.spaceBetween = gap;
+            Object.keys(swiper.params.breakpoints).forEach((bp) => {
+              swiper.params.breakpoints[bp].spaceBetween = gap;
+            });
+            swiper.update();
+          }, 150);
+        };
+
+        window.addEventListener('resize', onResize);
+        resizeHandlers.push(onResize);
+        instances.push(swiper);
+      });
+    };
+
+    Assets.swiper()
+      .then(build)
+      .catch((err) => console.error('[slider] swiper failed to load', err));
+
 
     return function cleanup() {
+      dead = true;
       resizeHandlers.forEach((fn) => window.removeEventListener('resize', fn));
       instances.forEach((s) => s.destroy(true, true));
       /* Only the ones this mount added, so the markup is left as it was. */
