@@ -2788,14 +2788,18 @@
         });
       },
 
-      /* type=module is not optional: the entry is ESM and its first line
-         is a bare import. As a classic script it is a syntax error. */
+      /* Two attributes that are not decoration. type=module because the
+         entry is ESM and opens with a bare import — as a classic script
+         it is a syntax error. fs-list because v2 boots the solutions
+         named on its own tag: without it Attributes loads, finds nothing
+         asked for, and initialises nothing, which reads exactly like a
+         filter that has stopped working. */
       finsweet() {
         return once('finsweet', () => {
           if (window.FinsweetAttributes) return Promise.resolve();
           return script(
             'https://cdn.jsdelivr.net/npm/@finsweet/attributes@2/attributes.js',
-            { type: 'module', async: '' }
+            { type: 'module', async: '', 'fs-list': '' }
           );
         });
       }
