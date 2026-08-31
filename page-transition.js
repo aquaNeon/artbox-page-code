@@ -1811,17 +1811,22 @@
        scrubbed parallax. */
 
     /* A swapped container is inserted while it is still the transition's
-       fixed rectangle, so its keyframes have already burned through by
-       the time the page settles and the entrance would go unseen. Replay
-       them from the intro queue, where the old timeline played. */
-    if (root !== document) {
-      Intro.add(root, () => {
-        if (dead) return;
-        imgs.forEach((img) => {
-          img.style.animation = 'none';
-          void img.offsetWidth;              // reflow, or the restart coalesces away
-          img.style.removeProperty('animation');
-        });
+       fixed rectangle. Its keyframes start on insert, run through behind
+       the transition, and are finished by the time the page settles —
+       replaying them there is what showed the images and then flashed a
+       second entrance over them.
+
+       So on a swap the start state is pinned instead, before the browser
+       has painted the container, and the keyframes are released once from
+       the intro queue. One entrance, at the moment the old timeline used
+       to play. Inline opacity holds the images while the animation is
+       off; once it is running the animation outranks inline anyway. */
+    const swapped = root !== document;
+
+    if (swapped) {
+      imgs.forEach((img) => {
+        img.style.animation = 'none';
+        img.style.opacity = '0';
       });
     }
 
@@ -1842,13 +1847,20 @@
       cleanups.push(() => img.removeEventListener('animationend', done));
     };
 
+    /* Collected rather than bound inside the context: on a swap the
+       animation is still suppressed while the context is built, so
+       measuring it there would read `none` and bind the bump against an
+       entrance that has not run. Drained when the entrance is live. */
+    const binders = [];
+    const bindBumps = () => binders.forEach((fn) => fn());
+
     const ctx = gsap.context(() => {
       if (HERO.bump && window.matchMedia('(hover: hover)').matches) {
         wraps.forEach((wrap) => {
           const img = wrap.querySelector('img');
           if (!img) return;
 
-          afterEntrance(img, () => {
+          binders.push(() => afterEntrance(img, () => {
             const xTo = gsap.quickTo(img, 'x', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
             const yTo = gsap.quickTo(img, 'y', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
             let rect = null;
@@ -1870,7 +1882,7 @@
               wrap.removeEventListener('mousemove', onMove);
               wrap.removeEventListener('mouseleave', onLeave);
             });
-          });
+          }));
         });
       }
 
@@ -1898,13 +1910,31 @@
       }
     }, section);
 
+    if (swapped) {
+      Intro.add(root, () => {
+        if (dead) return;
+        imgs.forEach((img) => {
+          img.style.removeProperty('animation');
+          img.style.removeProperty('opacity');
+        });
+        bindBumps();
+      });
+    } else {
+      /* First load: the keyframes have been running since the stylesheet
+         parsed, which is the whole point — nothing here gated the paint. */
+      bindBumps();
+    }
+
     return () => {
       dead = true;
       cleanups.forEach((fn) => fn());
       ctx.revert();
       /* The keyframe was cleared inline once it finished. Handing the
          markup back means letting the embed own it again. */
-      imgs.forEach((img) => img.style.removeProperty('animation'));
+      imgs.forEach((img) => {
+        img.style.removeProperty('animation');
+        img.style.removeProperty('opacity');
+      });
     };
   });
 
