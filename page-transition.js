@@ -3456,7 +3456,8 @@
      ============================================================ */
 
   const SHARE = {
-    copiedFor: 2000,   // ms the confirmation stays up
+    copiedFor: 3000,   // ms the confirmation stays up, alone, before the
+                       // trigger comes back
     window: 'width=600,height=600,noopener,noreferrer'
   };
 
@@ -3489,23 +3490,34 @@
 
       const url = () => wrap.dataset.shareUrl || window.location.href;
 
-      const setOpen = (next) => {
+      const setOpen = (next, restoreFocus) => {
         open = next;
         wrap.classList.toggle('is-share-open', next);
         trigger.setAttribute('aria-expanded', next ? 'true' : 'false');
         if (next) {
           const first = menu.querySelector('[data-share-action], [data-share-close]');
           first?.focus?.();
-        } else {
+        } else if (restoreFocus !== false) {
           trigger.focus?.();
         }
+      };
+
+      /* A third state, not just a message: the menu is gone, the trigger
+         is still held back, and the confirmation stands on its own until
+         the timer hands the trigger back. Driven from the wrapper so one
+         class decides which of the three is showing. */
+      const clearCopied = () => {
+        clearTimeout(copiedTimer);
+        wrap.classList.remove('is-share-copied');
       };
 
       const showCopied = () => {
         if (!copied) return;
         clearTimeout(copiedTimer);
-        copied.classList.add('is-visible');
-        copiedTimer = setTimeout(() => copied.classList.remove('is-visible'), SHARE.copiedFor);
+        wrap.classList.add('is-share-copied');
+        copiedTimer = setTimeout(() => {
+          wrap.classList.remove('is-share-copied');
+        }, SHARE.copiedFor);
       };
 
       /* Clipboard needs a secure context, so an http preview or an older
@@ -3530,6 +3542,7 @@
 
       const onTrigger = (e) => {
         e.preventDefault();
+        clearCopied();
         setOpen(!open);
       };
       trigger.addEventListener('click', onTrigger);
@@ -3570,8 +3583,12 @@
             if (!ok) { console.warn('[share] could not copy', value); return; }
             /* Closed on success, so the confirmation is what is left on
                screen. Hunting for a small X to dismiss a menu whose job
-               is already done is the worse half of this interaction. */
-            setOpen(false);
+               is already done is the worse half of this interaction.
+
+               Focus is not sent back to the trigger here: it is still
+               faded out under the confirmation, and a focus ring on
+               something invisible is worse than none. */
+            setOpen(false, false);
             showCopied();
             return;
           }
@@ -3605,8 +3622,7 @@
         document.removeEventListener('click', onOutside);
         document.removeEventListener('keydown', onKey);
         clearTimeout(copiedTimer);
-        wrap.classList.remove('is-share-open');
-        copied?.classList.remove('is-visible');
+        wrap.classList.remove('is-share-open', 'is-share-copied');
         if (inlineDisplay) menu.style.display = inlineDisplay;
       });
     });

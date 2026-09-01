@@ -935,7 +935,11 @@ html.is-menu-open {
   transition: opacity 200ms ease;
 }
 
-[data-share][data-share-swap].is-share-open > [data-share-open] {
+/* Held back through the confirmation as well as the menu, so the three
+   states are one at a time: trigger, then menu, then "copied" standing
+   alone until the timer gives the trigger back. */
+[data-share][data-share-swap].is-share-open > [data-share-open],
+[data-share][data-share-swap].is-share-copied > [data-share-open] {
   opacity: 0;
   pointer-events: none;
 }
@@ -947,25 +951,30 @@ html.is-menu-open {
   transition: opacity 200ms ease, visibility 200ms;
 }
 
+/* Held back from full strength: these are secondary to the thing that
+   opened them, and the trigger is the only one that reads at 100%. */
 [data-share].is-share-open [data-share-menu] {
-  opacity: 1;
+  opacity: 0.5;
   visibility: visible;
   pointer-events: auto;
 }
 
 [data-share-copied] {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity 200ms ease;
+  transition: opacity 200ms ease, visibility 200ms;
 }
 
-[data-share-copied].is-visible {
+[data-share].is-share-copied [data-share-copied] {
   opacity: 1;
+  visibility: visible;
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-share-menu],
-  [data-share-copied] {
+  [data-share-copied],
+  [data-share][data-share-swap] > [data-share-open] {
     transition-duration: 0.01ms;
   }
 }
