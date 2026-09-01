@@ -911,6 +911,35 @@ html.is-menu-open {
   position: relative;
 }
 
+/* data-share-swap on the wrapper: the trigger, the menu and the
+   confirmation take turns in ONE grid cell, so the menu opens where
+   "Del" was rather than below it, and the tallest of them still sets
+   the height so nothing on the page moves.
+
+   Opt-in, because without it the wrapper keeps whatever layout the
+   Designer gave it. Requires the three to be DIRECT children of the
+   wrapper — grid placement does not reach through a div. */
+[data-share][data-share-swap] {
+  display: grid;
+  justify-items: start;
+  align-items: start;
+}
+
+[data-share][data-share-swap] > [data-share-open],
+[data-share][data-share-swap] > [data-share-menu],
+[data-share][data-share-swap] > [data-share-copied] {
+  grid-area: 1 / 1;
+}
+
+[data-share][data-share-swap] > [data-share-open] {
+  transition: opacity 200ms ease;
+}
+
+[data-share][data-share-swap].is-share-open > [data-share-open] {
+  opacity: 0;
+  pointer-events: none;
+}
+
 [data-share-menu] {
   opacity: 0;
   visibility: hidden;
