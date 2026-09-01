@@ -3435,6 +3435,178 @@
 
 
   /* ============================================================
+     SHARE — [data-share]
+
+       data-share                     the wrapper
+       data-share-url                 optional, defaults to the page url
+       data-share-open                the trigger
+       data-share-menu                the panel, hidden until opened
+       data-share-close               closes it
+       data-share-copied              "Link copied", shown for a moment
+       data-share-action="linkedin"   opens LinkedIn's share dialog
+       data-share-action="copy"       copies the url
+       data-share-action="native"     the OS share sheet, phones mostly
+
+     A native action with no OS support hides itself rather than
+     sitting there doing nothing when tapped.
+
+     Closes on the close button, on Escape, and on a click outside.
+     Focus moves into the panel on open and returns to the trigger on
+     close, so it can be operated without a pointer.
+     ============================================================ */
+
+  const SHARE = {
+    copiedFor: 2000,   // ms the confirmation stays up
+    window: 'width=600,height=600,noopener,noreferrer'
+  };
+
+  Modules.add('share', function (root) {
+    const wraps = root.querySelectorAll('[data-share]');
+    if (!wraps.length) return;
+
+    const cleanups = [];
+
+    wraps.forEach((wrap) => {
+      const trigger = wrap.querySelector('[data-share-open]');
+      const menu = wrap.querySelector('[data-share-menu]');
+      if (!trigger || !menu) return;
+
+      const copied = wrap.querySelector('[data-share-copied]');
+      let copiedTimer = null;
+      let open = false;
+
+      /* Webflow ships the panel with an inline display:none. Cleared so a
+         class can own the state, and restored on teardown. */
+      const inlineDisplay = menu.style.display;
+      if (getComputedStyle(menu).display === 'none') menu.style.removeProperty('display');
+      if (copied) copied.style.removeProperty('display');
+
+      const url = () => wrap.dataset.shareUrl || window.location.href;
+
+      const setOpen = (next) => {
+        open = next;
+        wrap.classList.toggle('is-share-open', next);
+        trigger.setAttribute('aria-expanded', next ? 'true' : 'false');
+        if (next) {
+          const first = menu.querySelector('[data-share-action], [data-share-close]');
+          first?.focus?.();
+        } else {
+          trigger.focus?.();
+        }
+      };
+
+      const showCopied = () => {
+        if (!copied) return;
+        clearTimeout(copiedTimer);
+        copied.classList.add('is-visible');
+        copiedTimer = setTimeout(() => copied.classList.remove('is-visible'), SHARE.copiedFor);
+      };
+
+      /* Clipboard needs a secure context, so an http preview or an older
+         browser lands on the textarea route rather than on nothing. */
+      const copy = async (value) => {
+        try {
+          await navigator.clipboard.writeText(value);
+          return true;
+        } catch (err) {
+          const field = document.createElement('textarea');
+          field.value = value;
+          field.setAttribute('readonly', '');
+          field.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+          document.body.appendChild(field);
+          field.select();
+          let ok = false;
+          try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+          field.remove();
+          return ok;
+        }
+      };
+
+      const onTrigger = (e) => {
+        e.preventDefault();
+        setOpen(!open);
+      };
+      trigger.addEventListener('click', onTrigger);
+      trigger.setAttribute('aria-expanded', 'false');
+      cleanups.push(() => trigger.removeEventListener('click', onTrigger));
+
+      wrap.querySelectorAll('[data-share-close]').forEach((el) => {
+        const onClose = (e) => { e.preventDefault(); setOpen(false); };
+        el.addEventListener('click', onClose);
+        cleanups.push(() => el.removeEventListener('click', onClose));
+      });
+
+      wrap.querySelectorAll('[data-share-action]').forEach((el) => {
+        const action = el.getAttribute('data-share-action');
+
+        if (action === 'native' && typeof navigator.share !== 'function') {
+          el.style.display = 'none';
+          cleanups.push(() => el.style.removeProperty('display'));
+          return;
+        }
+
+        const onAct = async (e) => {
+          e.preventDefault();
+          const value = url();
+
+          if (action === 'linkedin') {
+            window.open(
+              'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(value),
+              '_blank',
+              SHARE.window
+            );
+            setOpen(false);
+            return;
+          }
+
+          if (action === 'copy') {
+            const ok = await copy(value);
+            if (ok) showCopied();
+            else console.warn('[share] could not copy', value);
+            return;
+          }
+
+          if (action === 'native') {
+            try {
+              await navigator.share({ title: document.title, url: value });
+              setOpen(false);
+            } catch (err) {
+              /* An abort is the person changing their mind, not a fault. */
+              if (err?.name !== 'AbortError') console.warn('[share] native share failed', err);
+            }
+          }
+        };
+
+        el.addEventListener('click', onAct);
+        cleanups.push(() => el.removeEventListener('click', onAct));
+      });
+
+      const onOutside = (e) => {
+        if (!open || wrap.contains(e.target)) return;
+        setOpen(false);
+      };
+      const onKey = (e) => {
+        if (e.key === 'Escape' && open) setOpen(false);
+      };
+      document.addEventListener('click', onOutside);
+      document.addEventListener('keydown', onKey);
+
+      cleanups.push(() => {
+        document.removeEventListener('click', onOutside);
+        document.removeEventListener('keydown', onKey);
+        clearTimeout(copiedTimer);
+        wrap.classList.remove('is-share-open');
+        copied?.classList.remove('is-visible');
+        if (inlineDisplay) menu.style.display = inlineDisplay;
+      });
+    });
+
+    if (!cleanups.length) return;
+    return () => cleanups.forEach((fn) => fn());
+  });
+
+
+  /* ============================================================
      VIDEO POSTER — [data-video="component"]
 
      base-lib drops the poster the moment it decides to play, which is

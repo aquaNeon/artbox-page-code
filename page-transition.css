@@ -903,3 +903,40 @@ html.is-menu-open {
     transition-duration: 0.01ms;
   }
 }
+
+/* Share menu, see the share module. The module only toggles classes —
+   the panel is hidden here rather than with an inline style so the
+   Designer can restyle it freely without the JS having an opinion. */
+[data-share] {
+  position: relative;
+}
+
+[data-share-menu] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 200ms ease, visibility 200ms;
+}
+
+[data-share].is-share-open [data-share-menu] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+[data-share-copied] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+[data-share-copied].is-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-share-menu],
+  [data-share-copied] {
+    transition-duration: 0.01ms;
+  }
+}
