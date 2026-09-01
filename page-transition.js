@@ -754,6 +754,14 @@
       ...Array.from(wrap.querySelectorAll(
         '[data-text-anim-heading], [data-text-anim-body], [data-text-anim-solo], [data-text-anim-list]'
       )).filter((el) => el.closest('[data-text-anim]') === wrap)
+        /* Anything inside a [data-swap] belongs to that module. Marked
+           for both, an element is animated by both: this one parks it
+           at translate(0, 30%) and waits for its own trigger while the
+           swap animates the same transform, and whichever writes last
+           wins — a statement sitting a third of its height out of
+           place, and only the one carrying the attribute. Two
+           entrances for one element was never the intent. */
+        .filter((el) => !el.closest('[data-swap]'))
     ];
     if (!marked.length) return null;
 
@@ -2061,164 +2069,6 @@
 
 
   /* ============================================================
-     HERO VIDEO — cell 6 of the hero grid to full screen
-
-     The video sits in the last cell of the hero grid. Scrolling out
-     of the hero carries it to the middle of the screen and scales it
-     to full bleed; the stage below it then pins for a screen while
-     the statements play over it; after that the whole thing scrolls
-     away as one.
-
-     It is taken out of flow and fixed for the travel. A transform
-     inside the grid would be clipped by the section, and would be
-     fighting the hero's own parallax for the same matrix on the same
-     element. Fixed, it owns its transform and nothing clips it.
-
-     The cell it leaves behind is given the aspect ratio it had while
-     it was still in flow, so the grid keeps its shape rather than
-     collapsing around a hole.
-
-     Position is arithmetic off one measurement per refresh, not a
-     rect read per frame: the cell travels linearly with the scroll,
-     so where it would be at any progress is known without asking the
-     layout engine again.
-     ============================================================ */
-
-  const HERO_VIDEO = {
-    pin: 1,          // screens of pin once it is full bleed
-    z: 5             // over the hero and the stage, under the nav
-  };
-
-  Modules.add('heroVideo', function (root) {
-    const hero = root.querySelector('.home_wrap');
-    const stage = root.querySelector('.home_video_wrap');
-    if (!hero || !stage) return;
-
-    const comp = hero.querySelector('[data-video="component"]');
-    const cell = comp && comp.closest('.home_img_wrap');
-    if (!comp || !cell) return;
-
-    const swap = stage.querySelector('[data-swap]');
-
-    /* Reduced motion gets the destination without the journey: the
-       video is placed in the stage full bleed and never travels. */
-    if (reducedMotion || !hasScrollTrigger) {
-      const marker = document.createComment('hero-video');
-      cell.insertBefore(marker, comp);
-      stage.insertBefore(comp, stage.firstChild);
-      comp.classList.add('is-hero-video-static');
-      swap?.dispatchEvent(new Event('swap:start'));
-      return () => {
-        comp.classList.remove('is-hero-video-static');
-        marker.parentNode?.insertBefore(comp, marker);
-        marker.remove();
-      };
-    }
-
-    let base = null;    // cell box in document coordinates
-    let cover = null;   // where and how big it has to be to fill the screen
-    let dead = false;
-
-    const measure = () => {
-      /* Measured with the component still in flow, or the cell has
-         already collapsed and the numbers describe nothing. */
-      comp.classList.remove('is-travelling');
-      const r = cell.getBoundingClientRect();
-      const y = window.scrollY || window.pageYOffset;
-      if (!r.width || !r.height) {
-        console.warn(
-          '[heroVideo] the hero cell has no size, so there is nothing to ' +
-          'travel from. Usually the component is still absolutely ' +
-          'positioned and contributing no height to the grid.', cell
-        );
-        return;
-      }
-
-      base = { x: r.left, y: r.top + y, w: r.width, h: r.height };
-      cell.style.aspectRatio = `${r.width} / ${r.height}`;
-
-      const s = Math.max(window.innerWidth / base.w, window.innerHeight / base.h);
-      cover = {
-        s,
-        x: (window.innerWidth - base.w * s) / 2,
-        y: (window.innerHeight - base.h * s) / 2
-      };
-
-      comp.style.width = `${base.w}px`;
-      comp.style.height = `${base.h}px`;
-      comp.classList.add('is-travelling');
-    };
-
-    const lerp = (a, b, t) => a + (b - a) * t;
-
-    /* p 0 is the cell where it sits, p 1 is the screen filled. In
-       between it has to keep travelling with the page, or it would
-       hang in the viewport while the hero scrolled out from under it —
-       hence the scroll term, which is faded out as p rises. */
-    const apply = (p, scroll) => {
-      if (!base || !cover) return;
-      const x = lerp(base.x, cover.x, p);
-      const y = lerp(base.y - scroll, cover.y, p);
-      const s = lerp(1, cover.s, p);
-      comp.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${s})`;
-    };
-
-    const travel = ScrollTrigger.create({
-      trigger: hero,
-      start: 'top top',
-      end: 'bottom top',
-      scrub: true,
-      onRefresh: (self) => { measure(); apply(self.progress, self.scroll()); },
-      onUpdate: (self) => apply(self.progress, self.scroll())
-    });
-
-    /* Handed back to the document once the pin is done, so the video
-       scrolls away with the stage instead of staying stuck to the
-       viewport for the rest of the page. */
-    const settle = () => {
-      comp.classList.add('is-settled');
-      comp.style.transform = '';
-      comp.style.width = '';
-      comp.style.height = '';
-    };
-
-    const lift = () => {
-      comp.classList.remove('is-settled');
-      if (base) {
-        comp.style.width = `${base.w}px`;
-        comp.style.height = `${base.h}px`;
-      }
-    };
-
-    const held = ScrollTrigger.create({
-      trigger: stage,
-      start: 'top top',
-      end: () => '+=' + window.innerHeight * HERO_VIDEO.pin,
-      pin: true,
-      pinSpacing: true,
-      onEnter: () => {
-        if (dead) return;
-        apply(1, travel.scroll());
-        swap?.dispatchEvent(new Event('swap:start'));
-      },
-      onEnterBack: () => { if (!dead) lift(); },
-      onLeave: settle
-    });
-
-    return function cleanup() {
-      dead = true;
-      travel.kill();
-      held.kill();
-      comp.classList.remove('is-travelling', 'is-settled');
-      comp.style.removeProperty('transform');
-      comp.style.removeProperty('width');
-      comp.style.removeProperty('height');
-      cell.style.removeProperty('aspect-ratio');
-    };
-  });
-
-
-  /* ============================================================
      SERVICES HOVER — .services_wrap
 
      Two things happen when a row is hovered: the neon wipes up
@@ -2939,6 +2789,7 @@
       let timer = null;
       let tl = null;
       let dead = false;
+      let scrubbed = false;
 
       /* A statement the Designer hid — display:none on the second one is how
          these usually arrive — cannot take its turn. Put it back in the flow
@@ -2948,11 +2799,15 @@
       hidden.forEach((el) => { el.style.display = 'block'; });
 
       gsap.set(list, { autoAlpha: 0, y: SWAP.shift });
-      gsap.set(list[0], { autoAlpha: 1, y: 0 });
+      /* Waiting means waiting for the first one too. Shown at mount it
+         had already been read by the time the cue arrived, and the only
+         thing that looked like an entrance was the SECOND statement —
+         a hold later, which is why it read as arriving at the release. */
+      if (!waits) gsap.set(list[0], { autoAlpha: 1, y: 0 });
 
       const queue = () => {
         clearTimeout(timer);
-        if (dead) return;
+        if (dead || scrubbed) return;
         if (!loop && index === list.length - 1) return;
         timer = setTimeout(() => swap((index + 1) % list.length), hold);
       };
@@ -2987,8 +2842,44 @@
       /* Queued rather than started here: mount runs while the container is
          still the transition's fixed rectangle, and a trigger measured
          against that fires at the wrong scroll position. */
-      const onExternalStart = () => { if (!dead) queue(); };
-      if (waits) wrap.addEventListener('swap:start', onExternalStart, { once: true });
+      const onExternalStart = () => {
+        if (dead) return;
+        if (reducedMotion) gsap.set(list[0], { autoAlpha: 1, y: 0 });
+        else gsap.to(list[0], {
+          autoAlpha: 1, y: 0,
+          duration: SWAP.duration, ease: SWAP.ease
+        });
+        queue();
+      };
+
+      /* Driven by scroll instead of a clock. Whoever sends swap:to owns
+         the sequence from then on — the timer is dropped, because a
+         statement changing on its own while another is changing with
+         the scroll is two things disagreeing about what is being read. */
+      let shown = false;
+      const onExternalTo = (e) => {
+        if (dead) return;
+        scrubbed = true;
+        clearTimeout(timer);
+
+        const i = Math.max(0, Math.min(list.length - 1, Number(e.detail) || 0));
+        if (!shown) {
+          shown = true;
+          index = i;
+          if (reducedMotion) gsap.set(list[i], { autoAlpha: 1, y: 0 });
+          else gsap.to(list[i], {
+            autoAlpha: 1, y: 0,
+            duration: SWAP.duration, ease: SWAP.ease
+          });
+          return;
+        }
+        swap(i);
+      };
+
+      if (waits) {
+        wrap.addEventListener('swap:start', onExternalStart, { once: true });
+        wrap.addEventListener('swap:to', onExternalTo);
+      }
 
       Intro.add(root, () => {
         if (dead || waits) return;
@@ -3006,6 +2897,7 @@
         clearTimeout(timer);
         clearTimeout(placeTimer);
         wrap.removeEventListener('swap:start', onExternalStart);
+        wrap.removeEventListener('swap:to', onExternalTo);
         window.removeEventListener('resize', onResize);
         tl?.kill();
         trigger?.kill();
@@ -3879,6 +3771,399 @@
 
     if (!cleanups.length) return;
     return () => cleanups.forEach((fn) => fn());
+  });
+
+
+  /* ============================================================
+     HERO VIDEO — cell 6 of the hero grid to full screen
+
+     The video sits in the last cell of the hero grid. Scrolling out
+     of the hero carries it to the middle of the screen and scales it
+     to full bleed; the stage below it then pins for a screen while
+     the statements play over it; after that the whole thing scrolls
+     away as one.
+
+     It is taken out of flow and fixed for the travel. A transform
+     inside the grid would be clipped by the section, and would be
+     fighting the hero's own parallax for the same matrix on the same
+     element. Fixed, it owns its transform and nothing clips it.
+
+     The cell it leaves behind is given the aspect ratio it had while
+     it was still in flow, so the grid keeps its shape rather than
+     collapsing around a hole.
+
+     Position is arithmetic off one measurement per refresh, not a
+     rect read per frame: the cell travels linearly with the scroll,
+     so where it would be at any progress is known without asking the
+     layout engine again.
+     ============================================================ */
+
+  const HERO_VIDEO = {
+    pin: 1,            // screens of pin once it is full bleed
+    z: 5,              // over the hero and the stage, under the nav
+
+    /* Matched to the hero-in keyframe the five images use, so the sixth
+       cell arrives with them rather than near them. */
+    from: 0.6,
+    duration: 0.9,
+    delay: 0.55,
+    ease: 'power2.out',
+
+    /* A pixel past the viewport on every side. A scaled layer's edges
+       land on fractions, and at the seam the compositor rounds the
+       other way from the paint — a hairline of whatever is behind,
+       flickering as the number changes. It never appears in a
+       screenshot, because that captures the composited result after
+       the rounding rather than the seam itself. */
+    bleed: 1
+  };
+
+  Modules.add('heroVideo', function (root) {
+    const hero = root.querySelector('.home_wrap');
+    const stage = root.querySelector('.home_video_wrap');
+    if (!hero || !stage) return;
+
+    const comp = hero.querySelector('[data-video="component"]');
+    const cell = comp && comp.closest('.home_img_wrap');
+    if (!comp || !cell) return;
+
+    const swap = stage.querySelector('[data-swap]');
+    const statements = swap
+      ? (swap.querySelectorAll('[data-swap-item]').length || swap.children.length)
+      : 0;
+    let reading = -1;
+    const video = comp.querySelector('video');
+
+    /* Reduced motion gets the destination without the journey: the
+       video is placed in the stage full bleed and never travels. */
+    if (reducedMotion || !hasScrollTrigger) {
+      const marker = document.createComment('hero-video');
+      cell.insertBefore(marker, comp);
+      stage.insertBefore(comp, stage.firstChild);
+      comp.classList.add('is-hero-video-static');
+      swap?.dispatchEvent(new Event('swap:start'));
+      return () => {
+        comp.classList.remove('is-hero-video-static');
+        marker.parentNode?.insertBefore(comp, marker);
+        marker.remove();
+      };
+    }
+
+    let base = null;    // cell box in document coordinates
+    let cover = null;   // where and how big it has to be to fill the screen
+    let dead = false;
+    let lifted = false;
+
+    /* position:fixed is only relative to the viewport when no ancestor
+       carries a transform — and this component's own cell is exactly
+       what the hero parallax transforms. Left in place it resolved
+       against the parallaxed cell instead, which threw it off to one
+       side and let it scroll away with its ancestor.
+
+       So it is moved to the body for the journey, and a comment holds
+       its seat so teardown can put it back where the Designer had it. */
+    const seat = document.createComment('hero-video');
+
+    /* The statements move INTO the video for the pin. Fixed and living
+       on the body, the video paints over the whole stage — every
+       section here is its own stacking context, so no number given to
+       the text inside one could ever outrank it. As children of the
+       video they are simply painted after it, and nothing global has to
+       be re-ranked to make that true. Only for the pin, when the scale
+       is 1 and their size is their own. */
+    const text = stage.querySelector('.home_video_contain');
+    const textSeat = document.createComment('hero-video-text');
+
+    /* The theme comes with them. Colour here is a variable the stage
+       sets through u-theme-dark, and inside the component they were
+       reading whatever the page's default theme said instead — which
+       is how white text arrived black. */
+    const themed = stage.classList.contains('u-theme-dark');
+
+    /* Where it sits in the stage is the design; anything this module
+       decides instead is a guess, and centring it was the wrong guess.
+       So the offset is measured before the move and reproduced inside
+       the video. The stage is a screen tall and the video is exactly
+       the viewport by the time this runs, so the number carries over
+       one to one. */
+    const bringText = () => {
+      if (!text || text.parentNode === comp) return;
+
+      const t = text.getBoundingClientRect();
+      const s = stage.getBoundingClientRect();
+
+      stage.insertBefore(textSeat, text);
+      comp.appendChild(text);
+      if (themed) comp.classList.add('u-theme-dark');
+
+      text.style.top = `${t.top - s.top}px`;
+      text.style.height = `${t.height}px`;
+    };
+
+    const returnText = () => {
+      if (!text || !textSeat.parentNode) return;
+      textSeat.parentNode.insertBefore(text, textSeat);
+      textSeat.remove();
+      comp.classList.remove('u-theme-dark');
+      text.style.removeProperty('top');
+      text.style.removeProperty('height');
+    };
+
+    gsap.set(comp, { autoAlpha: 0 });
+
+    const measure = () => {
+      /* The cell carries its own height from the Designer, so measuring
+         it gave the cell's shape rather than the video's — a square box
+         with a 16/9 component sitting inside it. The ratio the
+         component declares is stamped on the cell first, so the cell
+         IS that shape and the measurement describes the video. */
+      if (!lifted) {
+        const declared = getComputedStyle(comp).aspectRatio;
+        cell.style.aspectRatio = declared && declared !== 'auto' ? declared : '16 / 9';
+        cell.style.height = 'auto';
+      }
+
+      const r = cell.getBoundingClientRect();
+      const y = window.scrollY || window.pageYOffset;
+      if (!r.width || !r.height) {
+        console.warn(
+          '[heroVideo] the hero cell has no size, so there is nothing to ' +
+          'travel from. Usually the component is still absolutely ' +
+          'positioned and contributing no height to the grid.', cell
+        );
+        return;
+      }
+
+      base = { x: r.left, y: r.top + y, w: r.width, h: r.height };
+
+      /* The element is laid out at its FINAL size and scaled down to
+         the cell, not laid out small and scaled up. A transform does
+         not re-rasterise: blown up 8x from a 293px box, the video was
+         decoded once at 293px and every frame after that was those
+         pixels enlarged. Sized big, scale(1) is the full-screen state
+         and it renders at full resolution where anyone is looking.
+
+         X and Y scale separately, so the end state is exactly the
+         viewport rather than the smallest uniform scale that covers it.
+         One scale cannot take a 16/9 box to a screen of another shape
+         without overhanging — that is geometry, not a setting. The
+         frame morphs instead, and the video is object-fit:cover inside
+         it, so nothing is ever stretched. */
+      const b = HERO_VIDEO.bleed;
+      const cw = window.innerWidth + b * 2;
+      const ch = window.innerHeight + b * 2;
+
+      cover = {
+        w: cw,
+        h: ch,
+        sx: base.w / cw,
+        sy: base.h / ch,
+        x: -b,
+        y: -b
+      };
+
+      /* Once only, and only after the first measurement: the cell needs
+         the component's own height to be measured at all, and can hold
+         the shape itself from then on. */
+      if (!lifted) {
+        cell.insertBefore(seat, comp);
+        document.body.appendChild(comp);
+        comp.classList.add('is-travelling');
+        lifted = true;
+      }
+
+      comp.style.width = `${cover.w}px`;
+      comp.style.height = `${cover.h}px`;
+    };
+
+    /* Started with the travel rather than left to base-lib's own
+       observer: by the time that fires the video is already halfway
+       across the screen, and the first thing anyone sees of it is a
+       still. Once only — a second play() mid-flight would restart it. */
+    /* base-lib pauses this video whenever its own observer says it is
+       out of view, and once the component is fixed and living on the
+       body that observer's idea of "in view" has nothing to do with
+       what is on screen. Taken off its books before it initialises —
+       heroVideo mounts first — so nothing else is deciding when this
+       one plays. */
+    video?.removeAttribute('data-video-scroll-in-play');
+
+    let playing = false;
+    const play = () => {
+      if (!video) return;
+      playing = true;
+      /* An autoplay refusal is a decision, not a fault. */
+      video.play?.().catch(() => {});
+    };
+
+    /* Re-asserted while it travels: something else pausing it is far
+       more likely than it having ended, and a paused video mid-flight
+       is the one thing nobody would think to look for. */
+    const keepPlaying = () => {
+      if (playing && video && video.paused) video.play?.().catch(() => {});
+    };
+
+    const lerp = (a, b, t) => a + (b - a) * t;
+
+    /* The entrance cannot be a CSS animation on the component: apply()
+       writes its transform every frame and the two would overwrite each
+       other. So the entrance scale is a number the transform is
+       composed from, and they coexist. */
+    let intro = HERO_VIDEO.from;
+    let lastP = 0;
+    let lastScroll = 0;
+
+    /* p 0 is the cell where it sits, p 1 is the screen filled. In
+       between it has to keep travelling with the page, or it would
+       hang in the viewport while the hero scrolled out from under it —
+       hence the scroll term, which is faded out as p rises. */
+    const apply = (p, scroll) => {
+      if (!base || !cover) return;
+      lastP = p;
+      lastScroll = scroll;
+
+      const x = lerp(base.x, cover.x, p);
+      const y = lerp(base.y - scroll, cover.y, p);
+      const sx = lerp(cover.sx, 1, p);
+      const sy = lerp(cover.sy, 1, p);
+
+      /* The images scale about their middle; the travel scales from the
+         top left, which is what keeps the placement arithmetic simple.
+         So the centre is held by hand — shrinking by intro leaves half
+         the difference on each side. */
+      const dx = (cover.w * sx * (1 - intro)) / 2;
+      const dy = (cover.h * sy * (1 - intro)) / 2;
+
+      comp.style.transform =
+        `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${sx * intro}, ${sy * intro})`;
+    };
+
+    /* Measured against the STAGE, not the hero. Tied to the hero's own
+       height the travel finished whenever that section happened to end,
+       which is unrelated to when the pin takes hold — so the video was
+       still partway through its journey, small and off to one side, at
+       the moment it was supposed to have arrived.
+
+       From the stage's top entering the viewport to it reaching the
+       top is exactly one screen of scroll, and its end is the pin's
+       start by definition. */
+    const travel = ScrollTrigger.create({
+      trigger: stage,
+      start: 'top bottom',
+      end: 'top top',
+      scrub: true,
+      invalidateOnRefresh: true,
+      onRefresh: (self) => { measure(); apply(self.progress, self.scroll()); },
+      onUpdate: (self) => { apply(self.progress, self.scroll()); keepPlaying(); }
+    });
+
+    /* The entrance is a tween rather than a keyframe: moving an element
+       in the DOM restarts its CSS animations, and this one is moved to
+       the body to travel and back again on the way up — so the fade
+       replayed every time, which is the flash on scrolling back.
+
+       Opacity only. The transform belongs to apply(). */
+    Intro.add(root, () => {
+      if (dead) return;
+      play();
+
+      gsap.to(comp, {
+        autoAlpha: 1,
+        duration: HERO_VIDEO.duration,
+        delay: HERO_VIDEO.delay,
+        ease: HERO_VIDEO.ease,
+        overwrite: 'auto'
+      });
+
+      gsap.to({ k: HERO_VIDEO.from }, {
+        k: 1,
+        duration: HERO_VIDEO.duration,
+        delay: HERO_VIDEO.delay,
+        ease: HERO_VIDEO.ease,
+        onUpdate() {
+          intro = this.targets()[0].k;
+          apply(lastP, lastScroll);
+        },
+        onComplete() { intro = 1; apply(lastP, lastScroll); }
+      });
+    });
+
+    /* Handed back to the document once the pin is done, so the video
+       scrolls away with the stage instead of staying stuck to the
+       viewport for the rest of the page. */
+    const settle = () => {
+      if (dead) return;
+      stage.appendChild(comp);
+      comp.classList.remove('is-travelling');
+      comp.classList.add('is-settled');
+      comp.style.transform = '';
+      comp.style.width = '';
+      comp.style.height = '';
+    };
+
+    const lift = () => {
+      if (dead) return;
+      document.body.appendChild(comp);
+      comp.classList.remove('is-settled');
+      comp.classList.add('is-travelling');
+      if (!cover) return;
+      comp.style.width = `${cover.w}px`;
+      comp.style.height = `${cover.h}px`;
+      /* Re-placed at once. settle() cleared the transform, so without
+         this it sits at the stylesheet's 0,0 — the top left corner —
+         until something else happens to move it, and if the travel is
+         already behind us nothing ever does. */
+      apply(travel.progress, travel.scroll());
+    };
+
+    const held = ScrollTrigger.create({
+      trigger: stage,
+      start: 'top top',
+      end: () => '+=' + window.innerHeight * HERO_VIDEO.pin,
+      pin: true,
+      pinSpacing: true,
+      onEnter: () => {
+        if (dead) return;
+        apply(1, travel.scroll());
+        bringText();
+      },
+      onEnterBack: () => {
+        if (dead) return;
+        lift();
+        bringText();
+      },
+      onLeave: () => { settle(); returnText(); },
+      onLeaveBack: returnText,
+
+      /* One statement per equal share of the pin, changed on the way in
+         and on the way back out. Tied to the scroll rather than a hold,
+         so nobody scrolls past a statement that never got its turn. */
+      onUpdate: (self) => {
+        if (dead || !swap || !statements) return;
+        const i = Math.min(statements - 1, Math.floor(self.progress * statements));
+        if (i === reading) return;
+        reading = i;
+        swap.dispatchEvent(new CustomEvent('swap:to', { detail: i }));
+      }
+    });
+
+    return function cleanup() {
+      dead = true;
+      travel.kill();
+      held.kill();
+      gsap.set(comp, { clearProps: 'opacity,visibility' });
+      comp.classList.remove('is-travelling', 'is-settled');
+      comp.style.removeProperty('transform');
+      comp.style.removeProperty('width');
+      comp.style.removeProperty('height');
+      returnText();
+      cell.style.removeProperty('aspect-ratio');
+      cell.style.removeProperty('height');
+      if (seat.parentNode) {
+        seat.parentNode.insertBefore(comp, seat);
+        seat.remove();
+      }
+    };
   });
 
 
