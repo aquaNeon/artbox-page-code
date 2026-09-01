@@ -978,3 +978,47 @@ html.is-menu-open {
     transition-duration: 0.01ms;
   }
 }
+
+/* ============================================================
+   HERO VIDEO — see the heroVideo module
+
+   is-travelling takes the component out of flow so its transform is
+   not clipped by the hero section and is not sharing an element with
+   the hero's parallax. left/top stay at 0 and the module does the
+   placing, so only the transform changes per frame.
+
+   is-settled hands it back after the pin: absolute inside the stage,
+   filling it, so it scrolls away with the page instead of staying
+   stuck to the viewport for the rest of the document.
+   ============================================================ */
+
+.home_wrap [data-video="component"].is-travelling {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  z-index: 5;
+  will-change: transform;
+}
+
+.home_wrap [data-video="component"].is-settled {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+  z-index: 0;
+  will-change: auto;
+}
+
+/* Reduced motion: no travel, the video simply is the stage. */
+[data-video="component"].is-hero-video-static {
+  position: absolute;
+  inset: 0;
+}
+
+/* The statements have to sit over the video once it arrives. */
+.home_video_wrap .home_video_contain {
+  position: relative;
+  z-index: 6;
+}
