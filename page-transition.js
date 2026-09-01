@@ -276,6 +276,11 @@
   let rafId = null;
   let killed = false;
 
+  /* smooothy stores position as a NEGATIVE slide count: goToIndex(i)
+     assigns target = -i, and forward travel means target decreasing.
+     Reading the index back therefore needs -target, and stepping with
+     goToIndex(round(target) + 1) flips the sign on every call — which
+     lands on 0, -1, 0, -1, a slide forward and a slide back forever. */
   const AUTOPLAY_DEFAULT = 4000;   // ms between steps
   const DRIFT_DEFAULT = 0.15;      // slides per second
   const FRAME_CAP = 100;           // ms of drift credited to one frame
@@ -326,13 +331,13 @@
          one jump. */
       const dt = Math.min(now - inst.last, FRAME_CAP);
       inst.last = now;
-      inst.slider.target += inst.auto.speed * (dt / 1000);
+      inst.slider.target -= inst.auto.speed * (dt / 1000);
       return;
     }
 
     if (now - inst.last < inst.auto.delay) return;
     inst.last = now;
-    inst.slider.goToIndex(Math.round(inst.slider.target) + 1);
+    inst.slider.goToIndex(Math.round(-inst.slider.target) + 1);
   };
 
   const remeasure = (slider) => {
