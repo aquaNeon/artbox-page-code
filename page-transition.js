@@ -2125,7 +2125,14 @@
       comp.classList.remove('is-travelling');
       const r = cell.getBoundingClientRect();
       const y = window.scrollY || window.pageYOffset;
-      if (!r.width || !r.height) return;
+      if (!r.width || !r.height) {
+        console.warn(
+          '[heroVideo] the hero cell has no size, so there is nothing to ' +
+          'travel from. Usually the component is still absolutely ' +
+          'positioned and contributing no height to the grid.', cell
+        );
+        return;
+      }
 
       base = { x: r.left, y: r.top + y, w: r.width, h: r.height };
       cell.style.aspectRatio = `${r.width} / ${r.height}`;

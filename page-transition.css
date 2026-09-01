@@ -992,6 +992,19 @@ html.is-menu-open {
    stuck to the viewport for the rest of the document.
    ============================================================ */
 
+/* In the grid it has to be a box with a size. The component ships
+   u-cover-absolute, which contributes no height, so the cell collapsed
+   around it: nothing to see, and nothing for measure() to read. A ratio
+   turns it back into something the grid can lay out. Override
+   --hero-video-ratio on the cell to change the shape it starts as. */
+.home_wrap [data-video="component"]:not(.is-travelling):not(.is-settled) {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: auto;
+  aspect-ratio: var(--hero-video-ratio, 16 / 9);
+}
+
 .home_wrap [data-video="component"].is-travelling {
   position: fixed;
   left: 0;
