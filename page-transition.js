@@ -3472,6 +3472,12 @@
       if (!trigger || !menu) return;
 
       const copied = wrap.querySelector('[data-share-copied]');
+      if (!copied && wrap.querySelector('[data-share-action="copy"]')) {
+        console.info(
+          '[share] no [data-share-copied] in this wrapper, so a copy will ' +
+          'succeed silently and read as a dead button.', wrap
+        );
+      }
       let copiedTimer = null;
       let open = false;
 
@@ -3561,8 +3567,12 @@
 
           if (action === 'copy') {
             const ok = await copy(value);
-            if (ok) showCopied();
-            else console.warn('[share] could not copy', value);
+            if (!ok) { console.warn('[share] could not copy', value); return; }
+            /* Closed on success, so the confirmation is what is left on
+               screen. Hunting for a small X to dismiss a menu whose job
+               is already done is the worse half of this interaction. */
+            setOpen(false);
+            showCopied();
             return;
           }
 
