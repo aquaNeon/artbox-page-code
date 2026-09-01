@@ -242,7 +242,23 @@
     });
   });
 
-  // SMOOTHLY 
+  /* ============================================================
+     SMOOTHLY — .work_smoothly_wrap
+
+       data-autoplay          advance on its own, default 4000ms
+       data-autoplay="6000"   ms between steps
+       data-autoplay="false"  off, same as leaving the attribute out
+
+     Opt-in per slider, because most of them are things you read
+     rather than watch. Paused while the pointer is over it, while it
+     is being dragged, while it is off screen, while the tab is in the
+     background and through a page transition — anything that would
+     otherwise advance past a reader or animate where nobody is.
+
+     Driven off the module's own rAF rather than a timer: a setInterval
+     keeps firing in a background tab and would queue up a fistful of
+     steps to play out the moment somebody came back.
+     ============================================================ */
 
  Modules.add('smooothy', function (root) {
   const els = root.querySelectorAll('.work_smoothly_wrap');
@@ -252,6 +268,41 @@
   const instances = [];
   let rafId = null;
   let killed = false;
+
+  const AUTOPLAY_DEFAULT = 4000;
+
+  const autoplayDelay = (el) => {
+    const raw = el.getAttribute('data-autoplay');
+    if (raw === null || raw === 'false') return 0;
+    const ms = parseInt(raw, 10);
+    return Number.isFinite(ms) && ms > 0 ? ms : AUTOPLAY_DEFAULT;
+  };
+
+  /* Ours rather than the library's isVisible: that flag is internal and
+     only set when its own observer is running, and a slider quietly
+     advancing off screen is the failure this is meant to prevent. */
+  const seen = new WeakMap();
+  const visibility = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => seen.set(entry.target, entry.isIntersecting));
+  }, { threshold: 0 });
+
+  const hoverDetachers = [];
+
+  const advance = (inst, now) => {
+    if (!inst.delay) return;
+
+    /* The clock is reset rather than paused, so coming back from a
+       background tab or a hover does not immediately jump a slide. */
+    if (inst.hover || inst.slider.isDragging || document.hidden
+      || seen.get(inst.el) === false) {
+      inst.last = now;
+      return;
+    }
+
+    if (now - inst.last < inst.delay) return;
+    inst.last = now;
+    inst.slider.goToIndex(Math.round(inst.slider.target) + 1);
+  };
 
   const remeasure = (slider) => {
     if (typeof slider.resize === 'function') return slider.resize();
@@ -276,12 +327,44 @@
           dragSensitivity: 0.005,
           scrollInput: false
         });
-        instances.push({ slider, el });
+
+        /* Reduced motion takes the autoplay and leaves the slider: it can
+           still be dragged, it just will not move on its own. */
+        const delay = reducedMotion ? 0 : autoplayDelay(el);
+        const inst = { slider, el, delay, hover: false, last: performance.now() };
+
+        if (delay) {
+          visibility.observe(el);
+
+          if (window.matchMedia('(hover: hover)').matches) {
+            const onEnter = () => { inst.hover = true; };
+            const onLeave = () => { inst.hover = false; inst.last = performance.now(); };
+            el.addEventListener('mouseenter', onEnter);
+            el.addEventListener('mouseleave', onLeave);
+            hoverDetachers.push(() => {
+              el.removeEventListener('mouseenter', onEnter);
+              el.removeEventListener('mouseleave', onLeave);
+            });
+          }
+        }
+
+        instances.push(inst);
       });
 
-      const tick = () => {
+      const tick = (now) => {
+        /* Mid-transition every layer is position:fixed, so a slider
+           measured or advanced here lands against the wrong box. */
         if (!html.classList.contains('is-transitioning')) {
-          instances.forEach(({ slider }) => slider.update());
+          const at = now || performance.now();
+          instances.forEach((inst) => {
+            inst.slider.update();
+            advance(inst, at);
+          });
+        } else {
+          /* Held, not accumulating — otherwise the slider jumps as many
+             steps as the transition was long the moment it ends. */
+          const at = now || performance.now();
+          instances.forEach((inst) => { inst.last = at; });
         }
         rafId = requestAnimationFrame(tick);
       };
@@ -301,6 +384,8 @@
     killed = true;
     if (rafId) cancelAnimationFrame(rafId);
     delete window.__smooothyRefresh;
+    visibility.disconnect();
+    hoverDetachers.forEach((fn) => fn());
     instances.forEach(({ slider, el }) => {
       slider.destroy?.();
       el.classList.remove('is-ready');
