@@ -245,9 +245,16 @@
   /* ============================================================
      SMOOTHLY — .work_smoothly_wrap
 
-       data-autoplay          advance on its own, default 4000ms
-       data-autoplay="6000"   ms between steps
-       data-autoplay="false"  off, same as leaving the attribute out
+       data-autoplay              step a slide every 4000ms
+       data-autoplay="6000"       ms between steps
+       data-autoplay="drift"      continuous marquee-style motion
+       data-autoplay-speed="0.2"  drift only, slides per second
+       data-autoplay="false"      off, same as leaving the attribute out
+
+     Two modes because they read differently: stepping lands on a slide
+     and holds, which suits a slider somebody is meant to look through;
+     drift never settles, which suits a band of logos or images that is
+     really just texture.
 
      Opt-in per slider, because most of them are things you read
      rather than watch. Paused while the pointer is over it, while it
@@ -269,13 +276,24 @@
   let rafId = null;
   let killed = false;
 
-  const AUTOPLAY_DEFAULT = 4000;
+  const AUTOPLAY_DEFAULT = 4000;   // ms between steps
+  const DRIFT_DEFAULT = 0.15;      // slides per second
+  const FRAME_CAP = 100;           // ms of drift credited to one frame
 
-  const autoplayDelay = (el) => {
+  const autoplayMode = (el) => {
     const raw = el.getAttribute('data-autoplay');
-    if (raw === null || raw === 'false') return 0;
+    if (raw === null || raw === 'false') return null;
+
+    if (raw === 'drift' || raw === 'marquee') {
+      const speed = parseFloat(el.getAttribute('data-autoplay-speed'));
+      return {
+        drift: true,
+        speed: Number.isFinite(speed) && speed > 0 ? speed : DRIFT_DEFAULT
+      };
+    }
+
     const ms = parseInt(raw, 10);
-    return Number.isFinite(ms) && ms > 0 ? ms : AUTOPLAY_DEFAULT;
+    return { drift: false, delay: Number.isFinite(ms) && ms > 0 ? ms : AUTOPLAY_DEFAULT };
   };
 
   /* Ours rather than the library's isVisible: that flag is internal and
@@ -289,17 +307,30 @@
   const hoverDetachers = [];
 
   const advance = (inst, now) => {
-    if (!inst.delay) return;
+    if (!inst.auto) return;
 
     /* The clock is reset rather than paused, so coming back from a
-       background tab or a hover does not immediately jump a slide. */
+       background tab or a hover neither jumps a slide nor lurches
+       through however much drift the pause was worth. */
     if (inst.hover || inst.slider.isDragging || document.hidden
       || seen.get(inst.el) === false) {
       inst.last = now;
       return;
     }
 
-    if (now - inst.last < inst.delay) return;
+    if (inst.auto.drift) {
+      /* Target is in slides, and current lerps toward it — so nudging
+         the target every frame reads as continuous motion rather than
+         as very small steps. Capped, because a dropped frame or a tab
+         that was hidden a moment ago would otherwise be paid out in
+         one jump. */
+      const dt = Math.min(now - inst.last, FRAME_CAP);
+      inst.last = now;
+      inst.slider.target += inst.auto.speed * (dt / 1000);
+      return;
+    }
+
+    if (now - inst.last < inst.auto.delay) return;
     inst.last = now;
     inst.slider.goToIndex(Math.round(inst.slider.target) + 1);
   };
@@ -330,10 +361,10 @@
 
         /* Reduced motion takes the autoplay and leaves the slider: it can
            still be dragged, it just will not move on its own. */
-        const delay = reducedMotion ? 0 : autoplayDelay(el);
-        const inst = { slider, el, delay, hover: false, last: performance.now() };
+        const auto = reducedMotion ? null : autoplayMode(el);
+        const inst = { slider, el, auto, hover: false, last: performance.now() };
 
-        if (delay) {
+        if (auto) {
           visibility.observe(el);
 
           if (window.matchMedia('(hover: hover)').matches) {
