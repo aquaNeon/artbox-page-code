@@ -1014,11 +1014,18 @@ html.is-menu-open {
 /* Filling the box outright rather than being fitted into it. At a
    fractional scale object-fit leaves a sliver at one edge, and against
    a dark section that sliver is the flickering black line. */
+/* Overspilling its own box, and the box clips it. object-fit lays the
+   frame out to fractional pixels, so the painted content can fall a
+   hair short of the edge it is supposed to meet — and at the bottom of
+   a dark video that hair is the black line. Slightly larger than what
+   clips it, there is no edge left to fall short of. */
 [data-video="component"].is-travelling .g_visual_video,
 [data-video="component"].is-settled .g_visual_video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scale(1.02);
+  transform-origin: center;
 }
 
 [data-video="component"].is-travelling {

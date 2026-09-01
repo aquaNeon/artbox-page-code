@@ -3815,7 +3815,7 @@
        flickering as the number changes. It never appears in a
        screenshot, because that captures the composited result after
        the rounding rather than the seam itself. */
-    bleed: 1
+    bleed: 2
   };
 
   Modules.add('heroVideo', function (root) {
