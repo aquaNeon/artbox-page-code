@@ -992,6 +992,34 @@ html.is-menu-open {
    stuck to the viewport for the rest of the document.
    ============================================================ */
 
+/* Hidden from first paint. The module's own pre-hide is JS, so
+   between the page painting and the bundle landing the video was
+   showing in the grid at full opacity — the flash on load.
+
+   A watchdog rather than a state, and deliberately not `both`: with
+   no fill the hold simply ends and the component is visible again,
+   so a page that never gets the script shows the video instead of an
+   empty cell. heroVideo drops the animation at mount, which is what
+   lets the fade write opacity at all — a running animation outranks
+   an inline style, and the tween writes inline.
+
+   The Designer is excluded the way the embed's own entrance is: a
+   canvas where the hero is invisible for three seconds is not worth
+   the fidelity. */
+@keyframes hero-video-hold {
+  from, to { opacity: 0; }
+}
+
+html:not(.wf-design-mode) .home_wrap [data-video="component"] {
+  animation: hero-video-hold var(--hero-video-hold, 3s) linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(.wf-design-mode) .home_wrap [data-video="component"] {
+    animation: none;
+  }
+}
+
 /* In the grid it has to be a box with a size. The component ships
    u-cover-absolute, which contributes no height, so the cell collapsed
    around it: nothing to see, and nothing for measure() to read. A ratio
@@ -1070,3 +1098,71 @@ html.is-menu-open {
   z-index: 2;
 }
 
+
+/* ============================================================
+   HERO ENTRANCE ORDER
+
+   The entrance itself is a @keyframes in the .home_wrap embed —
+   its fade, its scale, its 0.9s. Only the delays are taken over
+   here, so the sequence lives next to the video's, which is the
+   one cell GSAP drives and could never read a number out of the
+   Designer.
+
+   Uniform spacing, scattered order: every cell is one step after
+   the last, but the steps do not walk the grid in DOM order, so
+   the six read as arriving rather than as counting.
+
+   The video takes the last slot, and that is not a taste call. Its
+   fade is a GSAP tween off the intro queue, which runs once the
+   bundle has landed — so its delay is measured from a later zero
+   than the images' keyframes, by however long the boot took. Drift
+   only ever pushes it later, so from any slot but the last it
+   walks into the beat of whatever comes after it. From the last
+   one there is nothing to walk into.
+
+   The order, DOM cell -> slot:  1->2  2->4  3->0  4->3  5->1  6->5
+
+   An embed inside the section renders after this file, so a tie
+   on specificity goes to the embed. The leading `html` and the
+   :nth-child are there to win it, not for their own sake.
+
+   `nth-child(N of .home_img_wrap)` counts the cells and not their
+   siblings, so a heading or a decorative div in the grid cannot
+   shift the whole order by one. A browser without it drops these
+   rules and the embed's own delays stand — the old sequence, not
+   a broken one.
+   ============================================================ */
+
+.home_wrap {
+  --hero-in-lead: 0.15s;   /* before the first cell moves */
+  --hero-in-step: 0.1s;    /* between one cell and the next */
+  --hero-in-video-slot: 5; /* read by heroVideo for its own delay */
+}
+
+html .home_wrap .home_img_wrap:nth-child(1 of .home_img_wrap) img {
+  animation-delay: calc(var(--hero-in-lead) + 2 * var(--hero-in-step));
+}
+
+html .home_wrap .home_img_wrap:nth-child(2 of .home_img_wrap) img {
+  animation-delay: calc(var(--hero-in-lead) + 4 * var(--hero-in-step));
+}
+
+html .home_wrap .home_img_wrap:nth-child(3 of .home_img_wrap) img {
+  animation-delay: var(--hero-in-lead);
+}
+
+html .home_wrap .home_img_wrap:nth-child(4 of .home_img_wrap) img {
+  animation-delay: calc(var(--hero-in-lead) + 3 * var(--hero-in-step));
+}
+
+html .home_wrap .home_img_wrap:nth-child(5 of .home_img_wrap) img {
+  animation-delay: calc(var(--hero-in-lead) + 1 * var(--hero-in-step));
+}
+
+/* The video's cell. Nothing animates here — the component is lifted
+   out of it and GSAP owns the fade — but a seventh cell, or a sixth
+   that is not the video, still wants a place in the sequence. */
+html .home_wrap .home_img_wrap:nth-child(6 of .home_img_wrap) img,
+html .home_wrap .home_img_wrap:nth-child(n+7 of .home_img_wrap) img {
+  animation-delay: calc(var(--hero-in-lead) + var(--hero-in-video-slot) * var(--hero-in-step));
+}

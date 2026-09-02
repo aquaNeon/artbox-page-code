@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-08-31-a';
+  const BUILD = '2026-09-02-b';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3802,8 +3802,8 @@
     pin: 1,            // screens of pin once it is full bleed
     z: 5,              // over the hero and the stage, under the nav
 
-    /* Matched to the hero-in keyframe the five images use, so the sixth
-       cell arrives with them rather than near them. */
+    /* Fallback only. The real delay is this cell's slot in the
+       entrance order, read off --hero-in-* in page-transition.css. */
     from: 0.6,
     duration: 0.9,
     delay: 0.55,
@@ -3833,6 +3833,18 @@
       : 0;
     let reading = -1;
     const video = comp.querySelector('video');
+
+    /* page-transition.css holds the component hidden from first paint,
+       because the pre-hide below is JS and everything before it — the
+       bundle, GSAP, ScrollTrigger — is a stretch of time in which the
+       video is sitting in the grid, painted. That was the flash.
+
+       Released here, at mount, before anything is drawn: a running CSS
+       animation outranks an inline style, so leaving it alive would
+       mean the fade had nothing to say until the hold expired. The
+       hold is a watchdog, not a state — if this file never arrives it
+       lets go by itself and the video is simply there. */
+    comp.style.animation = 'none';
 
     /* Reduced motion gets the destination without the journey: the
        video is placed in the stage full bleed and never travels. */
@@ -4057,6 +4069,27 @@
       onUpdate: (self) => { apply(self.progress, self.scroll()); keepPlaying(); }
     });
 
+    /* Which step of the entrance this cell takes. The order and the
+       spacing are authored in page-transition.css, on .home_wrap,
+       alongside the five images' own delays — one place to change the
+       sequence, and this reads its slot out of it rather than keeping
+       a second copy of the arithmetic. Falls back to the constants
+       above if the stylesheet has not loaded. */
+    const introDelay = () => {
+      const cs = getComputedStyle(hero);
+      const num = (name) => {
+        const raw = cs.getPropertyValue(name).trim();
+        if (!raw) return NaN;
+        const v = parseFloat(raw);
+        return raw.endsWith('ms') ? v / 1000 : v;
+      };
+      const lead = num('--hero-in-lead');
+      const step = num('--hero-in-step');
+      const slot = num('--hero-in-video-slot');
+      if (!isFinite(lead) || !isFinite(step) || !isFinite(slot)) return HERO_VIDEO.delay;
+      return lead + step * slot;
+    };
+
     /* The entrance is a tween rather than a keyframe: moving an element
        in the DOM restarts its CSS animations, and this one is moved to
        the body to travel and back again on the way up — so the fade
@@ -4067,10 +4100,12 @@
       if (dead) return;
       play();
 
+      const delay = introDelay();
+
       gsap.to(comp, {
         autoAlpha: 1,
         duration: HERO_VIDEO.duration,
-        delay: HERO_VIDEO.delay,
+        delay: delay,
         ease: HERO_VIDEO.ease,
         overwrite: 'auto'
       });
@@ -4078,7 +4113,7 @@
       gsap.to({ k: HERO_VIDEO.from }, {
         k: 1,
         duration: HERO_VIDEO.duration,
-        delay: HERO_VIDEO.delay,
+        delay: delay,
         ease: HERO_VIDEO.ease,
         onUpdate() {
           intro = this.targets()[0].k;

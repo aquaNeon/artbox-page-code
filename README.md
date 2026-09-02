@@ -759,6 +759,30 @@ Tuning lives in the `HERO` object at the top of the module. The two
 transforms sit on different elements on purpose: parallax drives
 `.home_img_wrap`, the pointer bump drives the `img` inside it.
 
+**Entrance order.** The fade/scale keyframe stays in the embed; the six
+delays are overridden in `page-transition.css`. Spacing is uniform, order is
+not — DOM cell 1→2, 2→4, 3→0, 4→3, 5→1, video→5 — so the grid reads as
+arriving rather than as counting off. Two variables on `.home_wrap` tune it:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `--hero-in-lead` | `0.15s` | before the first cell moves |
+| `--hero-in-step` | `0.1s` | between one cell and the next |
+| `--hero-in-video-slot` | `5` | the video's place in the order, 0-5 |
+
+`heroVideo` reads those three for its own delay instead of holding a second
+copy of the arithmetic — `HERO_VIDEO.delay` is now only the fallback for a
+page where the stylesheet has not loaded.
+
+The video goes last on purpose. Its entrance is a tween off the intro queue,
+which runs once the bundle has landed, so its delay is measured from a later
+zero than the images' keyframes — by however long the boot took. That drift
+only pushes it later, so from any slot but the last it eventually lands on
+the beat of whatever follows it. From the last slot there is nothing to
+collide with. Give it a middle slot and you need the drift closed instead:
+seek the entrance to the elapsed `currentTime` of any image's running
+animation, which is the same clock all six keyframes started on.
+
 The section's CSS embed can stay in the Designer — `<style>` in swapped
 markup still applies, only `<script>` is dead. It pre-hides the images;
 the module adds `hero-anim-off` on `<html>` once GSAP owns their opacity,
