@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-02-b';
+  const BUILD = '2026-09-02-h';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3778,10 +3778,17 @@
      HERO VIDEO — cell 6 of the hero grid to full screen
 
      The video sits in the last cell of the hero grid. Scrolling out
-     of the hero carries it to the middle of the screen and scales it
-     to full bleed; the stage below it then pins for a screen while
-     the statements play over it; after that the whole thing scrolls
-     away as one.
+     of the hero releases it: it travels to the middle of the screen
+     and scales to full bleed on its own clock, not the scroll's. The
+     stage below it then pins for a screen while the statements play
+     over it; after that the whole thing scrolls away as one.
+
+     Triggered rather than scrubbed on purpose — a scrubbed growth is
+     only ever as committed as the hand on the wheel, and stopping
+     mid-scroll left the video stranded at whatever size the scroll
+     had bought. Where it travels *to* is still scroll-bound: p is
+     what the video is doing, the scroll term is what the page is
+     doing under it.
 
      It is taken out of flow and fixed for the travel. A transform
      inside the grid would be clipped by the section, and would be
@@ -3799,8 +3806,28 @@
      ============================================================ */
 
   const HERO_VIDEO = {
-    pin: 1,            // screens of pin once it is full bleed
+    pin: 1.5,          // screens of pin once it is full bleed
+
+    /* The growth is a second long and a flick of the wheel is a
+       screen, so it was entirely possible to arrive at the pin having
+       seen none of it. On the same scroll that fires the growth the
+       page is carried the rest of the way to the pin, locked while it
+       goes, so the travel is watched rather than skipped.
+
+       Reduced motion never gets it: taking someone's scroll away is
+       exactly what that setting is asking you not to do. */
+    takeover: true,
+    takeoverDuration: 1,
     z: 5,              // over the hero and the stage, under the nav
+
+    /* The growth is triggered, not scrubbed: a couple of notches of
+       scroll out of the hero and the video goes to full bleed on its
+       own clock, whatever the scroll does next. In pixels rather than
+       a fraction of the screen, because what fires it is the gesture
+       — a flick of the wheel is the same flick on any viewport. */
+    growAfter: 120,
+    growDuration: 1,
+    growEase: 'power2.inOut',
 
     /* Fallback only. The real delay is this cell's slot in the
        entrance order, read off --hero-in-* in page-transition.css. */
@@ -3894,21 +3921,35 @@
 
     /* Where it sits in the stage is the design; anything this module
        decides instead is a guess, and centring it was the wrong guess.
-       So the offset is measured before the move and reproduced inside
-       the video. The stage is a screen tall and the video is exactly
-       the viewport by the time this runs, so the number carries over
-       one to one. */
+       So the box is measured before the move and reproduced inside the
+       video.
+
+       All four edges, not just the top. The frame is no longer the
+       viewport — it is the video's own shape, scaled until it covers,
+       so on a phone it runs a long way past both sides of the screen.
+       The stylesheet's left: 0 / right: 0 spans the frame, which is
+       the statements stretched off both edges and centred on something
+       nobody can see. Its own left and width put it back where the
+       design had it.
+
+       Measured against the frame's resting box rather than its current
+       rect: a fast scroll can reach the pin with the growth still
+       running, and a rect read mid-flight is a scaled one. Every
+       number here is where the frame is about to settle. */
     const bringText = () => {
       if (!text || text.parentNode === comp) return;
 
       const t = text.getBoundingClientRect();
-      const s = stage.getBoundingClientRect();
+      const box = cover || { x: 0, y: 0 };
 
       stage.insertBefore(textSeat, text);
       comp.appendChild(text);
       if (themed) comp.classList.add('u-theme-dark');
 
-      text.style.top = `${t.top - s.top}px`;
+      text.style.top = `${t.top - box.y}px`;
+      text.style.left = `${t.left - box.x}px`;
+      text.style.right = 'auto';
+      text.style.width = `${t.width}px`;
       text.style.height = `${t.height}px`;
     };
 
@@ -3918,6 +3959,9 @@
       textSeat.remove();
       comp.classList.remove('u-theme-dark');
       text.style.removeProperty('top');
+      text.style.removeProperty('left');
+      text.style.removeProperty('right');
+      text.style.removeProperty('width');
       text.style.removeProperty('height');
     };
 
@@ -3955,23 +3999,40 @@
          pixels enlarged. Sized big, scale(1) is the full-screen state
          and it renders at full resolution where anyone is looking.
 
-         X and Y scale separately, so the end state is exactly the
-         viewport rather than the smallest uniform scale that covers it.
-         One scale cannot take a 16/9 box to a screen of another shape
-         without overhanging — that is geometry, not a setting. The
-         frame morphs instead, and the video is object-fit:cover inside
-         it, so nothing is ever stretched. */
+         One shape the whole way. The frame keeps the video's own
+         ratio and only ever gets bigger, so the small state in the
+         grid is the whole 16/9 frame and every state after it is that
+         same frame, closer. Nothing inside it is ever cropped by the
+         frame, and with a single scale in both directions nothing can
+         be stretched either.
+
+         It used to end as the viewport exactly, X and Y scaled apart —
+         which is a frame that changes shape as it travels, and a video
+         squashed with it. object-fit could not save that: it resolves
+         against the laid-out box and the transform squashes its result
+         afterwards. A desktop cell is shaped near enough to the screen
+         to hide it; a phone is not, which is where it showed.
+
+         The end state covers rather than fits: big enough that neither
+         side of the screen is left uncovered, so on a phone the frame
+         is far wider than the screen and the screen does the cropping.
+         Which is what object-fit: cover would have drawn anyway — the
+         same picture, reached without deforming anything to get there. */
       const b = HERO_VIDEO.bleed;
       const cw = window.innerWidth + b * 2;
       const ch = window.innerHeight + b * 2;
+      const ratio = base.w / base.h;
+
+      let fw = cw;
+      let fh = cw / ratio;
+      if (fh < ch) { fh = ch; fw = ch * ratio; }
 
       cover = {
-        w: cw,
-        h: ch,
-        sx: base.w / cw,
-        sy: base.h / ch,
-        x: -b,
-        y: -b
+        w: fw,
+        h: fh,
+        s: base.w / fw,
+        x: (window.innerWidth - fw) / 2,
+        y: (window.innerHeight - fh) / 2
       };
 
       /* Once only, and only after the first measurement: the cell needs
@@ -4036,18 +4097,17 @@
 
       const x = lerp(base.x, cover.x, p);
       const y = lerp(base.y - scroll, cover.y, p);
-      const sx = lerp(cover.sx, 1, p);
-      const sy = lerp(cover.sy, 1, p);
+      const s = lerp(cover.s, 1, p);
 
       /* The images scale about their middle; the travel scales from the
          top left, which is what keeps the placement arithmetic simple.
          So the centre is held by hand — shrinking by intro leaves half
          the difference on each side. */
-      const dx = (cover.w * sx * (1 - intro)) / 2;
-      const dy = (cover.h * sy * (1 - intro)) / 2;
+      const dx = (cover.w * s * (1 - intro)) / 2;
+      const dy = (cover.h * s * (1 - intro)) / 2;
 
       comp.style.transform =
-        `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${sx * intro}, ${sy * intro})`;
+        `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${s * intro})`;
     };
 
     /* Measured against the STAGE, not the hero. Tied to the hero's own
@@ -4059,14 +4119,125 @@
        From the stage's top entering the viewport to it reaching the
        top is exactly one screen of scroll, and its end is the pin's
        start by definition. */
-    const travel = ScrollTrigger.create({
+    /* p used to be the trigger's own progress, so the growth was the
+       scroll: a slow scroll grew it slowly, a stopped scroll stopped
+       it halfway. It is a tween on its own clock now — once past
+       growAt it goes to full bleed and lands there, scroll or no
+       scroll.
+
+       The scroll term stays live throughout regardless. p is what the
+       video is doing; scroll is what the page is doing under it, and
+       until p reaches 1 the video still has to travel with the hero
+       rather than hang in the viewport while it leaves. */
+    /* Declared before everything that reaches for it. The trigger's
+       own callbacks run during its creation, and a const assigned on
+       that same line is still in its dead zone when they do — which
+       is a ReferenceError, not an undefined. */
+    let travel = null;
+
+    const growth = { p: 0 };
+    let growing = false;
+    let wants = 0;
+
+    /* Driven by its own tween rather than by the trigger's updates:
+       once it is going it has to keep going, and a scroll that races
+       past the trigger's range — or stops dead inside it — takes the
+       trigger's updates with it. The tween is on the ticker, so it
+       does not care.
+
+       Reading the scroll live for the same reason. Where the video
+       has to be is p plus where the page is, and while it is growing
+       both are moving. */
+    /* Carrying the page to the pin, not merely blocking it: a lock on
+       its own is a page that stops answering, which reads as broken.
+       Lenis owns the wheel here and takes a lock for the length of the
+       throw; without it the same throw is written frame by frame. */
+    let tookOver = false;
+    let scrollTween = null;
+
+    const takeover = () => {
+      if (!HERO_VIDEO.takeover || reducedMotion || tookOver || dead) return;
+      if (!travel) return;
+
+      const target = travel.end;
+      if (!isFinite(target) || travel.scroll() >= target) return;
+      tookOver = true;
+
+      if (hasLenis && lenis && lenis.scrollTo) {
+        lenis.scrollTo(target, {
+          duration: HERO_VIDEO.takeoverDuration,
+          lock: true,
+          force: true
+        });
+        return;
+      }
+
+      const pos = { y: travel.scroll() };
+      scrollTween = gsap.to(pos, {
+        y: target,
+        duration: HERO_VIDEO.takeoverDuration,
+        ease: HERO_VIDEO.growEase,
+        overwrite: true,
+        onUpdate: () => window.scrollTo(0, pos.y)
+      });
+    };
+
+    const growTo = (target) => {
+      if (dead || wants === target) return;
+      wants = target;
+      growing = true;
+
+      /* Armed again only once the growth has been let go of entirely,
+         so scrolling back up to the hero and down again gets the same
+         throw rather than one free pass. */
+      if (target === 1) takeover();
+      else tookOver = false;
+      gsap.to(growth, {
+        p: target,
+        duration: HERO_VIDEO.growDuration,
+        ease: HERO_VIDEO.growEase,
+        overwrite: true,
+        onUpdate: () => apply(growth.p, travel ? travel.scroll() : lastScroll),
+        onComplete: () => { growing = false; apply(growth.p, travel ? travel.scroll() : lastScroll); }
+      });
+    };
+
+    /* Latched, with the two edges far apart on purpose. One threshold
+       for both directions means a scroll that hovers on it flips the
+       growth back and forth — it goes at growAfter and only comes back
+       at the very top of the range, so there is nothing to sit on. */
+    const wanted = (distance) => {
+      if (distance >= HERO_VIDEO.growAfter) return 1;
+      if (distance <= 0) return 0;
+      return wants;
+    };
+
+    travel = ScrollTrigger.create({
       trigger: stage,
       start: 'top bottom',
       end: 'top top',
-      scrub: true,
       invalidateOnRefresh: true,
-      onRefresh: (self) => { measure(); apply(self.progress, self.scroll()); },
-      onUpdate: (self) => { apply(self.progress, self.scroll()); keepPlaying(); }
+
+      /* A refresh lands on every navigation and every footer resize,
+         so snapping p to where the scroll says it belongs would put a
+         jump in the middle of a growth that is already running. Only
+         the settled value is corrected — which is what a reload
+         partway down the page needs. */
+      onRefresh: (self) => {
+        measure();
+        if (!growing) {
+          wants = wanted(self.scroll() - self.start);
+          growth.p = wants;
+        }
+        apply(growth.p, self.scroll());
+      },
+
+      onUpdate: (self) => {
+        if (dead) return;
+        growTo(wanted(self.scroll() - self.start));
+        apply(growth.p, self.scroll());
+        keepPlaying();
+      }
     });
 
     /* Which step of the entrance this cell takes. The order and the
@@ -4128,6 +4299,13 @@
        viewport for the rest of the page. */
     const settle = () => {
       if (dead) return;
+      /* Past the pin the transform is cleared and the stage owns the
+         box, so a growth still writing to it would be writing to
+         nothing — and would be mid-flight if it ever came back. */
+      gsap.killTweensOf(growth);
+      growing = false;
+      wants = 1;
+      growth.p = 1;
       stage.appendChild(comp);
       comp.classList.remove('is-travelling');
       comp.classList.add('is-settled');
@@ -4148,7 +4326,7 @@
          this it sits at the stylesheet's 0,0 — the top left corner —
          until something else happens to move it, and if the travel is
          already behind us nothing ever does. */
-      apply(travel.progress, travel.scroll());
+      apply(growth.p, travel.scroll());
     };
 
     const held = ScrollTrigger.create({
@@ -4159,7 +4337,16 @@
       pinSpacing: true,
       onEnter: () => {
         if (dead) return;
-        apply(1, travel.scroll());
+        /* A fast scroll can reach the pin while the growth is still
+           running. Left to finish rather than snapped to 1 — that snap
+           is the jump, the video going from half-grown to full bleed
+           in a frame. It is a second at most and the pin holds for a
+           screen, so it lands well inside the hold. */
+        if (!growing) {
+          wants = 1;
+          growth.p = 1;
+          apply(1, travel.scroll());
+        }
         bringText();
       },
       onEnterBack: () => {
@@ -4184,6 +4371,8 @@
 
     return function cleanup() {
       dead = true;
+      gsap.killTweensOf(growth);
+      scrollTween?.kill();
       travel.kill();
       held.kill();
       gsap.set(comp, { clearProps: 'opacity,visibility' });

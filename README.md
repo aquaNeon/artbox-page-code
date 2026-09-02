@@ -802,6 +802,84 @@ Script tags placed inside the swapped container never execute on a Barba
 navigation. The three former inline section embeds now live here as modules —
 delete them in the Designer or they run twice on first load.
 
+### heroVideo
+
+The last cell of the hero grid is a video. It leaves the grid, travels to the
+middle of the screen at full bleed, holds through a pinned screen while the
+statements play over it, then scrolls away with the stage.
+
+The growth is **triggered, not scrubbed**. `growAfter` pixels of scroll out of
+the hero and the scale runs on its own clock, finishing whether the scroll
+continues, stops, or races past — a scrubbed one is only ever as committed as
+the hand on the wheel. Where it travels *to* is still scroll-bound: the scroll
+term keeps it moving with the hero until it has fully arrived.
+
+The threshold is latched: it fires at `growAfter` and only releases back at the
+very top of the range, so a scroll parked on the threshold cannot flip it back
+and forth. The tween runs on the ticker rather than on the trigger's updates,
+so a scroll that leaves the trigger's range mid-growth doesn't strand it — and
+the pin no longer snaps `p` to 1 on entry, which was the jump from half-grown
+to full bleed in one frame. It finishes inside the pin's hold instead.
+
+| Key in `HERO_VIDEO` | Default | Meaning |
+| --- | --- | --- |
+| `growAfter` | `120` | px of scroll out of the hero before the growth fires |
+| `growDuration` | `1` | seconds to full bleed, its own clock |
+| `growEase` | `power2.inOut` | |
+| `takeover` | `true` | carry the page to the pin on the scroll that fires the growth |
+| `takeoverDuration` | `1` | seconds of that throw |
+| `pin` | `1.5` | screens of pin once it is full bleed |
+| `bleed` | `2` | px past the viewport on every side |
+
+**One shape the whole way.** The frame keeps the video's own ratio — the cell is
+stamped with the component's declared `aspect-ratio` at measure time, 16/9 by
+default — and only ever gets bigger. The small state in the grid is the whole
+frame, every state after it is that frame closer, and a single scale in both
+directions cannot stretch anything.
+
+The end state covers rather than fits: large enough that neither side of the
+screen is uncovered, so on a phone the frame runs well past the edges and the
+screen does the cropping. Same picture `object-fit: cover` would have drawn,
+reached without deforming anything on the way.
+
+It used to end as the viewport exactly, X and Y scaled apart — a frame that
+changed shape as it travelled, and a video squashed along with it. `object-fit`
+cannot save that: it resolves against the laid-out box, and the transform
+squashes its result afterwards. A desktop cell is shaped near enough to the
+screen to hide it; a phone is not, which is where it showed.
+
+The statements move into the component for the pin so they sit over the video,
+and their box is reproduced on all four edges from where it sat in the stage —
+measured against the frame's *resting* box, since a fast scroll can reach the
+pin with the growth still running and a rect read mid-flight is a scaled one.
+The stylesheet's `left: 0; right: 0` spans the frame, which since the frame
+stopped being the viewport would stretch them off both edges of a phone.
+
+**The takeover.** A flick of the wheel is a screen and the growth is a second,
+so it was possible to reach the pin having seen none of it. The scroll that
+fires the growth now carries the page the rest of the way to the pin start,
+locked while it goes — `lenis.scrollTo(..., { lock: true })`, or a frame-by-frame
+`window.scrollTo` where Lenis is absent. Carried rather than merely blocked: a
+page that stops answering reads as broken. It re-arms only once the growth has
+been released back at the top of the range, so hero → down → up → down gets the
+same throw each time, and `prefers-reduced-motion` never gets it at all — taking
+someone's scroll away is the thing that setting asks you not to do.
+
+Lenis does not smooth touch by default here, so on a phone the lock is weaker
+than the wheel's; the longer pin is what holds the ground there.
+
+The component is taken out of flow and fixed for the travel — a transform
+inside the grid would be clipped by the section and would be fighting the
+hero's parallax for the same matrix. The cell it leaves keeps its aspect ratio
+so the grid holds its shape around the hole.
+
+`page-transition.css` holds the component at `opacity: 0` from first paint
+(`hero-video-hold`), because the module's own pre-hide is JS and the gap before
+the bundle lands was a flash of video in the grid. The hold has no fill, so a
+page that never gets the script shows the video rather than an empty cell; the
+module drops the animation at mount, since a running animation would outrank
+the tween's inline opacity.
+
 ## Underline links — `[data-underline-link]`
 
 Hovering wipes the resting line out to the right while a fresh one wipes in
