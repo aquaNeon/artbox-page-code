@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-02-h';
+  const BUILD = '2026-09-03-c';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2722,8 +2722,14 @@
          page that is heroVideo, which fires it once the video has
          finished growing. Its own trigger would go off while the video
          was still travelling, and the statements would be halfway
-         through before there was anything to read them against. */
-      const waits = wrap.hasAttribute('data-swap-wait');
+         through before there was anything to read them against.
+
+         A swap inside the hero stage is that case whether or not the
+         attribute survived the Designer. heroVideo is going to drive
+         it either way, and without this the first statement is shown
+         at mount and its cue arrives to find it already read. */
+      const waits = wrap.hasAttribute('data-swap-wait') ||
+        !!wrap.closest('.home_video_wrap');
 
       wrap.classList.add('is-swapping');
 
@@ -2867,10 +2873,16 @@
           shown = true;
           index = i;
           if (reducedMotion) gsap.set(list[i], { autoAlpha: 1, y: 0 });
-          else gsap.to(list[i], {
-            autoAlpha: 1, y: 0,
-            duration: SWAP.duration, ease: SWAP.ease
-          });
+          /* fromTo, not to. Whoever sends swap:to owns the entrance,
+             and a `to` from wherever the statement happens to be is a
+             tween with nowhere to travel if it is already showing —
+             the first statement appearing without the rise every one
+             after it gets. The from state is the same one swap() uses,
+             so first and second arrive identically. */
+          else gsap.fromTo(list[i],
+            { autoAlpha: 0, y: SWAP.shift },
+            { autoAlpha: 1, y: 0, duration: SWAP.duration, ease: SWAP.ease }
+          );
           return;
         }
         swap(i);
@@ -4090,8 +4102,10 @@
        between it has to keep travelling with the page, or it would
        hang in the viewport while the hero scrolled out from under it —
        hence the scroll term, which is faded out as p rises. */
+    let frozen = false;
+
     const apply = (p, scroll) => {
-      if (!base || !cover) return;
+      if (frozen || !base || !cover) return;
       lastP = p;
       lastScroll = scroll;
 
@@ -4369,14 +4383,38 @@
       }
     });
 
+    /* A swap collapses the document under the triggers: the footer
+       margin goes, both containers become fixed layers, and the scroll
+       they are measured against is suddenly somewhere else entirely.
+       Left live they read that as the user racing back up the page,
+       and play the travel in reverse over the top of the transition —
+       the video lifting off the stage and shrinking into a grid nobody
+       is looking at any more.
+
+       Hiding it does not answer this: at that scroll position it is
+       settled, in flow, part of what the outgoing page still shows.
+       So it is frozen instead — whatever it was showing when the
+       navigation started is what it shows until it is taken away. */
+    const freeze = () => {
+      if (dead) return;
+      frozen = true;
+      gsap.killTweensOf(growth);
+      scrollTween?.kill();
+      travel?.disable(false);
+      held?.disable(false);
+    };
+
+    document.addEventListener('page:leaving', freeze);
+
     return function cleanup() {
       dead = true;
+      document.removeEventListener('page:leaving', freeze);
       gsap.killTweensOf(growth);
       scrollTween?.kill();
       travel.kill();
       held.kill();
       gsap.set(comp, { clearProps: 'opacity,visibility' });
-      comp.classList.remove('is-travelling', 'is-settled');
+      comp.classList.remove('is-travelling', 'is-settled', 'is-page-leaving');
       comp.style.removeProperty('transform');
       comp.style.removeProperty('width');
       comp.style.removeProperty('height');
@@ -5323,6 +5361,16 @@
 
   barba.hooks.beforeLeave((data) => {
     root.classList.add('is-transitioning');
+    /* Anything travelling belongs to the page being left — it is fixed
+       to the viewport on the body, so it would otherwise hang above
+       both pages for the length of the swap. Marked here, before the
+       incoming page has mounted anything of its own, so only the
+       outgoing one is caught. page-transition.css does the hiding. */
+    document.querySelectorAll('[data-video="component"].is-travelling')
+      .forEach((el) => el.classList.add('is-page-leaving'));
+    /* Before the footer margin collapses two lines down — that is the
+       change the outgoing page's scroll triggers would react to. */
+    document.dispatchEvent(new CustomEvent('page:leaving'));
     closeMeganav();
     resetNav();
     restoreFooterLayer();
@@ -5409,6 +5457,11 @@
 
   barba.hooks.after((data) => {
     clearContainerLayer(data?.next?.container);
+    /* The marked one leaves with its container, so this is for the
+       swap that never completes — a cancelled navigation would
+       otherwise leave a page holding an invisible video. */
+    document.querySelectorAll('[data-video="component"].is-page-leaving')
+      .forEach((el) => el.classList.remove('is-page-leaving'));
   });
 
   barba.hooks.after(() => {

@@ -855,6 +855,39 @@ pin with the growth still running and a rect read mid-flight is a scaled one.
 The stylesheet's `left: 0; right: 0` spans the frame, which since the frame
 stopped being the viewport would stretch them off both edges of a phone.
 
+The first statement enters through a `fromTo`, not a `to`. Whoever sends
+`swap:to` owns the entrance, and a `to` from wherever the statement happens to
+be has nowhere to travel if it is already showing — which is how the first one
+appeared without the rise every one after it gets. A swap inside
+`.home_video_wrap` also counts as `data-swap-wait` whether or not the attribute
+survived the Designer, since `heroVideo` drives it either way.
+
+**Keeping it out of everything else's way.** While it travels the component is
+`position: fixed` on the body, so it is outside `.page_wrap`'s stacking context
+and outside the container Barba swaps — nothing that covers the page covers it,
+and nothing that replaces the page replaces it. That is the video over an open
+meganav, and the video hanging above both pages through a transition. Both are
+hidden in CSS (`html.is-menu-open`, and `is-page-leaving` which `beforeLeave`
+stamps on anything already travelling), with `!important`, since the opacity to
+beat is the entrance tween's inline one.
+
+Hiding does not cover the other half of it. Scrolled past the pin the component
+is *settled* — in flow, part of what the outgoing page still shows — so it is
+never marked, and a swap collapses the document under its triggers: the footer
+margin goes, both containers become fixed layers, and the scroll they measure
+against is somewhere else entirely. Live, they read that as the user racing
+back up the page and play the travel in reverse over the transition. So
+`beforeLeave` also dispatches `page:leaving` (before `FooterReveal.collapse()`,
+which is the change they would react to) and the module freezes: triggers
+disabled, tweens killed, `apply()` inert. Whatever it was showing when the
+navigation started is what it shows until it is taken away.
+
+Not `html.is-transitioning` for the swap case: that class is still on through
+the incoming page's `afterEnter`, which is exactly when an incoming home page's
+own video is entering. `beforeLeave` runs before any new module has lifted a
+component, so marking there catches only the outgoing one. `after` unmarks, for
+a navigation that never completes.
+
 **The takeover.** A flick of the wheel is a screen and the growth is a second,
 so it was possible to reach the pin having seen none of it. The scroll that
 fires the growth now carries the page the rest of the way to the pin start,

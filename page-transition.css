@@ -1056,6 +1056,39 @@ html:not(.wf-design-mode) .home_wrap [data-video="component"] {
   transform-origin: center;
 }
 
+/* ============================================================
+   The travelling component is fixed to the viewport and lives on the
+   body, so it is outside .page_wrap's stacking context and outside the
+   container Barba swaps. Nothing that covers the page covers it, and
+   nothing that replaces the page replaces it — which is the video over
+   the open meganav, and the video hanging above both pages through a
+   transition.
+
+   Hidden in CSS rather than by the module, so it holds even on a load
+   where the script throws before it gets there. !important because the
+   opacity it has to beat is the entrance tween's, written inline, and
+   nothing else outranks that.
+
+   is-page-leaving rather than html.is-transitioning: that class is on
+   through the incoming page's afterEnter too, and the incoming home
+   page's own video is entering in exactly that window. Barba marks the
+   outgoing one at beforeLeave, which is before any new module has
+   lifted a component of its own.
+   ============================================================ */
+html.is-menu-open [data-video="component"].is-travelling,
+[data-video="component"].is-page-leaving {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+/* Both directions, so the video does not snap back into view from
+   under a menu that is still swiping away. The entrance tween writes
+   opacity per frame and this smooths its tail by a fraction — at 0.9s
+   against 0.24s that is not a difference anyone can see. */
+[data-video="component"].is-travelling {
+  transition: opacity 0.24s linear;
+}
+
 [data-video="component"].is-travelling {
   position: fixed;
   left: 0;
