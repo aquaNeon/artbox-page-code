@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-03-i';
+  const BUILD = '2026-09-03-v';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1024,6 +1024,346 @@
         st?.kill();
         splits.forEach((split) => split.revert());
       });
+    };
+  });
+
+
+  /* ============================================================
+     CTA — .cta_wrap
+
+     The section is white on the way in. It sticks, the yellow washes
+     up under it, and the images rise out of the fold, up their own
+     columns at their own rates, past the text and off the top. It is
+     still stuck when the last one leaves; only then does it let go.
+
+     Its own module rather than [data-parallax] because the shape is
+     different. That module is symmetric — displaced one way at the
+     start, the other at the end, at rest exactly at the midpoint —
+     which is a drift, not an arrival. Here every image travels one
+     way, from below the fold to above the frame, and the ones with
+     the higher numbers travel further in the same scroll, which is
+     what reads as speed.
+
+     The strengths already on the markup are reused as those rates, so
+     the Designer stays the place they are tuned. The attributes are
+     taken off their elements while this module owns them: two owners
+     of one transform fight and drift, and the generic module would
+     otherwise animate exactly these five.
+
+     The whole thing is scrubbed against the sticky window — the frame
+     is on screen for precisely start: top top / end: bottom bottom, so
+     nothing happens before it is watchable or after it is gone.
+     ============================================================ */
+
+  const CTA = {
+    /* Screens of scrolled height for the section, the sticky screen
+       included: the pin lasts this minus one. Written to the section
+       from here so the number lives with the motion it paces rather
+       than in the embed. */
+    scroll: 4.7,
+
+    /* Fractions of the pin. The neon is done early — it is the ground
+       the images arrive onto, not an event of its own — and the travel
+       finishes before the end so the section is still holding when the
+       last image leaves, which is the beat the release needs. */
+    tint: 0.22,
+
+    /* The fade starts this far into the pin rather than on its first
+       pixel. start: 'top top' is the lock by definition, but a scrub
+       eases toward its target rather than sitting on it, so the colour
+       was already on its way while the section was still arriving. A
+       beat of nothing puts it unambiguously after the lock. */
+    tintStart: 0.04,
+
+    /* Where the last image is made to finish, as a fraction of the
+       pin. The schedule below is scaled to land on it — so the tail of
+       dead scrolling after everything has gone is whatever is left of
+       the pin past this number, and not an accident of five delays
+       adding up to less than the section is long. */
+    fit: 0.97,
+    travel: 0.92,
+
+    /* Screens below the fold they all start, and past the top where
+       they all finish — the same journey for every image. What
+       differs is how long each one takes over it and when it sets
+       off, which is speed and timing kept apart. Making the fast ones
+       travel further tangled the two: further meant starting lower,
+       so a fast image was also a late one and neither could be tuned
+       without moving the other. */
+    lead: 1.1,
+    exit: 0.35,
+
+    /* Two speeds, not five. A rate per image reads as noise — the eye
+       cannot tell 3 from 3.5 and does not try — while two clearly
+       different ones read as depth. The numbers on the markup pick a
+       side: at or below the middle of them is the slow lane, above it
+       the fast one. Fractions of the pin each lane takes to cross.
+
+       Add a third number here and there are three lanes; the sorting
+       follows the length of this list. */
+    /* Three lanes: slow, middle, fast. The middle one exists because
+       an image can be wrong in both directions — too quick against the
+       slow ones, too slow to sit with the fast ones — and rounding it
+       to one or the other is how a five-image drift turns back into
+       two columns moving in lockstep. */
+    lanes: [0.6, 0.47, 0.34],
+
+    /* Spread through the pin by DOM order when nothing says otherwise,
+       so five images do not set off together. data-cta-delay on any of
+       them overrides its share of this. */
+    stagger: 0.16,
+
+    /* One number for how spread out the whole sequence is. Every delay
+       below is multiplied by it, so the arrangement — which image is
+       early, which is late, and by how much relative to the others —
+       survives tightening or loosening the lot. Tune this before
+       touching individual numbers. */
+    spread: 0.62,
+
+    /* The arrangement, by the combo class each image carries. DOM order
+       is not the order they should rise in — the grid puts them where
+       the layout wants them, which has nothing to do with the sequence
+       — and is-1 to is-5 is how they are already named.
+
+       delay is a fraction of the pin. lane is an index into lanes
+       above: 0 is the slow one, 1 the fast one. Anything with
+       data-cta-delay or data-parallax on the element itself overrides
+       what is written here, so this is the default arrangement rather
+       than the only one.
+
+       A late image cannot also be slow — everything has to clear the
+       screen by travel — so the slow lane belongs to one that sets off
+       early. That is the whole trade: lateness is bought with speed. */
+    images: {
+      'is-2': { delay: 0,    lane: 1 },
+      'is-1': { delay: 0.14, lane: 0 },
+      'is-4': { delay: 0.12, lane: 0 },
+      'is-5': { delay: 0.24, lane: 2 },
+      'is-3': { delay: 0.48, lane: 0 }
+    },
+
+    scrub: 0.6
+  };
+
+  Modules.add('ctaReveal', function (root) {
+    const section = root.querySelector('.cta_wrap');
+    if (!section) return;
+
+    const frame = section.querySelector('.cta_contain');
+    if (!frame) return;
+
+    /* Taken off before the parallax module mounts — this one is
+       registered above it, so its querySelectorAll finds nothing to
+       take over. Restored on teardown, so the markup leaves exactly as
+       it arrived. */
+    const owned = Array.from(section.querySelectorAll('[data-parallax]'))
+      .map((el) => {
+        const raw = el.getAttribute('data-parallax');
+        el.removeAttribute('data-parallax');
+        const named = Object.keys(CTA.images).find((c) => el.classList.contains(c));
+        const set = named ? CTA.images[named] : null;
+
+        const attr = parseFloat(el.dataset.ctaDelay);
+        const delay = Number.isFinite(attr) ? attr : (set ? set.delay : NaN);
+
+        return {
+          el, raw,
+          speed: Math.abs(parseFloat(raw)) || 1,
+          lane: set ? set.lane : null,
+          delay: Number.isFinite(delay) ? Math.max(0, Math.min(0.9, delay)) : NaN
+        };
+      });
+
+    /* The neon is a layer, not the section's background. One element
+       cannot cross-fade one background into another, so the section
+       keeps the page's primary in the Designer and the neon arrives
+       over it. Both colours stay named there — this file only fades
+       the layer.
+
+       On the section, not inside the sticky frame. The frame is one
+       screen of a section several screens tall, so a colour laid in it
+       covers the screen while the pin holds and nothing at all once it
+       lets go — the neon would fall off the bottom of its own section.
+       First child, so the frame paints over it in DOM order. */
+    const tint = document.createElement('div');
+    tint.className = 'cta_bg_tint';
+    section.insertBefore(tint, section.firstChild);
+
+    /* Named in the Designer, resolved here. A var that does not resolve
+       in this scope is not an error to the browser — the layer is
+       simply transparent, and a fade to nothing is indistinguishable
+       from no fade at all. */
+    if (!getComputedStyle(tint).backgroundColor ||
+        getComputedStyle(tint).backgroundColor === 'rgba(0, 0, 0, 0)') {
+      console.warn(
+        '[cta] the tint layer has no colour: --cta-tint is unset and ' +
+        '--_colour---color--color-neon does not resolve on this element. ' +
+        'Set --cta-tint on .cta_wrap to whatever the section should ' +
+        'become.', section
+      );
+    }
+
+    /* The clip is normally the parallax module's, applied to whatever
+       carries data-parallax-clip. It has nothing to apply it to any
+       more — its items are this module's now, so it returns before it
+       gets there — and without it the images are in plain sight below
+       the section long before it sticks.
+
+       clip-path rather than overflow: an overflow other than visible
+       makes the element the scrollport its sticky descendants resolve
+       against, which is the pin this whole section is built on. */
+    const clipped = [];
+    const clipTargets = section.querySelectorAll('[data-parallax-clip]');
+    (clipTargets.length ? Array.from(clipTargets) : [frame]).forEach((el) => {
+      if (getComputedStyle(el).clipPath !== 'none') return;
+      el.style.clipPath = 'inset(0)';
+      clipped.push(el);
+    });
+
+    section.style.setProperty('--cta-scroll', `${CTA.scroll * 100}vh`);
+
+    const restore = () => {
+      owned.forEach(({ el, raw }) => el.setAttribute('data-parallax', raw));
+      clipped.forEach((el) => el.style.removeProperty('clip-path'));
+      tint.remove();
+      section.style.removeProperty('--cta-scroll');
+    };
+
+    if (!hasScrollTrigger || reducedMotion) {
+      /* No scroll to scrub against, or nobody asking for motion: the
+         section is simply what it ends as. */
+      tint.style.opacity = '1';
+      return restore;
+    }
+
+    /* Which lane each image is in. The DISTINCT numbers are what get
+       sorted, not all of them: one slow image among four fast ones is
+       a set where four fifths of the ranks are the same number, and
+       ranking by position in that list put every one of them in the
+       slow lane. What the Designer is choosing between is the values,
+       so those are what divide up the lanes. */
+    const distinct = [...new Set(owned.map((o) => o.speed))].sort((a, b) => a - b);
+    const laneOf = (speed) => {
+      const at = distinct.length > 1
+        ? distinct.indexOf(speed) / (distinct.length - 1)
+        : 0;
+      const i = Math.round(at * (CTA.lanes.length - 1));
+      return CTA.lanes[Math.max(0, Math.min(CTA.lanes.length - 1, i))];
+    };
+
+    /* Where the image sits inside the frame, transforms excluded.
+       offsetTop is layout, so it is unaffected by the y this module is
+       writing — a rect would be measuring its own tween. The frame is
+       the screen while the pin holds, so this is the distance from the
+       top of the screen. */
+    const inFrame = (el) => {
+      let top = 0;
+      let node = el;
+      while (node && node !== frame) {
+        top += node.offsetTop;
+        node = node.offsetParent;
+      }
+      return top;
+    };
+
+    /* The pin is everything past the one screen the frame occupies. */
+    const pin = () => window.innerHeight * (CTA.scroll - 1);
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(tint,
+        { opacity: 0 },
+        {
+          opacity: 1,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: section,
+            start: () => `top top-=${pin() * CTA.tintStart}`,
+            end: () => `top top-=${pin() * (CTA.tintStart + CTA.tint)}`,
+            scrub: CTA.scrub,
+            invalidateOnRefresh: true,
+            /* After anything that pins above it — this module is
+               registered above heroVideo and would otherwise be
+               measured against a document that has not been given the
+               hero's pin spacing yet. */
+            refreshPriority: -1
+          }
+        }
+      );
+
+      /* Scaled so the last one lands on fit. Written as fractions the
+         schedule ends wherever it happens to end — here 0.90 of a pin
+         that runs to 1, which is a third of a screen of scrolling with
+         nothing on it before the section lets go. Same shape, same
+         order, stretched to fill what it has. */
+      const ends = owned.map(({ speed, delay, lane }, i) => {
+        const span = lane == null
+          ? laneOf(speed)
+          : CTA.lanes[Math.max(0, Math.min(CTA.lanes.length - 1, lane))];
+        const off = (Number.isFinite(delay) ? delay : i * CTA.stagger) * CTA.spread;
+        return off + span;
+      });
+      const fit = CTA.fit / Math.max(...ends);
+
+      owned.forEach(({ el, speed, delay, lane }, i) => {
+        /* Named lane first, then the number on the markup. Both say
+           the same thing; the class is simply the one already there. */
+        let span = (lane == null
+          ? laneOf(speed)
+          : CTA.lanes[Math.max(0, Math.min(CTA.lanes.length - 1, lane))]) * fit;
+        const off =
+          (Number.isFinite(delay) ? delay : i * CTA.stagger) * CTA.spread * fit;
+        let end = off + span;
+
+        /* Nothing is still on screen when the section lets go. A late
+           image with a long window would otherwise be cut off by the
+           release, halfway up, mid-scroll. It is hurried instead —
+           the alternative is holding the pin open for one straggler,
+           which changes the section's length out from under every
+           other number here. */
+        if (end > CTA.travel) {
+          console.warn(
+            `[cta] data-parallax="${speed}" starting at ${off.toFixed(2)} of ` +
+            `the pin runs past the release at ${CTA.travel}, so it is sped ` +
+            'up to land on it. Lower its delay, or its number, to ask for ' +
+            'this rather than be given it.', el
+          );
+          end = CTA.travel;
+          span = Math.max(0.05, end - off);
+        }
+
+        /* Both ends are the screen, not the cell. y is relative to
+           wherever the grid put this image, and the cells sit at
+           different heights — so "up by its own height" cleared the
+           top for the ones already near it and left the low ones
+           still showing at the release. */
+        const from = () => window.innerHeight * CTA.lead - inFrame(el);
+        const to = () => -(inFrame(el) + el.offsetHeight +
+          window.innerHeight * CTA.exit);
+
+        gsap.fromTo(el,
+          { y: from },
+          {
+            y: to,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: section,
+              /* Offsets into the pin rather than a shared range: when
+                 an image sets off is its delay, how long it takes is
+                 its span, and neither touches the other. */
+              start: () => `top top-=${pin() * off}`,
+              end: () => `top top-=${pin() * end}`,
+              scrub: CTA.scrub,
+              invalidateOnRefresh: true,
+              refreshPriority: -1
+            }
+          }
+        );
+      });
+    }, section);
+
+    return function cleanup() {
+      ctx.revert();
+      restore();
     };
   });
 
@@ -4455,6 +4795,15 @@
       end: () => '+=' + window.innerHeight * HERO_VIDEO.pin,
       pin: true,
       pinSpacing: true,
+
+      /* Refreshed before anything below it. Pin spacing is real height
+         added to the document, so every trigger further down the page
+         starts that much later — but only if it is measured after this
+         one has laid its spacing out. Measured before, they are early
+         by exactly the pin's length, which is a section further down
+         playing its whole entrance a screen and a half before it
+         arrives. Creation order does not settle this; priority does. */
+      refreshPriority: 1,
       onEnter: () => {
         if (dead) return;
         /* A fast scroll can reach the pin while the growth is still

@@ -1199,3 +1199,43 @@ html .home_wrap .home_img_wrap:nth-child(6 of .home_img_wrap) img,
 html .home_wrap .home_img_wrap:nth-child(n+7 of .home_img_wrap) img {
   animation-delay: calc(var(--hero-in-lead) + var(--hero-in-video-slot) * var(--hero-in-step));
 }
+
+/* ============================================================
+   CTA — see the ctaReveal module
+
+   The section's own embed sets height: 200vh !important on .cta_wrap.
+   The pin length belongs with the motion it paces, so it is written
+   here from --cta-scroll, which the module sets. !important to answer
+   the embed's, and the leading html to win the tie that leaves —
+   an embed inside the section renders after this file.
+   ============================================================ */
+
+html .cta_wrap {
+  height: var(--cta-scroll, 200vh) !important;
+  /* The tint is absolute against this, so the whole section has to be
+     the containing block — not the sticky screen inside it. */
+  position: relative;
+}
+
+/* The neon, arriving. A layer rather than the section's background:
+   one element cannot cross-fade one background into another. The
+   section keeps bg-primary in the Designer and this comes over it, so
+   both colours stay named there and neither is written here.
+
+   Retarget with --cta-tint on the section if the neon is not the one
+   this section should land on. */
+.cta_bg_tint {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  background: var(--cta-tint, var(--_colour---color--color-neon));
+  pointer-events: none;
+}
+
+/* Positioned elements paint over unpositioned ones, so without this
+   the wash covers the content it is supposed to sit behind. */
+.cta_contain > .cta_content_wrap {
+  position: relative;
+  z-index: 1;
+}
