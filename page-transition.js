@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-03-c';
+  const BUILD = '2026-09-03-i';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2804,12 +2804,40 @@
       const hidden = list.filter((el) => getComputedStyle(el).display === 'none');
       hidden.forEach((el) => { el.style.display = 'block'; });
 
-      gsap.set(list, { autoAlpha: 0, y: SWAP.shift });
+      /* data-text-anim-solo on a statement, or on the wrap, asks for
+         the -solo entrance instead of the swap's own. It cannot come
+         from textAnim: that module skips everything inside a
+         [data-swap] on purpose, since an element marked for both gets
+         two entrances fighting over one transform. So the swap plays
+         the solo motion itself.
+
+         Group-wide rather than per item. The attribute usually lands
+         on the first statement only, and statements that arrive
+         differently from each other read as a mistake rather than as a
+         sequence. */
+      const solo = wrap.hasAttribute('data-text-anim-solo') ||
+        list.some((el) => el.hasAttribute('data-text-anim-solo'));
+
+      const dur = solo ? TEXT.bodyDuration : SWAP.duration;
+      const ease = solo ? TEXT.bodyEase : SWAP.ease;
+      /* Both units are written every time. A statement that entered
+         under one of them and leaves under the other would otherwise
+         keep the first one's leftovers and start from the wrong
+         place. */
+      const hiddenBelow = solo
+        ? { autoAlpha: 0, yPercent: TEXT.bodyFromY, y: 0 }
+        : { autoAlpha: 0, yPercent: 0, y: SWAP.shift };
+      const hiddenAbove = solo
+        ? { autoAlpha: 0, yPercent: -TEXT.bodyFromY, y: 0 }
+        : { autoAlpha: 0, yPercent: 0, y: -SWAP.shift };
+      const resting = { autoAlpha: 1, yPercent: 0, y: 0 };
+
+      gsap.set(list, hiddenBelow);
       /* Waiting means waiting for the first one too. Shown at mount it
          had already been read by the time the cue arrived, and the only
          thing that looked like an entrance was the SECOND statement —
          a hold later, which is why it read as arriving at the release. */
-      if (!waits) gsap.set(list[0], { autoAlpha: 1, y: 0 });
+      if (!waits) gsap.set(list[0], resting);
 
       const queue = () => {
         clearTimeout(timer);
@@ -2823,23 +2851,30 @@
         const current = list[index];
         index = next;
 
+        /* Anything neither leaving nor arriving is put away outright.
+           A swap interrupted mid-flight — which is what scrolling
+           quickly back and forth through the pin is — leaves its
+           outgoing statement wherever the kill caught it, and two of
+           them half-showing over each other is the result. Only the
+           pair actually changing is ever in motion. */
+        list.forEach((el) => {
+          if (el !== current && el !== list[index]) gsap.set(el, hiddenBelow);
+        });
+
         tl?.kill();
         if (reducedMotion) {
-          gsap.set(list, { autoAlpha: 0, y: 0 });
+          gsap.set(list, { autoAlpha: 0, yPercent: 0, y: 0 });
           gsap.set(list[index], { autoAlpha: 1 });
           queue();
           return;
         }
 
         tl = gsap.timeline({ onComplete: queue });
-        tl.to(current, {
-          autoAlpha: 0, y: -SWAP.shift,
-          duration: SWAP.duration, ease: SWAP.ease
-        }, 0);
+        tl.to(current, { ...hiddenAbove, duration: dur, ease }, 0);
         tl.fromTo(list[index],
-          { autoAlpha: 0, y: SWAP.shift },
-          { autoAlpha: 1, y: 0, duration: SWAP.duration, ease: SWAP.ease },
-          SWAP.duration * 0.35
+          hiddenBelow,
+          { ...resting, duration: dur, ease },
+          dur * 0.35
         );
       }
 
@@ -2850,11 +2885,8 @@
          against that fires at the wrong scroll position. */
       const onExternalStart = () => {
         if (dead) return;
-        if (reducedMotion) gsap.set(list[0], { autoAlpha: 1, y: 0 });
-        else gsap.to(list[0], {
-          autoAlpha: 1, y: 0,
-          duration: SWAP.duration, ease: SWAP.ease
-        });
+        if (reducedMotion) gsap.set(list[0], resting);
+        else gsap.fromTo(list[0], hiddenBelow, { ...resting, duration: dur, ease });
         queue();
       };
 
@@ -2872,25 +2904,35 @@
         if (!shown) {
           shown = true;
           index = i;
-          if (reducedMotion) gsap.set(list[i], { autoAlpha: 1, y: 0 });
+          if (reducedMotion) gsap.set(list[i], resting);
           /* fromTo, not to. Whoever sends swap:to owns the entrance,
              and a `to` from wherever the statement happens to be is a
              tween with nowhere to travel if it is already showing —
              the first statement appearing without the rise every one
              after it gets. The from state is the same one swap() uses,
              so first and second arrive identically. */
-          else gsap.fromTo(list[i],
-            { autoAlpha: 0, y: SWAP.shift },
-            { autoAlpha: 1, y: 0, duration: SWAP.duration, ease: SWAP.ease }
-          );
+          else gsap.fromTo(list[i], hiddenBelow, { ...resting, duration: dur, ease });
           return;
         }
         swap(i);
       };
 
+      /* Back to before the first cue: hidden, index 0, and the latch
+         released so the next swap:to is an entrance again rather than
+         a change from wherever it stopped. */
+      const onExternalReset = () => {
+        if (dead) return;
+        clearTimeout(timer);
+        tl?.kill();
+        gsap.set(list, hiddenBelow);
+        index = 0;
+        shown = false;
+      };
+
       if (waits) {
         wrap.addEventListener('swap:start', onExternalStart, { once: true });
         wrap.addEventListener('swap:to', onExternalTo);
+        wrap.addEventListener('swap:reset', onExternalReset);
       }
 
       Intro.add(root, () => {
@@ -2910,6 +2952,7 @@
         clearTimeout(placeTimer);
         wrap.removeEventListener('swap:start', onExternalStart);
         wrap.removeEventListener('swap:to', onExternalTo);
+        wrap.removeEventListener('swap:reset', onExternalReset);
         window.removeEventListener('resize', onResize);
         tl?.kill();
         trigger?.kill();
@@ -2920,7 +2963,7 @@
           el.style.removeProperty('grid-column');
           el.style.removeProperty('grid-row');
         });
-        gsap.set(list, { clearProps: 'opacity,visibility,transform' });
+        gsap.set(list, { clearProps: 'opacity,visibility,transform,translate,rotate,scale' });
       });
     });
 
@@ -3947,22 +3990,82 @@
        Measured against the frame's resting box rather than its current
        rect: a fast scroll can reach the pin with the growth still
        running, and a rect read mid-flight is a scaled one. Every
-       number here is where the frame is about to settle. */
+       number here is where the frame is about to settle.
+
+       Anchored to the bottom, not the top. The statements sit at the
+       foot of the stage, and top plus a measured height only holds
+       them there while the height is right — a statement of another
+       length, a wrap at another width, and the block drifts up from
+       the edge it was aligned to. The gap to the bottom is the design;
+       the height is whatever the text needs.
+
+       Its own width and left are reproduced too. Giving it the
+       viewport instead sounded structure-proof and threw the padding
+       away with the box: what insets the statements is the stage's
+       layout around this element, not anything inside it. */
+    /* Kept as offsets, not as viewport numbers. A box written once at
+       pin entry goes stale the moment the viewport changes size, which
+       on a phone is every time the address bar retracts.
+
+       Measured off the stage, but resolved against the VIEWPORT: while
+       the pin holds, the stage is the screen. Reading the stage's rect
+       at refresh time gives its unpinned position instead — refresh
+       reverts pins to measure them — and placing the text against a
+       stage that is a page away is the statement leaping into the
+       middle of the frame. */
+    let textBox = null;
+
+    const placeText = () => {
+      if (!text || !textBox || text.parentNode !== comp) return;
+
+      /* Settled, the component is the stage: absolute at inset 0
+         inside it, so the gaps measured off the stage are the gaps to
+         write, unchanged. Travelling, it is the frame — bigger than
+         the screen and hanging off it — so the same gaps have to be
+         resolved through where the frame sits. */
+      const settled = comp.classList.contains('is-settled');
+      if (!settled && !cover) return;
+
+      text.style.top = 'auto';
+      text.style.bottom = settled
+        ? `${textBox.fromBottom}px`
+        : `${(cover.y + cover.h) - (window.innerHeight - textBox.fromBottom)}px`;
+      text.style.left = settled
+        ? `${textBox.fromLeft}px`
+        : `${textBox.fromLeft - cover.x}px`;
+      text.style.right = 'auto';
+      text.style.width = `${textBox.width}px`;
+      text.style.height = 'auto';
+    };
+
     const bringText = () => {
       if (!text || text.parentNode === comp) return;
 
       const t = text.getBoundingClientRect();
-      const box = cover || { x: 0, y: 0 };
+      const st = stage.getBoundingClientRect();
+
+      textBox = {
+        fromBottom: st.bottom - t.bottom,
+        fromLeft: t.left - st.left,
+        width: t.width
+      };
 
       stage.insertBefore(textSeat, text);
       comp.appendChild(text);
       if (themed) comp.classList.add('u-theme-dark');
 
-      text.style.top = `${t.top - box.y}px`;
-      text.style.left = `${t.left - box.x}px`;
-      text.style.right = 'auto';
-      text.style.width = `${t.width}px`;
-      text.style.height = `${t.height}px`;
+      placeText();
+    };
+
+    /* Leaving the pin in either direction puts the statements back
+       where they started. Without it the sequence is a one-off: the
+       statements stay where the last scroll left them, and coming back
+       finds them already read — nothing to dispatch, nothing to
+       animate, the first one simply present. */
+    const resetSwap = () => {
+      if (dead || !swap) return;
+      reading = -1;
+      swap.dispatchEvent(new Event('swap:reset'));
     };
 
     const returnText = () => {
@@ -3971,10 +4074,12 @@
       textSeat.remove();
       comp.classList.remove('u-theme-dark');
       text.style.removeProperty('top');
+      text.style.removeProperty('bottom');
       text.style.removeProperty('left');
       text.style.removeProperty('right');
       text.style.removeProperty('width');
       text.style.removeProperty('height');
+      textBox = null;
     };
 
     gsap.set(comp, { autoAlpha: 0 });
@@ -4239,6 +4344,7 @@
          partway down the page needs. */
       onRefresh: (self) => {
         measure();
+        placeText();
         if (!growing) {
           wants = wanted(self.scroll() - self.start);
           growth.p = wants;
@@ -4366,10 +4472,26 @@
       onEnterBack: () => {
         if (dead) return;
         lift();
+        /* Already inside the component if it left through the bottom,
+           so bringText has nothing to do — but the gaps now have to be
+           resolved against the frame again rather than the stage. */
         bringText();
+        placeText();
       },
-      onLeave: () => { settle(); returnText(); },
-      onLeaveBack: returnText,
+      /* Out the bottom, the last statement stays where it is. It is
+         the one the pin ended on and the page is still showing the
+         stage — clearing it there would be the sequence deleting its
+         own conclusion. Only going back up above the pin resets, and
+         that is somebody asking to see it again. */
+      /* Kept inside the component on the way out, not handed back.
+         In the stage .home_video_contain is a screen-tall block with
+         its content centred, so returning it there is the statement
+         jumping to the middle of the video — the layout it has when
+         nobody is holding it. Settled, the component is the stage's
+         own box, so it keeps sitting exactly where the pin left it and
+         scrolls away with everything else. */
+      onLeave: () => { settle(); placeText(); },
+      onLeaveBack: () => { returnText(); resetSwap(); },
 
       /* One statement per equal share of the pin, changed on the way in
          and on the way back out. Tied to the scroll rather than a hold,
