@@ -358,6 +358,26 @@ The matching CSS, in the section's embed:
 }
 ```
 
+### designSticky — `.design_sticky_track`
+
+The home page's version of the stack, driven by classes rather than
+`[data-sticky-stack]`: two `.design_sticky_item` cards and the `section.work_wrap`
+that climbs over them. Sticky is the section's own embed; this adds two things.
+
+**The hold** — `margin-top` on whatever follows a card, `55vh`, retargetable with
+`--sticky-hold`. Never `margin-bottom` on the card: a sticky box is constrained by
+its containing block *inset by its own margins*, so a bottom margin shortens the
+range it can stay stuck for, and the card releases just before the section has
+finished covering it — a band of it left across the top of the screen.
+
+**The scrim** — a `.sticky_scrim` in each card, fading to 60% black as `work_wrap`
+climbs from the viewport bottom to the top. Driven by the covering section, since
+a stuck card's own rect cannot describe the progress.
+
+`work_wrap` also gets `position: relative; z-index: 1`. `position: sticky` always
+creates a stacking context, so the cards paint in the positioned layer and a
+static section below them in the DOM still renders underneath them.
+
 ### slider — `.c_slider_swiper`
 
 The rail is full-bleed and the first card is aligned to the page container

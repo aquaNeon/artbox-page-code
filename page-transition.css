@@ -1239,3 +1239,37 @@ html .cta_wrap {
   position: relative;
   z-index: 1;
 }
+
+/* Black under the last sticky card — see stickyStack. */
+.sticky_scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  opacity: 0;
+  background: var(--sticky-scrim, #000);
+  pointer-events: none;
+}
+
+/* How long each card holds before the next reaches it. The embed's
+   10vh is a card covered as soon as you scroll; the gap sits behind
+   the stuck card, so it never shows.
+
+   Space ABOVE the next element, never below the sticky one. A sticky
+   box is constrained by its containing block inset by its own margins,
+   so a margin-bottom shortens the range it can stay stuck for — card 2
+   released a few pixels before the work section had covered it, which
+   is the band across the top. */
+@media (min-width: 992px) {
+  html .design_sticky_track > .design_sticky_item + * {
+    margin-top: var(--sticky-hold, 55vh);
+  }
+
+  /* position:sticky always makes a stacking context, so the cards paint
+     in the positioned layer and a static section below them in the DOM
+     still renders underneath. This is what puts the work section over
+     the card it climbs. */
+  html .design_sticky_track > .work_wrap {
+    position: relative;
+    z-index: 1;
+  }
+}

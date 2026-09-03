@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-03-v';
+  const BUILD = '2026-09-03-z';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1702,6 +1702,65 @@
           });
         };
       });
+    });
+
+    return () => mm.revert();
+  });
+
+
+  /* ============================================================
+     DESIGN STICKY — .design_sticky_track
+
+     Two sticky cards and the work section that climbs over them.
+     Sticky is the section's own CSS; this adds the hold before each
+     card is reached, and the black under the one arriving last.
+     ============================================================ */
+
+  const DESIGN_STICKY = {
+    scrim: 0.6,
+    breakpoint: '(min-width: 992px)'
+  };
+
+  Modules.add('designSticky', function (root) {
+    const track = root.querySelector('.design_sticky_track');
+    if (!track || !hasScrollTrigger || reducedMotion) return;
+
+    const items = Array.from(track.querySelectorAll(':scope > .design_sticky_item'));
+    const cover = track.querySelector(':scope > .work_wrap');
+    if (!items.length || !cover) return;
+
+    const mm = gsap.matchMedia();
+
+    mm.add(DESIGN_STICKY.breakpoint, () => {
+      const scrims = items.map((item) => {
+        const el = document.createElement('div');
+        el.className = 'sticky_scrim';
+        item.appendChild(el);
+        return el;
+      });
+
+      /* Driven by the covering section: the cards are stuck, so their
+         own rects cannot describe the progress. */
+      const tween = gsap.fromTo(scrims,
+        { opacity: 0 },
+        {
+          opacity: DESIGN_STICKY.scrim,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: cover,
+            start: 'top bottom',
+            end: 'top top',
+            scrub: true,
+            invalidateOnRefresh: true
+          }
+        }
+      );
+
+      return () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+        scrims.forEach((el) => el.remove());
+      };
     });
 
     return () => mm.revert();
