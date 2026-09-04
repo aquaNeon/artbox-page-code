@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-04-bs';
+  const BUILD = '2026-09-04-bt';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3807,29 +3807,35 @@
             applyGap();
             const gap = measureGap();
             const offset = measureOffset();
-            const perView = fitPerView(mq.matches
-              ? num('data-slides-mobile', 1)
-              : (tabletMq.matches
-                ? num('data-slides-tablet', num('data-slides-per-view', 1.25))
-                : num('data-slides-per-view', 1.25)));
+            /* Only the base value is ours to set — that is the one below
+               the first breakpoint. Above it Swiper owns slidesPerView
+               and re-applies the breakpoint's number on every resize;
+               writing to params as well left the snap grid describing a
+               layout that was no longer current, which is a track that
+               scrolls a slide or two past its end. */
+            const base = fitPerView(num('data-slides-mobile', 1));
+            const tablet = fitPerView(
+              num('data-slides-tablet', num('data-slides-per-view', 1.25))
+            );
+            const desktop = fitPerView(num('data-slides-per-view', 1.25));
 
-            if (swiper.params.slidesOffsetBefore !== offset
+            const changed = swiper.params.slidesOffsetBefore !== offset
               || swiper.params.slidesOffsetAfter !== offset
-              || swiper.params.slidesPerView !== perView) {
+              || (mq.matches && swiper.params.slidesPerView !== base);
+
+            if (swiper.params.breakpoints) {
+              if (swiper.params.breakpoints[768]) {
+                swiper.params.breakpoints[768].slidesPerView = tablet;
+              }
+              if (swiper.params.breakpoints[992]) {
+                swiper.params.breakpoints[992].slidesPerView = desktop;
+              }
+            }
+
+            if (changed) {
               swiper.params.slidesOffsetBefore = offset;
               swiper.params.slidesOffsetAfter = offset;
-              swiper.params.slidesPerView = perView;
-              if (swiper.params.breakpoints) {
-                if (swiper.params.breakpoints[768]) {
-                  swiper.params.breakpoints[768].slidesPerView = fitPerView(
-                    num('data-slides-tablet', num('data-slides-per-view', 1.25))
-                  );
-                }
-                if (swiper.params.breakpoints[992]) {
-                  swiper.params.breakpoints[992].slidesPerView =
-                    fitPerView(num('data-slides-per-view', 1.25));
-                }
-              }
+              if (mq.matches) swiper.params.slidesPerView = base;
               swiper.update();
             }
             if (swiper.params.spaceBetween === gap) return;
