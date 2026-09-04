@@ -1333,3 +1333,63 @@ html .cta_wrap {
     z-index: 1;
   }
 }
+
+/* No hover icon on a tablet or a phone. A tap fires :hover on a touch
+   screen and leaves it stuck there, so the icon slides in and stays —
+   and where the effect is a Webflow interaction rather than CSS there
+   is nothing to override, since IX2 writes inline styles. Removing the
+   element is the one answer that covers both.
+
+   The icon carries no meaning of its own; it exists for the hover. */
+@media (hover: none), (max-width: 991px) {
+  .meganav_root .footer_link_hover_icon,
+  .meganav_root .button_link_icon {
+    display: none !important;
+  }
+}
+
+/* The page you are on keeps the sheet's colour; every other link steps
+   back. Webflow marks the current page's anchor with w--current, but
+   that anchor is the invisible overlay covering the row — the text is
+   its sibling — so the row is matched on containing it.
+
+   Scoped a class deeper than the open-state colour rules above, which
+   is what lets it win without !important. */
+.meganav_root .meganav.is-open .meganav_links_wrap .footer_link_text {
+  color: var(--_theme---navlinks--text-inactive);
+}
+
+.meganav_root .meganav.is-open .meganav_links_wrap
+  .footer_link_wrap:has(a.w--current) .footer_link_text,
+.meganav_root .meganav.is-open .meganav_links_wrap
+  .footer_link_wrap:has(a.is-current) .footer_link_text {
+  color: var(--meganav-panel-text);
+}
+
+/* Same in the footer: the page you are on stays lit, the rest step
+   back. The current row also keeps its hover icon showing, since that
+   is the mark of where you are rather than an invitation. */
+.footer_wrap .footer_link_text {
+  color: var(--_theme---navlinks--text-inactive);
+}
+
+.footer_wrap .footer_link_wrap:has(a.is-current) .footer_link_text,
+.footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_text {
+  color: inherit;
+}
+
+/* The current page wears its icon permanently — the same end state the
+   hover animates to, so it reads as the mark of where you are rather
+   than a second effect. Values mirrored from the component's own rule;
+   change them there and change them here. */
+.footer_wrap .footer_link_wrap:has(a.is-current) .footer_link_hover_icon,
+.footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon {
+  width: var(--icon-size);
+  margin-right: var(--icon-gap);
+}
+
+.footer_wrap .footer_link_wrap:has(a.is-current) .footer_link_hover_icon::before,
+.footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon::before {
+  transform: translateX(0);
+  opacity: 1;
+}

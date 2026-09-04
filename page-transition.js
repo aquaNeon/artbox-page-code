@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-04-an';
+  const BUILD = '2026-09-04-at';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3521,14 +3521,27 @@
            the first slide should match; defaults to the section's container.
            Requires the track itself to be full width: drop the margin-left
            from .c_slider_offset. */
-        const alignSel = str('data-align-to') || '.u-container';
+        /* Several names for the same thing across the site, so all of
+           them are candidates and the first that actually describes a
+           margin wins. One class was a single rename away from the rail
+           running to the edge again. */
+        const alignSel = str('data-align-to') || '.u-container, .u-container-full';
         const section = el.closest('section') || el.parentElement;
 
         const measureOffset = () => {
-          const target = section && section.querySelector(alignSel);
-          if (!target || target.contains(el)) return 0;
-          const delta = target.getBoundingClientRect().left - el.getBoundingClientRect().left;
-          return delta > 0 ? Math.round(delta) : 0;
+          if (!section) return 0;
+          const rail = el.getBoundingClientRect().left;
+
+          let best = 0;
+          section.querySelectorAll(alignSel).forEach((target) => {
+            /* A container the rail sits inside already applies its own
+               margin — matching it would double the inset. */
+            if (target.contains(el)) return;
+            const delta = target.getBoundingClientRect().left - rail;
+            if (delta > best) best = delta;
+          });
+
+          return Math.round(best);
         };
 
         /* The rail runs edge to edge, so without a matching offset at the far
@@ -5296,6 +5309,34 @@
     }, { passive: true });
   }
 
+  /* Which nav link is the page you are on. Webflow answers this with
+     w--current at render, but the nav is persistent — it is never
+     swapped — so those classes still describe whichever page was loaded
+     first. Recomputed from the URL after every navigation instead.
+
+     Trailing slashes and absolute hrefs both normalise to a pathname,
+     so /kontakt, /kontakt/ and https://site/kontakt are one thing. */
+  function syncNavCurrent() {
+    /* The footer is persistent too — it lives outside the swapped
+       container so its links go as stale as the nav's. */
+    const roots = document.querySelectorAll('.meganav_root, .footer_wrap');
+    if (!roots.length) return;
+
+    const tidy = (path) => path.replace(/\/+$/, '') || '/';
+    const here = tidy(location.pathname);
+
+    roots.forEach((root) => root.querySelectorAll('a[href]').forEach((a) => {
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('#') || /^[a-z]+:/i.test(href) && !href.startsWith(location.origin)) {
+        a.classList.remove('is-current');
+        return;
+      }
+      let path;
+      try { path = new URL(href, location.origin).pathname; } catch (err) { return; }
+      a.classList.toggle('is-current', tidy(path) === here);
+    }));
+  }
+
   function initNavScroll() {
     const nav = findNav();
     if (!nav) {
@@ -5799,6 +5840,7 @@
     onceFunctionsInitialized = true;
     initZoomReset();
     initNavScroll();
+    syncNavCurrent();
     initMeganav();
     // Persistent, non-swapped behaviour goes here
   }
@@ -5811,6 +5853,7 @@
 
   function initAfterEnterFunctions(next) {
     nextPage = next || document;
+    syncNavCurrent();
     updateNavScroll();
     Intro.play(nextPage);
     FooterReveal.sync();
