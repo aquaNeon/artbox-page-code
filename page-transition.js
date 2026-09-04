@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-04-bu';
+  const BUILD = '2026-09-04-bv';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3828,18 +3828,39 @@
               || swiper.params.slidesOffsetAfter !== offset
               || (mq.matches && swiper.params.slidesPerView !== base);
 
+            /* Applying a breakpoint rebuilds params from the ORIGINAL
+               init values merged with that breakpoint's — so anything
+               written to params at runtime is thrown away the next time
+               a breakpoint lands. The offsets have to live in all three
+               places or the track is laid out against whatever the
+               offsets were when the page first loaded: every snap after
+               the first sits short of the margin, and the end overshoots
+               by the difference. */
+            const carry = (target) => {
+              if (!target) return;
+              target.slidesOffsetBefore = offset;
+              target.slidesOffsetAfter = offset;
+            };
+
+            carry(swiper.params);
+            carry(swiper.originalParams);
+
             if (swiper.params.breakpoints) {
               if (swiper.params.breakpoints[768]) {
                 swiper.params.breakpoints[768].slidesPerView = tablet;
+                carry(swiper.params.breakpoints[768]);
               }
               if (swiper.params.breakpoints[992]) {
                 swiper.params.breakpoints[992].slidesPerView = desktop;
+                carry(swiper.params.breakpoints[992]);
               }
+            }
+            if (swiper.originalParams && swiper.originalParams.breakpoints) {
+              carry(swiper.originalParams.breakpoints[768]);
+              carry(swiper.originalParams.breakpoints[992]);
             }
 
             if (changed) {
-              swiper.params.slidesOffsetBefore = offset;
-              swiper.params.slidesOffsetAfter = offset;
               if (mq.matches) swiper.params.slidesPerView = base;
               swiper.update();
             }
