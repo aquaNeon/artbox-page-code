@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-04-u';
+  const BUILD = '2026-09-04-ae';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3163,6 +3163,7 @@
           el.style.removeProperty('grid-area');
           el.style.removeProperty('grid-column');
           el.style.removeProperty('grid-row');
+          el.style.removeProperty('width');
         });
 
         const area = wrap.dataset.swapArea;
@@ -3171,14 +3172,28 @@
           return;
         }
 
+        /* Stacked, the wrap is made a grid and every statement takes the
+           same cell. grid-column and grid-row were enough only while the
+           wrap was still a grid — where the Designer switches it to flex
+           below the breakpoint they do nothing, the statements run down
+           the page instead of over each other, and the one you see is
+           whichever the frame's bottom edge lands on. */
+        if (stacked.matches) {
+          wrap.style.display = 'grid';
+          list.forEach((el) => {
+            el.style.gridArea = '1 / 1';
+            el.style.width = '100%';
+          });
+          return;
+        }
+
+        wrap.style.removeProperty('display');
         const anchor = getComputedStyle(list[0]);
-        /* Full width on mobile: one column, nothing sits beside the text. */
-        const column = stacked.matches
-          ? '1 / -1'
-          : track(anchor.gridColumnStart, anchor.gridColumnEnd);
+        const column = track(anchor.gridColumnStart, anchor.gridColumnEnd);
         const row = track(anchor.gridRowStart, anchor.gridRowEnd);
 
         list.forEach((el) => {
+          el.style.removeProperty('width');
           el.style.gridColumn = column;
           el.style.gridRow = row;
         });
@@ -4286,6 +4301,10 @@
     growDuration: 1,
     growEase: 'power2.inOut',
 
+    /* Milliseconds a statement holds before the next one can take
+       over, however fast the pin is scrolled. */
+    dwell: 1300,
+
     /* Fallback only. The real delay is this cell's slot in the
        entrance order, read off --hero-in-* in page-transition.css. */
     from: 0.6,
@@ -4428,16 +4447,35 @@
       const settled = comp.classList.contains('is-settled');
       if (!settled && !cover) return;
 
+      /* Travelling, the component is laid out at viewport width and
+         scaled up to cover — so everything inside it is scaled too,
+         which put the statements at four times their size and off the
+         screen. The scale is undone here and the offsets are expressed
+         in the component's own units, so the text lands at 1:1 over the
+         video. Origin at the bottom left, which is the corner the
+         placement is anchored to. */
+      const k = settled ? 1 : (cover.fit || 1);
+      const fromLeft = textBox.leftRatio * window.innerWidth;
+      const width = textBox.widthRatio * window.innerWidth;
+
       text.style.top = 'auto';
       text.style.bottom = settled
         ? `${textBox.fromBottom}px`
-        : `${(cover.y + cover.h) - (window.innerHeight - textBox.fromBottom)}px`;
+        : `${((cover.y + cover.h) - (window.innerHeight - textBox.fromBottom)) / k}px`;
       text.style.left = settled
-        ? `${textBox.fromLeft}px`
-        : `${textBox.fromLeft - cover.x}px`;
+        ? `${fromLeft}px`
+        : `${(fromLeft - cover.x) / k}px`;
       text.style.right = 'auto';
-      text.style.width = `${textBox.width}px`;
+      text.style.width = `${width}px`;
       text.style.height = 'auto';
+
+      if (k === 1) {
+        text.style.removeProperty('transform');
+        text.style.removeProperty('transform-origin');
+      } else {
+        text.style.transformOrigin = '0 100%';
+        text.style.transform = `scale(${1 / k})`;
+      }
     };
 
     const bringText = () => {
@@ -4446,10 +4484,17 @@
       const t = text.getBoundingClientRect();
       const st = stage.getBoundingClientRect();
 
+      /* Horizontals as fractions of the stage, not pixels. Measured
+         once at pin entry, a phone's box stayed a phone's box on a
+         desktop window — the statements a narrow column in the middle
+         of a wide screen. The vertical stays in pixels: where the text
+         sits above the bottom edge is a fixed offset in the design, not
+         a share of the height. */
+      const stageW = st.width || window.innerWidth;
       textBox = {
         fromBottom: st.bottom - t.bottom,
-        fromLeft: t.left - st.left,
-        width: t.width
+        leftRatio: (t.left - st.left) / stageW,
+        widthRatio: t.width / stageW
       };
 
       stage.insertBefore(textSeat, text);
@@ -4466,6 +4511,8 @@
        animate, the first one simply present. */
     const resetSwap = () => {
       if (dead || !swap) return;
+      clearTimeout(catchUp);
+      readAt = 0;
       reading = -1;
       swap.dispatchEvent(new Event('swap:reset'));
     };
@@ -4481,6 +4528,8 @@
       text.style.removeProperty('right');
       text.style.removeProperty('width');
       text.style.removeProperty('height');
+      text.style.removeProperty('transform');
+      text.style.removeProperty('transform-origin');
       textBox = null;
     };
 
@@ -4546,9 +4595,24 @@
       let fh = cw / ratio;
       if (fh < ch) { fh = ch; fw = ch * ratio; }
 
+      /* Two sizes. fw/fh is what it has to be ON SCREEN to cover; the
+         box is only ever as wide as the viewport, and the transform
+         makes up the difference.
+
+         Laid out at fw, a portrait phone gets a fixed element around
+         four times wider than the screen — vh * 16/9 against vw — and
+         the browser answers by scaling the page to it. Transforms do
+         not affect layout, so the same picture through a viewport-wide
+         box costs nothing. */
+      const boxW = cw;
+      const boxH = cw / ratio;
+
       cover = {
         w: fw,
         h: fh,
+        boxW,
+        boxH,
+        fit: fw / boxW,
         s: base.w / fw,
         x: (window.innerWidth - fw) / 2,
         y: (window.innerHeight - fh) / 2
@@ -4564,8 +4628,8 @@
         lifted = true;
       }
 
-      comp.style.width = `${cover.w}px`;
-      comp.style.height = `${cover.h}px`;
+      comp.style.width = `${cover.boxW}px`;
+      comp.style.height = `${cover.boxH}px`;
     };
 
     /* Started with the travel rather than left to base-lib's own
@@ -4628,7 +4692,7 @@
       const dy = (cover.h * s * (1 - intro)) / 2;
 
       comp.style.transform =
-        `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${s * intro})`;
+        `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${s * intro * cover.fit})`;
     };
 
     /* Measured against the STAGE, not the hero. Tied to the hero's own
@@ -4842,13 +4906,40 @@
       comp.classList.remove('is-settled');
       comp.classList.add('is-travelling');
       if (!cover) return;
-      comp.style.width = `${cover.w}px`;
-      comp.style.height = `${cover.h}px`;
+      comp.style.width = `${cover.boxW}px`;
+      comp.style.height = `${cover.boxH}px`;
       /* Re-placed at once. settle() cleared the transform, so without
          this it sits at the stylesheet's 0,0 — the top left corner —
          until something else happens to move it, and if the travel is
          already behind us nothing ever does. */
       apply(growth.p, travel.scroll());
+    };
+
+    /* One statement at a time, and each one gets its moment. Driving
+       the index straight off the pin's progress means a flick through
+       the pin skips whatever it crosses — on a phone the first
+       statement was never seen at all. Advance one step, hold it for
+       dwell, then catch up to wherever the scroll now is. */
+    let readAt = 0;
+    let catchUp = null;
+
+    const step = (want) => {
+      if (dead || !swap) return;
+      clearTimeout(catchUp);
+      if (want === reading) return;
+
+      const wait = HERO_VIDEO.dwell - (performance.now() - readAt);
+      if (wait > 0) {
+        catchUp = setTimeout(() => step(want), wait);
+        return;
+      }
+
+      /* One at a time, so a jump of several still plays as a sequence
+         rather than landing on the last and dropping the rest. */
+      reading += want > reading ? 1 : -1;
+      readAt = performance.now();
+      swap.dispatchEvent(new CustomEvent('swap:to', { detail: reading }));
+      if (reading !== want) catchUp = setTimeout(() => step(want), HERO_VIDEO.dwell);
     };
 
     const held = ScrollTrigger.create({
@@ -4915,10 +5006,7 @@
          so nobody scrolls past a statement that never got its turn. */
       onUpdate: (self) => {
         if (dead || !swap || !statements) return;
-        const i = Math.min(statements - 1, Math.floor(self.progress * statements));
-        if (i === reading) return;
-        reading = i;
-        swap.dispatchEvent(new CustomEvent('swap:to', { detail: i }));
+        step(Math.min(statements - 1, Math.floor(self.progress * statements)));
       }
     });
 
@@ -4945,9 +5033,23 @@
 
     document.addEventListener('page:leaving', freeze);
 
+    /* Re-measured on the resize itself, not on ScrollTrigger's own
+       refresh a beat later. The component is sized in pixels off the
+       viewport, so between the two it is a desktop-sized box on a phone
+       — briefly, but that is the frame a device switch lands on. */
+    const onResize = () => {
+      if (dead || frozen || !lifted) return;
+      measure();
+      placeText();
+      apply(growth.p, travel ? travel.scroll() : lastScroll);
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+
     return function cleanup() {
       dead = true;
+      clearTimeout(catchUp);
       document.removeEventListener('page:leaving', freeze);
+      window.removeEventListener('resize', onResize);
       gsap.killTweensOf(growth);
       scrollTween?.kill();
       travel.kill();
@@ -5155,6 +5257,33 @@
       '[data-nav-mobile].is-open, .meganav_mobile_open.is-open, ' +
       '.meganav_panel.is-open, .meganav_backdrop.is-open'
     );
+  }
+
+  /* Chrome carries the page scale across a viewport width change, so a
+     desktop window resized to a phone stays magnified by the ratio
+     between them — 1745 to 440 is the 4x that looks like the whole site
+     blew up. Nothing can set the scale directly; clamping maximum-scale
+     for one frame makes the browser recompute it, and restoring the
+     meta immediately after leaves pinch-zoom alone.
+
+     Only on a width change, never on a pinch: someone zooming in by
+     hand keeps their zoom. */
+  function initZoomReset() {
+    const vv = window.visualViewport;
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!vv || !meta) return;
+
+    let lastWidth = window.innerWidth;
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth === lastWidth) return;
+      lastWidth = window.innerWidth;
+      if (vv.scale === 1) return;
+
+      const own = meta.getAttribute('content');
+      meta.setAttribute('content', `${own}, maximum-scale=1`);
+      requestAnimationFrame(() => meta.setAttribute('content', own));
+    }, { passive: true });
   }
 
   function initNavScroll() {
@@ -5658,6 +5787,7 @@
     initLenis();
     if (onceFunctionsInitialized) return;
     onceFunctionsInitialized = true;
+    initZoomReset();
     initNavScroll();
     initMeganav();
     // Persistent, non-swapped behaviour goes here

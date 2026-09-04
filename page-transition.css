@@ -368,6 +368,25 @@ html.is-transitioning {
   }
 }
 
+/* No double-tap zoom. A quick second tap magnifies the visual viewport
+   around whatever was tapped — the page is not scaled or reflowed, the
+   browser is simply zoomed in, and it is easy to do by accident while
+   scrolling. manipulation keeps panning and pinch-zoom and drops only
+   that gesture.
+
+   Not behind a media query: the pointer queries do not always answer
+   the way the gesture behaves, and this costs a mouse nothing. On the
+   elements as well as the root — Chrome resolves touch-action from the
+   touched element up, and a tap that lands on the video or the logo is
+   the one being made by accident. */
+html,
+body,
+[data-video="component"],
+.meganav_logo,
+.home_img_wrap {
+  touch-action: manipulation;
+}
+
 html.is-menu-open {
   overflow: hidden;
 }
