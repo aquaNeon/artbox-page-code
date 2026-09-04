@@ -683,8 +683,22 @@ html.is-menu-open {
   height: auto;
 }
 
+/* Swiper writes each slide's width inline and lays the whole track out
+   from that number. A max-width from the Designer clamps the rendered
+   slide without Swiper knowing, so the track is built for one width and
+   drawn at another: every snap after the first lands short of the page
+   margin, and the end scrolls past the last card by the accumulated
+   difference.
+
+   !important because the breakpoint rules that set it come later. Any
+   slide, not only this card — the same clamp on another slider would do
+   the same thing. */
+.c_slider_swiper .swiper-slide {
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
 .c_slider_swiper .card_hover_wrap {
-  max-width: none;
   border: 0;
   overflow: clip;
   transform: translateZ(0);
