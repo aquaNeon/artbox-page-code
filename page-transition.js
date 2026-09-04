@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-04-ae';
+  const BUILD = '2026-09-04-an';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -4312,6 +4312,10 @@
     delay: 0.55,
     ease: 'power2.out',
 
+    /* How much larger than its frame the video is painted, matching
+       the resting value in page-transition.css. */
+    overspill: 1.02,
+
     /* A pixel past the viewport on every side. A scaled layer's edges
        land on fractions, and at the seam the compositor rounds the
        other way from the paint — a hairline of whatever is behind,
@@ -4454,7 +4458,7 @@
          in the component's own units, so the text lands at 1:1 over the
          video. Origin at the bottom left, which is the corner the
          placement is anchored to. */
-      const k = settled ? 1 : (cover.fit || 1);
+      const k = 1;
       const fromLeft = textBox.leftRatio * window.innerWidth;
       const width = textBox.widthRatio * window.innerWidth;
 
@@ -4560,63 +4564,44 @@
 
       base = { x: r.left, y: r.top + y, w: r.width, h: r.height };
 
-      /* The element is laid out at its FINAL size and scaled down to
-         the cell, not laid out small and scaled up. A transform does
-         not re-rasterise: blown up 8x from a 293px box, the video was
-         decoded once at 293px and every frame after that was those
-         pixels enlarged. Sized big, scale(1) is the full-screen state
-         and it renders at full resolution where anyone is looking.
+      /* The box is the viewport, never wider. A frame kept at the
+         video's ratio is vh * 16/9 on a phone — four times the screen —
+         and a browser scales the whole page to something that size.
 
-         One shape the whole way. The frame keeps the video's own
-         ratio and only ever gets bigger, so the small state in the
-         grid is the whole 16/9 frame and every state after it is that
-         same frame, closer. Nothing inside it is ever cropped by the
-         frame, and with a single scale in both directions nothing can
-         be stretched either.
-
-         It used to end as the viewport exactly, X and Y scaled apart —
-         which is a frame that changes shape as it travels, and a video
-         squashed with it. object-fit could not save that: it resolves
-         against the laid-out box and the transform squashes its result
-         afterwards. A desktop cell is shaped near enough to the screen
-         to hide it; a phone is not, which is where it showed.
-
-         The end state covers rather than fits: big enough that neither
-         side of the screen is left uncovered, so on a phone the frame
-         is far wider than the screen and the screen does the cropping.
-         Which is what object-fit: cover would have drawn anyway — the
-         same picture, reached without deforming anything to get there. */
+         The shape change that costs is undone on the video inside
+         instead: see apply(). */
       const b = HERO_VIDEO.bleed;
       const cw = window.innerWidth + b * 2;
       const ch = window.innerHeight + b * 2;
+
       const ratio = base.w / base.h;
 
-      let fw = cw;
-      let fh = cw / ratio;
-      if (fh < ch) { fh = ch; fw = ch * ratio; }
-
-      /* Two sizes. fw/fh is what it has to be ON SCREEN to cover; the
-         box is only ever as wide as the viewport, and the transform
-         makes up the difference.
-
-         Laid out at fw, a portrait phone gets a fixed element around
-         four times wider than the screen — vh * 16/9 against vw — and
-         the browser answers by scaling the page to it. Transforms do
-         not affect layout, so the same picture through a viewport-wide
-         box costs nothing. */
-      const boxW = cw;
-      const boxH = cw / ratio;
-
       cover = {
-        w: fw,
-        h: fh,
-        boxW,
-        boxH,
-        fit: fw / boxW,
-        s: base.w / fw,
-        x: (window.innerWidth - fw) / 2,
-        y: (window.innerHeight - fh) / 2
+        w: cw,
+        h: ch,
+        sx: base.w / cw,
+        sy: base.h / ch,
+        ratio,
+        /* What the video has to be scaled to at the end to cover a frame
+           of another shape. */
+        toCover: Math.max(1, (ch * ratio) / cw),
+        x: -b,
+        y: -b
       };
+
+      /* The video is laid out in its own ratio inside the frame, not
+         stretched to fill it: object-fit against a portrait box crops
+         the picture to portrait before any transform gets to it, which
+         is a 16/9 video shown as 9/16. Sized here, covered by the
+         scale in apply(). */
+      if (visual) {
+        visual.style.position = 'absolute';
+        visual.style.left = '50%';
+        visual.style.top = '50%';
+        visual.style.width = `${cw}px`;
+        visual.style.height = `${cw / ratio}px`;
+        visual.style.maxWidth = 'none';
+      }
 
       /* Once only, and only after the first measurement: the cell needs
          the component's own height to be measured at all, and can hold
@@ -4628,8 +4613,8 @@
         lifted = true;
       }
 
-      comp.style.width = `${cover.boxW}px`;
-      comp.style.height = `${cover.boxH}px`;
+      comp.style.width = `${cover.w}px`;
+      comp.style.height = `${cover.h}px`;
     };
 
     /* Started with the travel rather than left to base-lib's own
@@ -4675,6 +4660,8 @@
        hence the scroll term, which is faded out as p rises. */
     let frozen = false;
 
+    const visual = comp.querySelector('.g_visual_video') || video;
+
     const apply = (p, scroll) => {
       if (frozen || !base || !cover) return;
       lastP = p;
@@ -4682,17 +4669,29 @@
 
       const x = lerp(base.x, cover.x, p);
       const y = lerp(base.y - scroll, cover.y, p);
-      const s = lerp(cover.s, 1, p);
+      const sx = lerp(cover.sx, 1, p);
+      const sy = lerp(cover.sy, 1, p);
+
+      /* The frame morphs from the cell's shape to the screen's; the
+         video is given that difference back, so on screen it is only
+         ever scaled by one number. That number walks from filling the
+         cell exactly to covering the viewport, which is the whole 16/9
+         in the grid and a full screen at the end. */
+      if (visual && sx > 0 && sy > 0) {
+        const f = lerp(cover.sx, cover.toCover, p) * HERO_VIDEO.overspill;
+        visual.style.transform =
+          `translate(-50%, -50%) scale(${f / sx}, ${f / sy})`;
+      }
 
       /* The images scale about their middle; the travel scales from the
          top left, which is what keeps the placement arithmetic simple.
          So the centre is held by hand — shrinking by intro leaves half
          the difference on each side. */
-      const dx = (cover.w * s * (1 - intro)) / 2;
-      const dy = (cover.h * s * (1 - intro)) / 2;
+      const dx = (cover.w * sx * (1 - intro)) / 2;
+      const dy = (cover.h * sy * (1 - intro)) / 2;
 
       comp.style.transform =
-        `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${s * intro * cover.fit})`;
+        `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${sx * intro}, ${sy * intro})`;
     };
 
     /* Measured against the STAGE, not the hero. Tied to the hero's own
@@ -4895,6 +4894,12 @@
       stage.appendChild(comp);
       comp.classList.remove('is-travelling');
       comp.classList.add('is-settled');
+      /* Settled, the frame is the stage's own box and the stylesheet's
+         object-fit is the right answer again. */
+      if (visual) {
+        ['position', 'left', 'top', 'width', 'height', 'max-width', 'transform']
+          .forEach((prop) => visual.style.removeProperty(prop));
+      }
       comp.style.transform = '';
       comp.style.width = '';
       comp.style.height = '';
@@ -4905,9 +4910,10 @@
       document.body.appendChild(comp);
       comp.classList.remove('is-settled');
       comp.classList.add('is-travelling');
+      measure();
       if (!cover) return;
-      comp.style.width = `${cover.boxW}px`;
-      comp.style.height = `${cover.boxH}px`;
+      comp.style.width = `${cover.w}px`;
+      comp.style.height = `${cover.h}px`;
       /* Re-placed at once. settle() cleared the transform, so without
          this it sits at the stylesheet's 0,0 — the top left corner —
          until something else happens to move it, and if the travel is
@@ -5059,6 +5065,10 @@
       comp.style.removeProperty('transform');
       comp.style.removeProperty('width');
       comp.style.removeProperty('height');
+      if (visual) {
+        ['position', 'left', 'top', 'width', 'height', 'max-width', 'transform']
+          .forEach((prop) => visual.style.removeProperty(prop));
+      }
       returnText();
       cell.style.removeProperty('aspect-ratio');
       cell.style.removeProperty('height');
