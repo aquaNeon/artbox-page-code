@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-04-br';
+  const BUILD = '2026-09-04-bs';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3624,6 +3624,7 @@
         const gapAttr = str('data-gap');
         const gapMobileAttr = str('data-gap-mobile');
         const mq = window.matchMedia('(max-width: 767px)');
+        const tabletMq = window.matchMedia('(max-width: 991px)');
 
         const applyGap = () => {
           const value = mq.matches ? (gapMobileAttr || gapAttr) : gapAttr;
@@ -3754,8 +3755,16 @@
              pixels removes the seam at the source — padding the panel instead
              just makes it overhang the card. */
           roundLengths: true,
+          /* Three tiers. data-slides-tablet covers 768 to 991 and falls
+             back to the desktop number when it is not set, so a slider
+             that never wanted a tablet value behaves as it always did. */
           breakpoints: {
             768: {
+              slidesPerView: fitPerView(
+                num('data-slides-tablet', num('data-slides-per-view', 1.25))
+              )
+            },
+            992: {
               slidesPerView: fitPerView(num('data-slides-per-view', 1.25))
             }
           },
@@ -3800,7 +3809,9 @@
             const offset = measureOffset();
             const perView = fitPerView(mq.matches
               ? num('data-slides-mobile', 1)
-              : num('data-slides-per-view', 1.25));
+              : (tabletMq.matches
+                ? num('data-slides-tablet', num('data-slides-per-view', 1.25))
+                : num('data-slides-per-view', 1.25)));
 
             if (swiper.params.slidesOffsetBefore !== offset
               || swiper.params.slidesOffsetAfter !== offset
@@ -3808,9 +3819,16 @@
               swiper.params.slidesOffsetBefore = offset;
               swiper.params.slidesOffsetAfter = offset;
               swiper.params.slidesPerView = perView;
-              if (swiper.params.breakpoints && swiper.params.breakpoints[768]) {
-                swiper.params.breakpoints[768].slidesPerView =
-                  fitPerView(num('data-slides-per-view', 1.25));
+              if (swiper.params.breakpoints) {
+                if (swiper.params.breakpoints[768]) {
+                  swiper.params.breakpoints[768].slidesPerView = fitPerView(
+                    num('data-slides-tablet', num('data-slides-per-view', 1.25))
+                  );
+                }
+                if (swiper.params.breakpoints[992]) {
+                  swiper.params.breakpoints[992].slidesPerView =
+                    fitPerView(num('data-slides-per-view', 1.25));
+                }
               }
               swiper.update();
             }
