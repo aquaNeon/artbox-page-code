@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-04-at';
+  const BUILD = '2026-09-04-br';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -505,6 +505,12 @@
        In em, so it scales with the type rather than with a px guess. */
     maskPad: 0.34,
 
+    /* And the same allowance upward. The mask clips whatever rises above
+       the line box — the ring on an Å, an accent, a tall ascender in a
+       face with a generous cap height — which is not something a line
+       box promises to contain. */
+    maskPadTop: 0.16,
+
     headingDuration: 0.75,
     headingStagger: 0.16,
     headingEase: 'power4.out',
@@ -522,6 +528,11 @@
     bodyStagger: 0.08,
     bodyEase: 'power3.out',
     bodyFromY: 30,          // yPercent
+
+    /* -solo is usually one line — an eyebrow, a button, a short
+       statement — where 30% of its own height is a bigger move than the
+       same number on a paragraph. Its own number. */
+    soloFromY: 14,
 
     listDuration: 0.5,
     listStagger: 0.06,
@@ -603,13 +614,16 @@
         line.style.paddingBottom = `${pad}px`;
         line.style.marginBottom = `${-pad}px`;
       }
-      /* Same trick upward. Padding grows the clip box, the negative
-         margin cancels it, so nothing in the layout moves either way. */
-      if (bleed.top) {
-        line.style.paddingTop = `${bleed.top}px`;
-        line.style.marginTop = `${-bleed.top}px`;
+      /* Same trick upward, and the same two sources: whatever a child
+         element overhangs by, or the type's own allowance — whichever
+         is larger. */
+      let padTop = TEXT.maskPadTop ? glyphPad(line, TEXT.maskPadTop) : 0;
+      if (bleed.top > padTop) padTop = bleed.top;
+      if (padTop) {
+        line.style.paddingTop = `${padTop}px`;
+        line.style.marginTop = `${-padTop}px`;
       }
-      pads.push(pad + bleed.top);
+      pads.push(pad + padTop);
       const inner = document.createElement('span');
       inner.style.display = 'block';
       while (line.firstChild) inner.appendChild(line.firstChild);
@@ -640,13 +654,17 @@
      16px while the glyphs are 60 — an em on the wrapper resolves to about
      3px and clips exactly as before. Take the largest font-size in the
      subtree and return px. */
-  function descenderPad(el) {
+  function glyphPad(el, ratio) {
     let size = parseFloat(getComputedStyle(el).fontSize) || 16;
     el.querySelectorAll('*').forEach((child) => {
       const s = parseFloat(getComputedStyle(child).fontSize);
       if (s > size) size = s;
     });
-    return size * TEXT.maskPad;
+    return size * ratio;
+  }
+
+  function descenderPad(el) {
+    return glyphPad(el, TEXT.maskPad);
   }
 
   /* Masks are ours to pad, but a -solo or -body element can be clipped by
@@ -828,7 +846,7 @@
     const addSolo = (el) => {
       ensureTransformable(el);
       unclipDescenders(el, wrap);
-      const from = { yPercent: TEXT.bodyFromY, opacity: 0 };
+      const from = { yPercent: TEXT.soloFromY, opacity: 0 };
       const to = {
         yPercent: 0, opacity: 1,
         duration: TEXT.bodyDuration / stepSpeed(el), ease: TEXT.bodyEase
@@ -1368,6 +1386,123 @@
       ctx.revert();
       restore();
     };
+  });
+
+
+  /* ============================================================
+     EYEBROW ICON — .icon_eyebrow_wrap
+
+     A square that matches the type beside it. The footer link does this
+     in em, which works because the size lives on the wrap there and the
+     label inherits it. Here the size class is on the text, so the wrap
+     has no idea how big it is — the text's own computed size is read
+     and handed back as a variable.
+     ============================================================ */
+
+  const EYEBROW = {
+    ratio: 0.72,     // of the text's font size
+    gap: 0.5,        // of the same, between square and text
+
+    /* Same component, drawn twice in the Designer under different
+       names. Add a pair rather than a second module. */
+    pairs: [
+      { wrap: '.icon_eyebrow_wrap', text: '.icon_eyebrow_text' },
+      { wrap: '.design_sticky_eyebrow', text: '.design_sticky_eyebrow_text' },
+      /* The footer link's hover icon is em-sized against the wrap,
+         which only works while the wrap carries the type size. Once the
+         text's own class governs, the wrap has no idea — so it is
+         measured here like the rest. */
+      { wrap: '.footer_link_wrap', text: '.footer_link_text' }
+    ]
+  };
+
+  Modules.add('eyebrowIcon', function (root) {
+    const wraps = [];
+    EYEBROW.pairs.forEach(({ wrap, text }) => {
+      root.querySelectorAll(wrap).forEach((el) => wraps.push({ el, text }));
+    });
+    if (!wraps.length) return;
+
+    const size = () => wraps.forEach(({ el: wrap, text: textSel }) => {
+      const text = wrap.querySelector(textSel);
+      if (!text) return;
+      const fs = parseFloat(getComputedStyle(text).fontSize);
+      if (!fs) return;
+      wrap.style.setProperty('--icon-size', `${fs * EYEBROW.ratio}px`);
+      wrap.style.setProperty('--icon-gap', `${fs * EYEBROW.gap}px`);
+    });
+
+    size();
+
+    /* Fluid type changes with the viewport, so the square follows it. */
+    let timer = null;
+    const onResize = () => {
+      clearTimeout(timer);
+      timer = setTimeout(size, 150);
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(size);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', onResize);
+      wraps.forEach(({ el: wrap }) => {
+        wrap.style.removeProperty('--icon-size');
+        wrap.style.removeProperty('--icon-gap');
+      });
+    };
+  });
+
+
+  /* ============================================================
+     CORPORATE HERO — mobile images
+
+     The inline images in the heading are hidden below 767 and this
+     block takes their place: they fade and scale in on a stagger (the
+     keyframes are in page-transition.css) and drift against the scroll.
+     ============================================================ */
+
+  const CORP_HERO = {
+    breakpoint: '(max-width: 767px)',
+    parallax: 40,
+    depths: [1, 0.55, 0.8]
+  };
+
+  Modules.add('corporateHero', function (root) {
+    const section = root.querySelector('.corporate_wrap');
+    if (!section || !hasScrollTrigger || reducedMotion) return;
+
+    const wraps = section.querySelectorAll('.corporate_images_mobile_img_wrap');
+    if (!wraps.length) return;
+
+    const mm = gsap.matchMedia();
+
+    mm.add(CORP_HERO.breakpoint, () => {
+      const tweens = [];
+
+      wraps.forEach((wrap, i) => {
+        const depth = CORP_HERO.depths[i % CORP_HERO.depths.length];
+        tweens.push(gsap.fromTo(wrap,
+          { y: 0 },
+          {
+            y: -CORP_HERO.parallax * depth,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: section,
+              start: 'top top',
+              end: 'bottom top',
+              scrub: 0.6,
+              invalidateOnRefresh: true
+            }
+          }
+        ));
+      });
+
+      return () => tweens.forEach((t) => { t.scrollTrigger?.kill(); t.kill(); });
+    });
+
+    return () => mm.revert();
   });
 
 

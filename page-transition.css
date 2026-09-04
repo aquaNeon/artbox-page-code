@@ -695,8 +695,13 @@ html.is-menu-open {
   transform-origin: center;
 }
 
+/* Overspilling the card rather than sitting inside it. Inset by a
+   pixel, the card's own background showed as a rim the moment the
+   colour layer faded out on hover — invisible on the light variants,
+   a dark border on the green one. The wrap clips, so there is nothing
+   to see past the edge. */
 .card_hover_img_wrap {
-  inset: 1px;
+  inset: -1px;
 }
 
 .c_slider_card_image_wrap,
@@ -1392,4 +1397,62 @@ html .cta_wrap {
 .footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon::before {
   transform: translateX(0);
   opacity: 1;
+}
+
+/* Corporate hero, mobile images — the home hero's entrance, borrowed.
+   Fade and scale from the same 0.6, staggered down the block; the
+   drift against the scroll is the corporateHero module. */
+@keyframes corp-hero-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media screen and (max-width: 767px) {
+  html:not(.wf-design-mode) .corporate_images_mobile_img_wrap {
+    animation: var(--corp-hero-duration, 0.9s)
+      cubic-bezier(0.25, 0.46, 0.45, 0.94)
+      var(--corp-hero-lead, 0.15s) 1 normal both running corp-hero-in;
+    transform-origin: center center;
+  }
+
+  html .corporate_images_mobile_img_wrap:nth-child(2) {
+    animation-delay: calc(var(--corp-hero-lead, 0.15s) + var(--corp-hero-step, 0.1s));
+  }
+
+  html .corporate_images_mobile_img_wrap:nth-child(3) {
+    animation-delay: calc(var(--corp-hero-lead, 0.15s) + 2 * var(--corp-hero-step, 0.1s));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .corporate_images_mobile_img_wrap {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Eyebrow icon — the square is sized from the text beside it by the
+   eyebrowIcon module, which writes --icon-size and --icon-gap. The
+   fallbacks keep it sane if the script never runs. */
+.icon_eyebrow_wrap,
+.design_sticky_eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--icon-gap, 0.5em);
+}
+
+.icon_eyebrow_item,
+.design_sticky_blcvk {
+  flex: none;
+  width: var(--icon-size, 0.72em);
+  height: var(--icon-size, 0.72em);
+}
+
+/* The square with no variant on it takes the text's colour, the way the
+   footer link's does. Scoped away from the variants so their own
+   colours are left alone — they set background-color directly, and this
+   file loads after theirs. */
+.icon_eyebrow_item:not([class*="w-variant"]),
+.design_sticky_blcvk:not([class*="w-variant"]) {
+  background-color: var(--icon-color, currentColor);
 }
