@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-03-z';
+  const BUILD = '2026-09-04-u';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1302,7 +1302,10 @@
         const off = (Number.isFinite(delay) ? delay : i * CTA.stagger) * CTA.spread;
         return off + span;
       });
-      const fit = CTA.fit / Math.max(...ends);
+      /* Never past the release: fit is where the last image is asked to
+         land, travel is where it has to be gone by, and a fit beyond it
+         means every schedule overruns and gets hurried. */
+      const fit = Math.min(CTA.fit, CTA.travel) / Math.max(...ends);
 
       owned.forEach(({ el, speed, delay, lane }, i) => {
         /* Named lane first, then the number on the markup. Both say
@@ -4870,6 +4873,12 @@
            is the jump, the video going from half-grown to full bleed
            in a frame. It is a second at most and the pin holds for a
            screen, so it lands well inside the hold. */
+        /* The entrance is over by definition here — whatever it was
+           doing, the pin is the destination. Left at its start value it
+           renders the video at 60% of the screen with the page showing
+           around it, which is not a state anything should be able to
+           reach. */
+        intro = 1;
         if (!growing) {
           wants = 1;
           growth.p = 1;
@@ -5172,7 +5181,14 @@
         yPercent: hide ? -100 : 0,
         duration: reducedMotion ? 0 : NAV_HIDE.duration,
         ease: NAV_HIDE.ease,
-        overwrite: 'auto'
+        overwrite: 'auto',
+        /* Back to no transform at all once it is home. A transform,
+           even an identity one, keeps the bar on its own composited
+           layer, and a layer whose edge lands on half a device pixel
+           leaves whatever is behind it showing through the seam. */
+        onComplete: () => {
+          if (!hidden) gsap.set(nav, { clearProps: 'transform,translate,rotate,scale' });
+        }
       });
     };
 
@@ -5261,6 +5277,23 @@
     contentStagger: 0.05,
     contentShift: 40,        // px the rows rise
     contentEase: 'power3.out',
+    /* The CTA goes last: after the swipe has landed AND after the last
+       row has finished rising, whichever of the two ends later. The
+       rows rise under the swipe, which is what makes the sheet feel
+       like it is carrying them — the button doing it too just looked
+       like it had been there all along.
+       data-nav-delay on any row adds to its own position. */
+    buttonGap: 0.02,
+
+    /* How much of the last row's rise the button starts inside. 1 waits
+       for it to finish, 0 leaves with it. */
+    buttonOverlap: 0.45,
+
+    /* When the bar takes its own colours back, as a fraction of the
+       close. The sheet clips upward, so its top — the strip behind the
+       bar — is the last thing to go; waiting for the very end left the
+       logo white a beat too long. */
+    restore: 0.72,
 
     labelClosed: 'Meny',
     labelOpen: 'Lukk',
@@ -5301,7 +5334,7 @@
     /* In DOM order, so the stagger reads down the sheet: the statement
        and its button first, then each group heading and its links. */
     const content = Array.from(panel.querySelectorAll(
-      '.meganav_feature_text, .meganav_feature_wrap .button_main_wrap, ' +
+      '.meganav_feature_text, .button_main_wrap, ' +
       '.meganav_heading, .meganav_links_wrap .footer_link_wrap, [data-nav-content]'
     ));
 
@@ -5381,9 +5414,41 @@
 
     let open = false;
     let tl = null;
+    /* A close finishes in its timeline's onComplete, and kill() does not
+       fire that — so an interrupted close left the classes on and the
+       state disagreeing with the sheet. Held here and run before
+       anything kills the timeline. */
+    let pending = null;
+
+    /* The sheet sits under the bar on mobile, so it has to start at the
+       bar's real height — --nav--height is a guess that leaves a strip
+       of page between them when it is wrong. */
+    /* Lenis swallows touchmove while it is stopped, which is the whole
+       sheet unscrollable on a phone. This attribute is how it is told to
+       keep its hands off an element that scrolls itself. */
+    panel.setAttribute('data-lenis-prevent', '');
+
+    const root = nav.closest('.meganav_root') || document.documentElement;
+    const syncTop = () => {
+      root.style.setProperty('--meganav-top', `${nav.getBoundingClientRect().height}px`);
+    };
+    syncTop();
+    if (window.ResizeObserver) new ResizeObserver(syncTop).observe(nav);
 
     const lock = (on) => {
       document.documentElement.classList.toggle('is-menu-open', on);
+
+      /* The lock takes the scrollbar with it, so anything measured
+         while the menu was open was measured against a wider viewport.
+         Re-measure once it is back, and drop anything a cut-short swap
+         left on the container while it was covered by the sheet. */
+      if (!on) {
+        requestAnimationFrame(() => {
+          clearTransitionLeftovers();
+          if (hasScrollTrigger) ScrollTrigger.refresh();
+        });
+      }
+
       if (!hasLenis || !lenis) return;
       /* Lenis owns the scroll, so overflow:hidden alone does nothing —
          it would keep scrolling the page behind the sheet. */
@@ -5394,7 +5459,11 @@
        visibility on the panel, so on the way out it has to outlive the
        swipe or the sheet disappears instead of leaving. */
     const paint = (instant) => {
-      nav.classList.toggle('is-open', open);
+      /* Added on the way in, dropped when the swipe is done — the bar
+         carries the sheet's colour on mobile, and dropping it at the
+         start of the close turns the bar white while the sheet is still
+         leaving. Same shape as the panel's own class. */
+      if (open) nav.classList.add('is-open');
       if (open) panel.classList.add('is-open');
       panel.setAttribute('aria-hidden', String(!open));
       toggles.forEach((t) => t.setAttribute('aria-expanded', String(open)));
@@ -5403,6 +5472,7 @@
 
     function show() {
       if (open) return;
+      if (pending) { const fn = pending; pending = null; fn(); }
       open = true;
       paint();
       lock(true);
@@ -5424,21 +5494,34 @@
         0
       );
       if (content.length) {
-        tl.fromTo(content,
-          { y: MENU.contentShift, opacity: 0 },
-          {
-            y: 0, opacity: 1,
-            duration: MENU.contentDuration,
-            ease: MENU.contentEase,
-            stagger: MENU.contentStagger
-          },
-          MENU.contentDelay
-        );
+        const isButton = (el) => el.classList.contains('button_main_wrap');
+        const rowsEnd = content.reduce((end, el, i) => isButton(el) ? end
+          : Math.max(end, MENU.contentDelay + i * MENU.contentStagger
+              + MENU.contentDuration * MENU.buttonOverlap), 0);
+        const buttonAt = Math.max(MENU.duration, rowsEnd) + MENU.buttonGap;
+
+        content.forEach((el, i) => {
+          const at = isButton(el)
+            ? buttonAt
+            : MENU.contentDelay + i * MENU.contentStagger;
+          const own = parseFloat(el.dataset.navDelay);
+
+          tl.fromTo(el,
+            { y: MENU.contentShift, opacity: 0 },
+            {
+              y: 0, opacity: 1,
+              duration: MENU.contentDuration,
+              ease: MENU.contentEase
+            },
+            at + (Number.isFinite(own) ? own : 0)
+          );
+        });
       }
     }
 
     function hide(instant) {
       if (!open) return;
+      if (pending) { const fn = pending; pending = null; fn(); }
       open = false;
       paint(instant || reducedMotion);
       lock(false);
@@ -5450,8 +5533,16 @@
        class stays until the swipe is done. */
       gsap.set(panel, { pointerEvents: 'none' });
 
+      const restore = gsap.delayedCall(
+        MENU.duration * MENU.restore,
+        () => nav.classList.remove('is-open')
+      );
+
       const done = () => {
+        pending = null;
+        restore.kill();
         panel.classList.remove('is-open');
+        nav.classList.remove('is-open');
         /* Back to the CSS's own closed state, so a resize or a theme
            change is not competing with a stale inline clip-path. */
         gsap.set(panel, { clearProps: 'clipPath,pointerEvents' });
@@ -5460,6 +5551,7 @@
 
       if (instant || reducedMotion) { done(); return; }
 
+      pending = done;
       tl = gsap.timeline({ onComplete: done });
       tl.to(panel, { clipPath: CLOSED_CLIP, duration: MENU.duration, ease: MENU.ease }, 0);
       tl.to(content, { opacity: 0, duration: 0.25, ease: 'power2.out' }, 0);
@@ -5468,11 +5560,20 @@
     const controller = new AbortController();
     const { signal } = controller;
 
+    /* One click, one toggle. The Designer nests these — an overlay
+       anchor inside a wrapper that is itself a toggle — so a single
+       click bubbles through two of them and the menu opened and shut
+       again in the same frame, which killed the row stagger and left
+       the sheet open with nothing animated. */
+    let lastClick = null;
+
     toggles.forEach((toggle) => {
       toggle.addEventListener('click', (e) => {
         /* The anchor inside is href="#": left alone it jumps the page to
            the top and, on some templates, adds a history entry. */
         e.preventDefault();
+        if (lastClick === e) return;
+        lastClick = e;
         if (open) hide(); else show();
       }, { signal });
     });
@@ -5865,6 +5966,39 @@
      no height to the document, which collapses the page to one viewport and
      kills scrolling entirely. Idempotent, so calling it more than once is
      free. */
+  /* A swap that is cut short — interrupted, errored, or navigated away
+     from mid-flight — leaves the container holding the transform it was
+     partway through. Under the parent's perspective that renders the
+     whole page scaled: smaller with the dark ground showing around it,
+     or larger and cropped, depending on which way the z was going.
+     Cleared from hooks that run whatever the timeline did. */
+  function clearTransitionLeftovers() {
+    if (document.documentElement.classList.contains('is-transitioning')) return;
+
+    /* The wrapper is the one that holds the transform, so a container
+       left inside one reads as untransformed while the page is visibly
+       scaled. Unwrapped back to where a normal load leaves it. */
+    document.querySelectorAll('.page-transition__wrapper').forEach((w) => {
+      const inner = w.querySelector('[data-barba="container"]');
+      if (inner && w.parentNode) w.parentNode.insertBefore(inner, w);
+      w.remove();
+    });
+    document.querySelectorAll('.page-transition__backdrop').forEach((b) => b.remove());
+
+    const container = document.querySelector('[data-barba="container"]');
+    if (container && container.getAttribute('style')) {
+      gsap.set(container, {
+        clearProps: 'position,inset,top,left,right,width,height,zIndex,' +
+          'transformStyle,willChange,backfaceVisibility,transform,filter,opacity,visibility'
+      });
+    }
+
+    const wrap = document.querySelector('.page_wrap');
+    if (wrap && getComputedStyle(wrap).perspective !== 'none') {
+      gsap.set(wrap, { clearProps: 'perspective,perspectiveOrigin,transformStyle,overflow' });
+    }
+  }
+
   function clearContainerLayer(container) {
     if (!container) return;
     if (getComputedStyle(container).position !== 'fixed') return;
@@ -5992,6 +6126,7 @@
        otherwise leave a page holding an invisible video. */
     document.querySelectorAll('[data-video="component"].is-page-leaving')
       .forEach((el) => el.classList.remove('is-page-leaving'));
+    requestAnimationFrame(clearTransitionLeftovers);
   });
 
   barba.hooks.after(() => {
