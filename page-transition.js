@@ -30,7 +30,7 @@
      serves the browser's week-old copy without revalidating and it is
      otherwise impossible to tell which build is running. Check the
      console line against the repo before debugging anything else. */
-  const BUILD = '2026-09-04-bt';
+  const BUILD = '2026-09-04-bu';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3623,11 +3623,16 @@
 
         const gapAttr = str('data-gap');
         const gapMobileAttr = str('data-gap-mobile');
+        const gapTabletAttr = str('data-gap-tablet');
         const mq = window.matchMedia('(max-width: 767px)');
         const tabletMq = window.matchMedia('(max-width: 991px)');
 
+        /* Three tiers, each falling back to the one above it, so a
+           slider that only sets data-gap behaves as it always did. */
         const applyGap = () => {
-          const value = mq.matches ? (gapMobileAttr || gapAttr) : gapAttr;
+          const value = mq.matches
+            ? (gapMobileAttr || gapTabletAttr || gapAttr)
+            : (tabletMq.matches ? (gapTabletAttr || gapAttr) : gapAttr);
           if (value) el.style.setProperty('--slider-gap', value);
         };
 
