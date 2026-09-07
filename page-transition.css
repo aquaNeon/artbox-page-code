@@ -5,9 +5,8 @@
   z-index: 100;
 }
 
-/* No background here on purpose. This file loads after Webflow's
-   stylesheet at the same specificity, so declaring one silently beat
-   whatever was set in the Designer. Style .page_wrap in Webflow. */
+/* No background on purpose: this file loads after Webflow's at the same
+   specificity, so one here silently beats the Designer. */
 .page_wrap {
   position: relative;
   z-index: 1;
@@ -19,50 +18,39 @@
   z-index: 0;
 }
 
-/* The reveal gap collapses during a transition because both
-   containers go position:fixed. Hide the footer so it cannot
-   flash through the 3D gap between the two pages.
-
-   Unless it was on screen when the navigation started: then the
-   transition lifts it into the outgoing layer as .is-transition-layer
-   and it travels with the page it belongs to instead of vanishing. */
+/* Both containers go fixed mid-transition, collapsing the reveal gap, so
+   the footer would flash through it. Unless it was on screen when the
+   navigation started — then it travels in the outgoing layer. */
 html.is-transitioning .footer_wrap:not(.is-transition-layer) {
   visibility: hidden;
 }
 
-/* Replaces the overflow:clip that used to sit on .page_wrap and both
-   transition layers. Clipping there turned them into scrollports, which
-   made every position:sticky section resolve against a 100vh box and
-   composite onto itself. Suppressing scroll on the root instead keeps the
-   pages' own sticky behaviour intact, since the root is the scrollport
-   either way. */
+/* On the root rather than on .page_wrap or the layers: clipping there
+   makes them scrollports, and every sticky section then resolves against
+   a 100vh box. The root is the scrollport either way. */
 html.is-transitioning {
   cursor: wait;
   overflow: hidden;
 }
 
-/* Backing for the outgoing page while it is lifted out of flow. Inherits
-   so it tracks whatever .page_wrap is set to in Webflow rather than
-   pinning a theme variable that may not resolve on every template. */
+/* Backing for the outgoing page while it is out of flow. Inherited, so it
+   tracks .page_wrap rather than a variable that may not resolve. */
 .page-transition__wrapper {
   background: inherit;
 }
 
-/* Only ever on screen mid-transition, filling the 3D gap between the
-   outgoing and incoming page. Black by default, deliberately independent
-   of the page background. Override site-wide with --transition-bg, or per
-   template with data-transition-bg on the Barba container. */
+/* Fills the gap between the two pages mid-transition, independent of the
+   page background. --transition-bg site-wide, data-transition-bg per
+   template.  (docs: README ### Transition background) */
 .page-transition__backdrop {
   background: var(--transition-bg, #191915);
   pointer-events: none;
 }
 
 
-/* Services hover preview — the cursor follower, created by the
-   servicesHover module and parented to <body>. Only the box lives
-   here, because it is the one part with a responsive dimension.
-   Everything the module puts on the rows themselves is set inline,
-   where it outranks the Designer regardless of stylesheet order. */
+/* The cursor follower, created by servicesHover and parented to <body>.
+   Only the box is here — it is the one part with a responsive dimension;
+   the rows are styled inline, where they outrank the Designer. */
 .services_follower {
   position: fixed;
   top: 0;
@@ -74,8 +62,8 @@ html.is-transitioning {
   will-change: transform;
 }
 
-/* Clips the incoming image while it grows, so it reads as covering
-   the one under it rather than spilling past the frame. */
+/* Clips the incoming image while it grows, so it covers rather than
+   spills past the frame. */
 .services_follower__inner {
   position: relative;
   width: 100%;
@@ -92,11 +80,9 @@ html.is-transitioning {
   object-fit: cover;
 }
 
-/* Filter checkboxes. .filter-single and .is-checked are set by the
-   filterSingle module on the label, so the idle state is one class on one
-   element no matter which piece of the Webflow checkbox is styled in the
-   Designer. Only the idle state is declared here — the checked state stays
-   whatever the Designer says it is. */
+/* Filter checkboxes. filterSingle sets .filter-single and .is-checked on
+   the label, so the idle state is one class on one element whichever piece
+   of the Webflow checkbox is styled. Idle state only. */
 .filter-single {
   --filter-idle-border: rgba(25, 25, 21, 0.1);
   --filter-idle-text: rgba(25, 25, 21, 0.6);
@@ -112,15 +98,9 @@ html.is-transitioning {
   color: var(--filter-idle-text);
 }
 
-/* Trim the label's line box down to the letters — cap height on top,
-   baseline underneath — so the box centres against the type instead of
-   against the leading, which is what leaves a tick sitting visibly high
-   next to its own label. Same problem as the descender padding in
-   textAnim, solved from the other end.
-
-   Progressive: browsers without text-box keep the line box they had, so
-   the row is no worse than it was. Alignment itself stays in the Designer
-   — this only makes the text box honest about where the letters are. */
+/* Trims the label's line box to the letters, so the tick centres against
+   the type rather than the leading. Progressive: without text-box the row
+   is exactly as it was, and alignment stays in the Designer. */
 @supports (text-box: trim-both cap alphabetic) {
   .filter-single .w-form-label,
   .filter-single [data-filter-label] {
@@ -129,19 +109,16 @@ html.is-transitioning {
 }
 
 /* ============================================================
-   MEGANAV
+   MEGANAV  (docs: README ## Meganav)
 
-   The panel sits inside <nav class="meganav">, and the nav carries a
-   GSAP transform for the footer hide. Any non-none transform on an
-   ancestor makes position:fixed resolve against that ancestor instead
-   of the viewport — so the sheet is absolute and sized in viewport
-   units. The nav is fixed and pinned to the top edge, so that is the
-   same rectangle, without depending on the transform being identity.
+   The sheet is absolute and sized in viewport units, not fixed: it
+   lives inside the nav, whose footer-hide transform would otherwise
+   become its containing block. The nav is pinned to the top edge, so
+   it is the same rectangle either way.
 
-   These rules outrank the nav's own embed on specificity, not on
-   order: an embed inside the component renders in the body, after this
-   file, so a tie would go to the embed. Delete the superseded blocks
-   there when you get a chance — they are listed in the README.
+   These rules beat the nav's own embed on specificity, not order — an
+   embed renders after this file, so a tie goes to it. The superseded
+   blocks are listed in the README; delete them.
    ============================================================ */
 
 .meganav_root .meganav {
@@ -170,9 +147,8 @@ html.is-transitioning {
   left: 0;
   z-index: 1;
   right: 0;
-  /* 100% of the fixed, full-width bar — not 100vw, which counts the
-     scrollbar and would push a horizontal one onto every page while the
-     sheet sits there clipped. */
+  /* 100% of the fixed bar, not 100vw: that counts the scrollbar and
+     puts a horizontal one on every page. */
   width: 100%;
   height: 100dvh;
   max-width: none;
@@ -181,9 +157,8 @@ html.is-transitioning {
   background-color: var(--meganav-panel-bg);
   color: var(--meganav-panel-text);
 
-  /* Closed. clip-path rather than opacity so the module can swipe it
-     down from the top edge; visibility keeps it out of the tab order,
-     and the transition is cleared because GSAP owns these now. */
+  /* Closed. clip-path rather than opacity, so the module can swipe it
+     down; visibility keeps it out of the tab order. */
   clip-path: inset(0% 0% 100% 0%);
   opacity: 1;
   visibility: hidden;
@@ -202,17 +177,14 @@ html.is-transitioning {
   transform: none;
   transition: none;
 
-  /* Vertical only. The sides are the container class the module moves
-     onto this element, and owning them here as well was 3rem of
-     padding nobody could find in the Designer. */
+  /* Vertical only: the sides belong to the container class the module
+     moves onto this element. */
   padding-top: var(--nav--height, 5rem);
   padding-bottom: var(--meganav-bottom, 3rem);
 }
 
-/* Eased on the way back only. The open state declares no transition, so
-   adding the class snaps — the sheet is what paints the bar and a fade
-   would be a second thing happening — while dropping it falls back to
-   this and the type settles rather than flicking. */
+/* Eased on the way back only: the sheet is what paints the bar, so
+   opening should snap, while closing settles rather than flicks. */
 .meganav_root .meganav,
 .meganav_root .meganav .meganav_logo_svg,
 .meganav_root .meganav .button_nav_text,
@@ -223,10 +195,8 @@ html.is-transitioning {
     color var(--meganav-restore, 0.28s) ease;
 }
 
-/* Open state: the bar goes transparent over the sheet and its type
-   flips to the panel colour. Three classes deep so it beats the
-   embed's [data-transparent="true"].is-open, which is otherwise both
-   equal on specificity and later in the document. */
+/* Open: the bar goes transparent and its type flips to the panel colour.
+   Three classes deep to beat the embed's [data-transparent].is-open. */
 .meganav_root .meganav.is-open,
 .meganav_root .meganav.is-open[data-transparent="true"],
 .meganav_root .meganav.is-open[data-transparent="false"] {
@@ -244,14 +214,9 @@ html.is-transitioning {
   color: var(--meganav-panel-text, #f7f7f5);
 }
 
-/* The rules above only ever moved the type. A link's underline is a real
-   border with a theme colour of its own, so it stayed dark on the black
-   sheet — a stray dark hairline under a white label.
-
-   Marked elements are excluded: [data-underline-link] holds its border at
-   transparent on purpose and draws the line as a pseudo-element in
-   currentColor, which the colour rule above already handles. Painting the
-   border back would put a static line under the animation. */
+/* A link's underline is a real border with its own theme colour, so it
+   stayed dark under a white label. [data-underline-link] is excluded: it
+   holds that border transparent and draws the line in currentColor. */
 .meganav_root .meganav.is-open .button_link_wrap:not([data-underline-link]),
 .meganav_root .meganav.is-open .button_link_text:not([data-underline-link]),
 .meganav_root .meganav.is-open .button_link_element:not([data-underline-link]),
@@ -265,16 +230,13 @@ html.is-transitioning {
   background-color: var(--meganav-panel-text, #f7f7f5);
 }
 
-/* The burger crosses into an X while the sheet is open. Each bar travels
-   half the distance between them — the gap plus one bar's thickness,
-   halved — so they meet on the centre line before they rotate. Set
-   --burger-gap / --burger-thickness if the Designer values change; the
-   defaults are the ones in the nav embed. */
+/* The burger crosses into an X: each bar travels half the distance
+   between them, so they meet on the centre line before rotating. Set
+   --burger-gap / --burger-thickness to match the Designer. */
 .meganav_root .meganav_mobile_div {
   --burger-gap: 5px;
-  /* Whole pixels on purpose. A 1.5px bar lands on a half pixel wherever
-     the row does not, and the browser renders that as a lighter grey —
-     which is why one bar looked faded and the other did not. */
+  /* Whole pixels: a 1.5px bar lands on a half pixel and renders as a
+     lighter grey than its neighbour. */
   --burger-thickness: 2px;
 
   /* Both bars, both states, one colour: they follow the type rather than
@@ -304,19 +266,15 @@ html.is-transitioning {
   }
 }
 
-/* The sheet is the mobile menu too. The old .meganav_mobile_wrap still
-   holds another project's links — hidden here so it cannot show,
-   delete it in the Designer. */
+/* The sheet is the mobile menu too. .meganav_mobile_wrap still holds
+   another project's links — hidden here, delete it in the Designer. */
 @media screen and (max-width: 991px) {
-  /* The desktop sheet, on a phone too: full height from the top edge,
-     behind a bar that goes transparent so the logo and the close sit
-     over it. */
+  /* The desktop sheet on a phone too, behind a transparent bar. */
   .meganav_root .meganav_panel {
     display: flex !important;
   }
 
-  /* The embed paints the bar with !important on mobile, which would
-     otherwise keep it opaque over the sheet. */
+  /* The embed paints the bar !important on mobile. */
   .meganav_root .meganav.is-open,
   .meganav_root .meganav.is-open[data-transparent="true"],
   .meganav_root .meganav.is-open[data-transparent="false"] {
@@ -339,9 +297,8 @@ html.is-transitioning {
     display: none !important;
   }
 
-  /* The inner is a two-column grid from the Designer, which at phone
-     width collapses the column the CTA sits in — the button measured
-     zero wide. Stack it, the way the mobile frame is drawn. */
+  /* The Designer's two-column grid collapses the CTA's column at phone
+     width, leaving the button zero wide. */
   .meganav_root .meganav_panel_inner {
     display: flex;
     flex-direction: column;
@@ -356,29 +313,20 @@ html.is-transitioning {
   }
 }
 
-/* Native scroll off while the sheet is up. Lenis is stopped in the
-   module — this is only the fallback for a page without it.
-
-   The gutter is reserved always, so hiding the overflow does not widen
-   the viewport by a scrollbar and leave everything measured against it
-   — fixed layers included — a fraction out when it comes back. */
+/* The gutter is reserved always, so hiding the overflow does not widen
+   the viewport and leave everything measured against it a fraction out
+   when the scrollbar comes back. */
 @media (hover: hover) and (pointer: fine) {
   html {
     scrollbar-gutter: stable;
   }
 }
 
-/* No double-tap zoom. A quick second tap magnifies the visual viewport
-   around whatever was tapped — the page is not scaled or reflowed, the
-   browser is simply zoomed in, and it is easy to do by accident while
-   scrolling. manipulation keeps panning and pinch-zoom and drops only
-   that gesture.
-
-   Not behind a media query: the pointer queries do not always answer
-   the way the gesture behaves, and this costs a mouse nothing. On the
-   elements as well as the root — Chrome resolves touch-action from the
-   touched element up, and a tap that lands on the video or the logo is
-   the one being made by accident. */
+/* No double-tap zoom: it magnifies the visual viewport around whatever
+   was tapped, which is easy to do by accident while scrolling.
+   manipulation keeps panning and pinch. Listed per element as well as on
+   the root, since Chrome resolves touch-action from the touched element
+   up — and the accidental taps land on the video and the logo. */
 html,
 body,
 [data-video="component"],
@@ -393,28 +341,20 @@ html.is-menu-open {
 
 /* ============================================================
    UNDERLINE LINKS — [data-underline-link]
+   Docs: README ## Underline links.
 
-   Two lines rather than one: the resting line wipes out to the right,
-   and a fresh one wipes in from the left behind it. One line scaling
-   out and back in reads as a retreat and a return; two read as a
-   replacement, which is the whole point of the effect.
+   Two lines, not one: the resting line wipes out right while a fresh
+   one wipes in from the left. One line scaling out and back reads as a
+   retreat and a return rather than a replacement.
 
-   Put the attribute on the element that should carry the line — the
-   text, or the wrap if the line runs under an icon too. The static
-   border on that element is turned transparent rather than removed, so
-   the space it reserves stays and nothing shifts.
-
-   Hover is taken from the marked element, from any ancestor link or
-   button, from an ancestor marked [data-hover], and from a Webflow
-   overlay anchor (.g_clickable_wrap) covering the component — which is
-   a SIBLING of the text, so the element itself never sees the pointer.
-   That last one is why this cannot be left to :hover alone.
+   Hover comes from the marked element, an ancestor link or [data-hover],
+   or a Webflow overlay anchor covering the component — that last one is
+   a SIBLING of the text, which is why :hover alone cannot do this.
    ============================================================ */
 
-/* Doubled attribute: the static border is usually declared as a
-   shorthand on a class, and a shorthand later in the cascade beats a
-   single-attribute rule on a tie. Opt out per element with
-   data-underline-keep-border. */
+/* Doubled attribute: the static border is usually a shorthand on a
+   class, which beats a single-attribute rule on a tie. Turned
+   transparent, not removed, so the space it reserves stays. */
 [data-underline-link]:not([data-underline-keep-border]),
 [data-underline-link][data-underline-link]:not([data-underline-keep-border]) {
   border-bottom-color: transparent;
@@ -441,15 +381,13 @@ html.is-menu-open {
   height: var(--underline-thickness);
   background-color: currentColor;
   pointer-events: none;
-  /* The hairline rotation keeps the scaled edge on the compositor
-     instead of snapping to a device pixel mid-tween. */
+  /* The hairline rotation keeps the scaled edge on the compositor. */
   transform: scaleX(0) rotate(0.001deg);
   transition: transform var(--underline-duration) var(--underline-ease);
 }
 
-/* At rest: ::before is the line you can see, ::after is the one waiting
-   off to the left. The delay on ::before is what makes the return trip
-   wait for the outgoing line to finish. */
+/* At rest ::before is the visible line and ::after waits off to the
+   left. The delay is what makes the return wait for the exit. */
 [data-underline-link]::before {
   transform-origin: left;
   transform: scaleX(1) rotate(0.001deg);
@@ -516,12 +454,9 @@ html.is-menu-open {
   }
 }
 
-/* The panel CTA. The Designer theme class should do this through the
-   button's own tokens, and when it does these rules resolve to the same
-   colours — but the button ships its palette per style variant, so on the
-   sheet it kept rendering dark on dark. Stated here against the sheet's
-   own two colours: light pill, dark label, which is what the design
-   shows. Retarget with --meganav-cta-bg / --meganav-cta-text. */
+/* The panel CTA. The button ships its palette per style variant, so on
+   the sheet it rendered dark on dark; stated here against the sheet's own
+   colours. Retarget with --meganav-cta-bg / --meganav-cta-text. */
 .meganav_root .meganav_panel .button_main_wrap,
 .meganav_root .meganav_panel .button_main_padding,
 .meganav_root .meganav_panel .button_main_element {
@@ -538,12 +473,9 @@ html.is-menu-open {
 
 /* ============================================================
    POST CONTACT — .post_contact_wrap
-
-   Grid and flex children default to min-width:auto, which means they
-   refuse to shrink below their own content: a wide image or an
-   unbreakable string pushes the track past the container rather than
-   fitting inside it. min-width:0 lets them shrink, which is what makes
-   the image and the text stay in their parent.
+   Grid and flex children default to min-width:auto and refuse to shrink
+   below their content, so a wide image or an unbreakable string pushes
+   the track past its container.
    ============================================================ */
 .post_contact_grid > *,
 .post_contact_inner_wrap,
@@ -554,20 +486,12 @@ html.is-menu-open {
   min-width: 0;
 }
 
-/* Square, and only taller when the text beside it needs the room.
-
-   aspect-ratio sets the height the wrap asks for, so a short text column
-   leaves the row exactly square. min-height: 100% is the concession: a
-   grid item stretches to its row, and when the copy is the taller of the
-   two the picture grows with it rather than leaving a hole underneath.
-   object-fit keeps the crop centred through both cases.
-
-   To pin it square regardless and accept the gap, set
-   --post-contact-img-grow: 0. */
+/* Square, and taller only when the text beside it needs the room: the
+   ratio sets the height asked for, min-height:100% lets it grow with a
+   longer column. --post-contact-img-grow: 0 pins it square. */
 .post_contact_img_wrap {
-  /* Width first: with only a ratio and a definite height, the box grows
-     sideways to stay square and spills out of its column. Pinning the
-     width means the concession is vertical only. */
+  /* Width first: given a ratio and a definite height, the box grows
+     sideways to stay square and spills out of its column. */
   width: 100%;
   aspect-ratio: var(--post-contact-img-ratio, 1 / 1);
   height: auto;
@@ -586,59 +510,42 @@ html.is-menu-open {
 .post_contact_content:has(.post_contact_img_wrap) {
   align-self: var(--post-contact-img-align, stretch);
 
-  /* The ratio moves down to the wrap. Left on the column it fights the
-     grid: stretched to a tall row, a square column asks for a matching
-     WIDTH, the 1fr track grows to give it, and the section overflows
-     sideways. */
+  /* The ratio belongs on the wrap: on the column, a tall row makes a
+     square column ask for a matching width and the track grows. */
   aspect-ratio: auto;
   min-width: 0;
 }
 
-/* An address or a phone number has no break opportunity, so it sets the
-   minimum width of everything above it until it is allowed one. */
+/* An address or phone number has no break opportunity, so it sets the
+   minimum width of everything above it. */
 .post_contact_details .button_link_text {
   overflow-wrap: anywhere;
 }
 
 /* ============================================================
-   SLIDER SECTION — .c_slider_wrap
+   SLIDER SECTION — .c_slider_wrap  (docs: README ### slider)
 
-   Lifted out of the section embed, where several declarations had been
-   truncated mid-value — a broken one makes the parser skip to the next
-   ; or }, so it swallows whatever follows until it resyncs. The mobile
-   inset was one of the casualties, which is why the slider measured the
-   full viewport and Swiper wrote a slide as wide as the screen.
+   Lifted out of the section embed, where truncated declarations were
+   making the parser skip whatever followed until it resynced — the
+   mobile inset among them. Recovered variable names carry a fallback,
+   so a wrong guess degrades rather than painting nothing.
 
-   Variable names that could not be recovered from the fragment carry a
-   fallback, so a wrong guess degrades instead of painting nothing.
-
-   The track is full-bleed and clipped; the first slide is offset in line
-   with the page container by the slider module (slidesOffsetBefore), so
-   a card sliding out to the left stays visible to the viewport edge
-   while the slides Swiper relocates for the loop stay hidden.
+   The track is full-bleed and clipped, with the first slide offset into
+   line with the page container by the module.
    ============================================================ */
 
 .c_slider_wrap {
-  /* clip, not hidden: clip does not make this a scrollport, so a sticky
-     descendant still resolves against the page. It is here to absorb the
-     few px the full-bleed rule below overshoots by — 100vw counts the
-     scrollbar and the content box does not. */
+  /* clip, not hidden, so this does not become the scrollport a sticky
+     descendant resolves against. It absorbs the few px the full-bleed
+     rule below overshoots by. */
   overflow-x: clip;
   overflow-y: visible;
 }
 
-/* Full bleed. Negative side margins the width of the container gutter pull
-   the rail out to the viewport edges no matter how deeply the section is
-   nested — 50% is half the parent, 50vw half the viewport, so the
-   difference is exactly the inset to cancel.
-
-   Margins rather than a transform on purpose: a transform would make this
-   the containing block for any fixed-position descendant, which is the
-   trap the nav panel and the footer layer both hit.
-
-   The first card still lines up with the page text — that comes from
-   slidesOffsetBefore, which the module measures against the container in
-   the same section and re-measures on resize. */
+/* Full bleed: 50% is half the parent and 50vw half the viewport, so the
+   difference is exactly the inset to cancel, however deeply the section
+   is nested. Margins, never a transform — that would make this the
+   containing block for fixed descendants. */
 .c_slider_offset {
   width: auto;
   max-width: none;
@@ -669,33 +576,16 @@ html.is-menu-open {
   min-width: 0;
 }
 
-/* max-width would clamp the width Swiper just calculated, so the track
-   would step further than the cards actually sit apart. translateZ puts
-   the card on its own compositing layer — separately rasterised layers
-   round to different subpixels mid-transform, which is the hairline that
-   only showed while the slider was moving. */
-/* Any slide, whatever component it is built from. max-width would clamp
-   the width Swiper just calculated, so the track would step further than
-   the cards actually sit apart. */
-.c_slider_swiper .swiper-slide {
-  max-width: none;
-  min-width: 0;
-  height: auto;
-}
-
-/* Swiper writes each slide's width inline and lays the whole track out
-   from that number. A max-width from the Designer clamps the rendered
-   slide without Swiper knowing, so the track is built for one width and
-   drawn at another: every snap after the first lands short of the page
-   margin, and the end scrolls past the last card by the accumulated
-   difference.
-
-   !important because the breakpoint rules that set it come later. Any
-   slide, not only this card — the same clamp on another slider would do
-   the same thing. */
+/* Swiper writes each slide's width inline and lays the track out from
+   that number, so a Designer max-width clamps the rendered slide without
+   Swiper knowing: the track is built for one width and drawn at another,
+   and every snap after the first lands short of the page margin.
+   !important because the breakpoint rules that set it come later, and on
+   any slide, since the same clamp on another slider does the same. */
 .c_slider_swiper .swiper-slide {
   max-width: none !important;
   min-width: 0 !important;
+  height: auto;
 }
 
 .c_slider_swiper .card_hover_wrap {
@@ -709,11 +599,8 @@ html.is-menu-open {
   transform-origin: center;
 }
 
-/* Overspilling the card rather than sitting inside it. Inset by a
-   pixel, the card's own background showed as a rim the moment the
-   colour layer faded out on hover — invisible on the light variants,
-   a dark border on the green one. The wrap clips, so there is nothing
-   to see past the edge. */
+/* Overspilling rather than inset: a pixel in, the card's own background
+   showed as a rim as the colour layer faded. The wrap clips. */
 .card_hover_img_wrap {
   inset: -1px;
 }
@@ -731,9 +618,8 @@ html.is-menu-open {
   object-fit: cover;
 }
 
-/* Secondary card text: stop the double transition. The card already
-   animates its colour, so this follows it with the alpha baked in
-   instead of running a timer of its own. */
+/* The card already animates its colour, so this follows it with the
+   alpha baked in rather than running a timer of its own. */
 .c_slider_swiper .card_hover_wrap .card_hover_details_name,
 .c_slider_swiper .card_hover_wrap .u-color-secondary {
   color: color-mix(in srgb, currentColor 60%, transparent) !important;
@@ -797,10 +683,9 @@ html.is-menu-open {
   flex-shrink: 0;
 }
 
-/* Opt-in mobile inset. Zero by default, because an inset here is the
-   thing that stops the rail reaching the edges; the first card is aligned
-   by slidesOffsetBefore instead. Set --slider-inset-mobile if you want the
-   card to sit inside the margins rather than bleed. */
+/* Opt-in mobile inset, zero by default: an inset here is what stops the
+   rail reaching the edges, and the first card is aligned by
+   slidesOffsetBefore instead. */
 @media (max-width: 767px) {
   .c_slider_offset {
     padding-left: var(--slider-inset-mobile, 0px);
@@ -809,17 +694,14 @@ html.is-menu-open {
 }
 
 /* ============================================================
-   TABS — stacked below 992px
-
-   The module moves each visual in beside its own text and adds
-   .is-stacked. These rules undo the desktop presentation: the visual
-   column is usually a pile of absolutely positioned panels, which is
-   meaningless once they are in the flow one after another.
+   TABS — stacked below 992px  (docs: README ### tabs)
+   The module moves each visual beside its own text and adds .is-stacked;
+   these undo the desktop presentation, where the visuals are a pile of
+   absolutely positioned panels.
    ============================================================ */
 
-/* One column: the wrapper is a two-column layout on desktop, and the
-   stack would otherwise sit in half the width with the emptied visual
-   column holding the rest. */
+/* One column: on desktop the wrapper is two, and the stack would sit in
+   half the width beside the emptied visual column. */
 [data-tabs="wrapper"].is-stacked {
   display: block;
 }
@@ -857,17 +739,15 @@ html.is-menu-open {
 }
 
 /* ============================================================
-   SERVICES — pinned crossfade below 992px
-
+   SERVICES — pinned crossfade below 992px  (docs: README ### servicesHover)
    The module lifts the rows into .services_stack_viewport and gives the
-   list the scroll height. These rules make that layerable: the list is
-   the tall track, the viewport is the screen that stays put, and the
-   rows sit on top of each other inside it.
+   list the scroll height: the list is the tall track, the viewport the
+   screen that stays put, the rows stacked inside it.
    ============================================================ */
 
 @media screen and (max-width: 991px) {
-  /* Full bleed — the section container would otherwise inset a layout
-     that is meant to run edge to edge. */
+  /* Full bleed: the section container would inset a layout meant to run
+     edge to edge. */
   .services_wrap .services_contain {
     max-width: none;
     padding-left: var(--services-stack-inline, 0px);
@@ -891,20 +771,16 @@ html.is-menu-open {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    /* Every row paints the full screen, so the one underneath cannot
-       show through the one fading in over it. */
+    /* Every row paints the full screen, so nothing shows through the one
+       fading in over it. */
     background-color: var(--services-stack-bg, var(--_theme---background--background-primary, #191915));
   }
 }
 
-/* The row icon grows out of its own middle on hover, the way the preview
-   images do — not the sideways open the link icons use. It keeps its square
-   whether or not it is showing: a transform never reflows, so the text
-   beside it holds still, and the row does not jump as the pointer arrives.
-
-   Sized from --services-icon-size rather than an em: the type style sits on
-   the text element, not on the row, so an em here would resolve against the
-   wrapper and never grow with the type. */
+/* The row icon grows out of its middle, keeping its square either way: a
+   transform never reflows, so the row does not jump as the pointer
+   arrives. Sized from a variable rather than an em, which would resolve
+   against the wrapper — the type style sits on the text element. */
 .services_hover_item .services_hover_icon {
   --services-icon-size: 1.25rem;
   --services-icon-ease: cubic-bezier(0.625, 0.05, 0, 1);
@@ -925,8 +801,8 @@ html.is-menu-open {
   }
 }
 
-/* In the stacked shape there is nothing to hover, so the icon belongs to
-   whichever row is showing rather than to a pointer. */
+/* Stacked, there is nothing to hover: the icon belongs to whichever row
+   is showing. */
 @media screen and (max-width: 991px) {
   .services_hover_items.is-stacked .services_hover_icon {
     transform: scale(1);
@@ -939,33 +815,24 @@ html.is-menu-open {
   }
 }
 
-/* Text swap: the statements share one grid cell so they sit on top of each
-   other and the tallest still sets the height. Absolute children would
-   collapse the wrapper and the section would lose its box. */
+/* Text swap: one grid cell, so the statements stack and the tallest still
+   sets the height. Absolute children would collapse the wrapper. */
 [data-swap].is-swapping {
   display: grid;
 }
 
-/* Mobile: one explicit track, so the JS placing the statements at
-   1 / -1 has a real end line to reach. Without a template the wrap's
-   columns are implicit, -1 resolves back to line 1, and the statements
-   auto-place into columns of their own instead of stacking full width. */
+/* One explicit track, so the JS placing statements at 1 / -1 has an end
+   line to reach: implicit columns resolve -1 back to line 1. */
 @media (max-width: 767px) {
   [data-swap].is-swapping {
     grid-template-columns: 1fr;
   }
 }
 
-/* Video poster handoff, see the videoPoster module.
-
-   display is pinned with !important on purpose: video-min.js sets
-   `poster.style.display = 'none'` inline the moment it plays, and an
-   element pulled out of the flow cannot be faded. Pinning it leaves
-   opacity as the only thing deciding who is showing, so base-lib's
-   toggle becomes a no-op instead of something to patch around.
-
-   The poster sits over the video rather than beside it, so there is
-   never a frame where neither is painted — which is the grey. */
+/* Video poster handoff (docs: README ### videoPoster). display is pinned
+   !important because video-min.js sets display:none inline the moment it
+   plays, and an element out of flow cannot be faded — this makes its
+   toggle a no-op and leaves opacity to decide. */
 [data-video="component"] [data-video="poster"] {
   display: block !important;
   opacity: 1;
@@ -983,21 +850,16 @@ html.is-menu-open {
   }
 }
 
-/* Share menu, see the share module. The module only toggles classes —
-   the panel is hidden here rather than with an inline style so the
-   Designer can restyle it freely without the JS having an opinion. */
+/* Share menu (docs: README ### share). Hidden here rather than inline, so
+   the Designer can restyle it without the JS having an opinion. */
 [data-share] {
   position: relative;
 }
 
-/* data-share-swap on the wrapper: the trigger, the menu and the
-   confirmation take turns in ONE grid cell, so the menu opens where
-   "Del" was rather than below it, and the tallest of them still sets
-   the height so nothing on the page moves.
-
-   Opt-in, because without it the wrapper keeps whatever layout the
-   Designer gave it. Requires the three to be DIRECT children of the
-   wrapper — grid placement does not reach through a div. */
+/* data-share-swap: trigger, menu and confirmation take turns in ONE grid
+   cell, so the menu opens where the trigger was and nothing on the page
+   moves. Opt-in, and the three must be DIRECT children — grid placement
+   does not reach through a div. */
 [data-share][data-share-swap] {
   display: grid;
   justify-items: start;
@@ -1015,8 +877,7 @@ html.is-menu-open {
 }
 
 /* Held back through the confirmation as well as the menu, so the three
-   states are one at a time: trigger, then menu, then "copied" standing
-   alone until the timer gives the trigger back. */
+   states come one at a time. */
 [data-share][data-share-swap].is-share-open > [data-share-open],
 [data-share][data-share-swap].is-share-copied > [data-share-open] {
   opacity: 0;
@@ -1030,8 +891,8 @@ html.is-menu-open {
   transition: opacity 200ms ease, visibility 200ms;
 }
 
-/* Held back from full strength: these are secondary to the thing that
-   opened them, and the trigger is the only one that reads at 100%. */
+/* Secondary to the thing that opened them: the trigger is the only one
+   that reads at full strength. */
 [data-share].is-share-open [data-share-menu] {
   opacity: 0.5;
   visibility: visible;
@@ -1059,32 +920,21 @@ html.is-menu-open {
 }
 
 /* ============================================================
-   HERO VIDEO — see the heroVideo module
+   HERO VIDEO  (docs: README ### heroVideo)
 
-   is-travelling takes the component out of flow so its transform is
-   not clipped by the hero section and is not sharing an element with
-   the hero's parallax. left/top stay at 0 and the module does the
-   placing, so only the transform changes per frame.
-
-   is-settled hands it back after the pin: absolute inside the stage,
-   filling it, so it scrolls away with the page instead of staying
-   stuck to the viewport for the rest of the document.
+   is-travelling takes the component out of flow, so its transform is
+   neither clipped by the hero nor sharing an element with the hero's
+   parallax; left/top stay at 0 and the module does the placing.
+   is-settled hands it back to the stage after the pin.
    ============================================================ */
 
-/* Hidden from first paint. The module's own pre-hide is JS, so
-   between the page painting and the bundle landing the video was
-   showing in the grid at full opacity — the flash on load.
+/* Hidden from first paint: the module's pre-hide is JS, so between the
+   paint and the bundle landing the video showed at full opacity.
 
-   A watchdog rather than a state, and deliberately not `both`: with
-   no fill the hold simply ends and the component is visible again,
-   so a page that never gets the script shows the video instead of an
-   empty cell. heroVideo drops the animation at mount, which is what
-   lets the fade write opacity at all — a running animation outranks
-   an inline style, and the tween writes inline.
-
-   The Designer is excluded the way the embed's own entrance is: a
-   canvas where the hero is invisible for three seconds is not worth
-   the fidelity. */
+   A watchdog, not a state, and deliberately without a fill — the hold
+   ends by itself, so a page that never gets the script shows the video
+   rather than an empty cell. heroVideo drops the animation at mount,
+   which is what lets the inline tween write opacity at all. */
 @keyframes hero-video-hold {
   from, to { opacity: 0; }
 }
@@ -1099,11 +949,9 @@ html:not(.wf-design-mode) .home_wrap [data-video="component"] {
   }
 }
 
-/* In the grid it has to be a box with a size. The component ships
-   u-cover-absolute, which contributes no height, so the cell collapsed
-   around it: nothing to see, and nothing for measure() to read. A ratio
-   turns it back into something the grid can lay out. Override
-   --hero-video-ratio on the cell to change the shape it starts as. */
+/* In the grid it needs a size: the component ships u-cover-absolute,
+   which contributes no height, so the cell collapsed around it and
+   measure() had nothing to read. --hero-video-ratio sets the shape. */
 .home_wrap [data-video="component"]:not(.is-travelling):not(.is-settled) {
   position: relative;
   inset: auto;
@@ -1118,14 +966,9 @@ html:not(.wf-design-mode) .home_wrap [data-video="component"] {
   backface-visibility: hidden;
 }
 
-/* Filling the box outright rather than being fitted into it. At a
-   fractional scale object-fit leaves a sliver at one edge, and against
-   a dark section that sliver is the flickering black line. */
-/* Overspilling its own box, and the box clips it. object-fit lays the
-   frame out to fractional pixels, so the painted content can fall a
-   hair short of the edge it is supposed to meet — and at the bottom of
-   a dark video that hair is the black line. Slightly larger than what
-   clips it, there is no edge left to fall short of. */
+/* Overspilling its own box, which clips it: object-fit lays the frame
+   out to fractional pixels, so the painted content falls a hair short of
+   an edge — and on a dark video that hair is the black line. */
 [data-video="component"].is-travelling .g_visual_video,
 [data-video="component"].is-settled .g_visual_video {
   width: 100%;
@@ -1136,23 +979,18 @@ html:not(.wf-design-mode) .home_wrap [data-video="component"] {
 }
 
 /* ============================================================
-   The travelling component is fixed to the viewport and lives on the
-   body, so it is outside .page_wrap's stacking context and outside the
-   container Barba swaps. Nothing that covers the page covers it, and
-   nothing that replaces the page replaces it — which is the video over
-   the open meganav, and the video hanging above both pages through a
-   transition.
+   The travelling component is fixed on the body, outside .page_wrap's
+   stacking context and outside the container Barba swaps — so nothing
+   that covers the page covers it, and nothing that replaces the page
+   replaces it: the video over an open meganav, or hanging above both
+   pages mid-transition.
 
-   Hidden in CSS rather than by the module, so it holds even on a load
-   where the script throws before it gets there. !important because the
-   opacity it has to beat is the entrance tween's, written inline, and
-   nothing else outranks that.
+   In CSS so it holds even where the script throws first, and !important
+   because the opacity to beat is the entrance tween's, written inline.
 
    is-page-leaving rather than html.is-transitioning: that class is on
-   through the incoming page's afterEnter too, and the incoming home
-   page's own video is entering in exactly that window. Barba marks the
-   outgoing one at beforeLeave, which is before any new module has
-   lifted a component of its own.
+   through the incoming page's afterEnter too, which is exactly when the
+   incoming home page's own video is entering.
    ============================================================ */
 html.is-menu-open [data-video="component"].is-travelling,
 [data-video="component"].is-page-leaving {
@@ -1160,10 +998,8 @@ html.is-menu-open [data-video="component"].is-travelling,
   pointer-events: none;
 }
 
-/* Both directions, so the video does not snap back into view from
-   under a menu that is still swiping away. The entrance tween writes
-   opacity per frame and this smooths its tail by a fraction — at 0.9s
-   against 0.24s that is not a difference anyone can see. */
+/* Both directions, so it does not snap back into view from under a menu
+   that is still swiping away. */
 [data-video="component"].is-travelling {
   transition: opacity 0.24s linear;
 }
@@ -1193,16 +1029,15 @@ html.is-menu-open [data-video="component"].is-travelling,
   inset: 0;
 }
 
-/* The statements have to sit over the video once it arrives. While the
-   pin holds they are children of it, and cover it. */
+/* The statements sit over the video; while the pin holds they are its
+   children. */
 .home_video_wrap .home_video_contain {
   position: relative;
   z-index: 6;
 }
 
-/* left/right only — the vertical placement is measured off the stage
-   and written inline, because where the statements sit is a design
-   decision this module has no business making. */
+/* left/right only: the vertical placement is measured off the stage and
+   written inline, since where the statements sit is the design. */
 [data-video="component"] > .home_video_contain {
   position: absolute;
   left: 0;
@@ -1214,35 +1049,25 @@ html.is-menu-open [data-video="component"].is-travelling,
 /* ============================================================
    HERO ENTRANCE ORDER
 
-   The entrance itself is a @keyframes in the .home_wrap embed —
-   its fade, its scale, its 0.9s. Only the delays are taken over
-   here, so the sequence lives next to the video's, which is the
-   one cell GSAP drives and could never read a number out of the
-   Designer.
+   The entrance itself is a @keyframes in the .home_wrap embed; only
+   the delays are taken over here, so the sequence lives next to the
+   video's — the one cell GSAP drives, which cannot read a number out
+   of the Designer.
 
-   Uniform spacing, scattered order: every cell is one step after
-   the last, but the steps do not walk the grid in DOM order, so
-   the six read as arriving rather than as counting.
+   Uniform spacing, scattered order:  1->2  2->4  3->0  4->3  5->1  6->5
+   Every cell is one step after the last, but the steps do not walk the
+   grid in DOM order, so the six read as arriving rather than counting.
 
-   The video takes the last slot, and that is not a taste call. Its
-   fade is a GSAP tween off the intro queue, which runs once the
-   bundle has landed — so its delay is measured from a later zero
-   than the images' keyframes, by however long the boot took. Drift
-   only ever pushes it later, so from any slot but the last it
-   walks into the beat of whatever comes after it. From the last
-   one there is nothing to walk into.
+   The video takes the LAST slot by necessity: its fade is a GSAP tween
+   off the intro queue, so its delay starts from a later zero by however
+   long the boot took. That drift only pushes it later, and from any
+   other slot it walks into the beat behind it.
 
-   The order, DOM cell -> slot:  1->2  2->4  3->0  4->3  5->1  6->5
-
-   An embed inside the section renders after this file, so a tie
-   on specificity goes to the embed. The leading `html` and the
-   :nth-child are there to win it, not for their own sake.
-
-   `nth-child(N of .home_img_wrap)` counts the cells and not their
-   siblings, so a heading or a decorative div in the grid cannot
-   shift the whole order by one. A browser without it drops these
-   rules and the embed's own delays stand — the old sequence, not
-   a broken one.
+   The leading `html` wins the tie against the section's own embed,
+   which renders after this file. `nth-child(N of .home_img_wrap)`
+   counts cells rather than siblings, so a heading in the grid cannot
+   shift the order by one; a browser without it falls back to the
+   embed's own delays.
    ============================================================ */
 
 .home_wrap {
@@ -1271,38 +1096,30 @@ html .home_wrap .home_img_wrap:nth-child(5 of .home_img_wrap) img {
   animation-delay: calc(var(--hero-in-lead) + 1 * var(--hero-in-step));
 }
 
-/* The video's cell. Nothing animates here — the component is lifted
-   out of it and GSAP owns the fade — but a seventh cell, or a sixth
-   that is not the video, still wants a place in the sequence. */
+/* The video's cell: nothing animates here, but a seventh cell — or a
+   sixth that is not the video — still wants a place in the sequence. */
 html .home_wrap .home_img_wrap:nth-child(6 of .home_img_wrap) img,
 html .home_wrap .home_img_wrap:nth-child(n+7 of .home_img_wrap) img {
   animation-delay: calc(var(--hero-in-lead) + var(--hero-in-video-slot) * var(--hero-in-step));
 }
 
 /* ============================================================
-   CTA — see the ctaReveal module
-
-   The section's own embed sets height: 200vh !important on .cta_wrap.
-   The pin length belongs with the motion it paces, so it is written
-   here from --cta-scroll, which the module sets. !important to answer
-   the embed's, and the leading html to win the tie that leaves —
-   an embed inside the section renders after this file.
+   CTA  (docs: README ### ctaReveal)
+   The section's embed sets height: 200vh !important; the pin length
+   belongs with the motion it paces, so it comes from --cta-scroll.
+   !important answers the embed's, and the leading html wins the tie.
    ============================================================ */
 
 html .cta_wrap {
   height: var(--cta-scroll, 200vh) !important;
-  /* The tint is absolute against this, so the whole section has to be
-     the containing block — not the sticky screen inside it. */
+  /* The tint is absolute against this, so the section is the containing
+     block rather than the sticky screen inside it. */
   position: relative;
 }
 
-/* The neon, arriving. A layer rather than the section's background:
-   one element cannot cross-fade one background into another. The
-   section keeps bg-primary in the Designer and this comes over it, so
-   both colours stay named there and neither is written here.
-
-   Retarget with --cta-tint on the section if the neon is not the one
-   this section should land on. */
+/* A layer rather than the section's background: one element cannot
+   cross-fade between two backgrounds, so both colours stay named in the
+   Designer. --cta-tint retargets it. */
 .cta_bg_tint {
   position: absolute;
   inset: 0;
@@ -1312,8 +1129,8 @@ html .cta_wrap {
   pointer-events: none;
 }
 
-/* Positioned elements paint over unpositioned ones, so without this
-   the wash covers the content it is supposed to sit behind. */
+/* Positioned paints over unpositioned, so without this the wash covers
+   the content it belongs behind. */
 .cta_contain > .cta_content_wrap {
   position: relative;
   z-index: 1;
@@ -1329,37 +1146,29 @@ html .cta_wrap {
   pointer-events: none;
 }
 
-/* How long each card holds before the next reaches it. The embed's
-   10vh is a card covered as soon as you scroll; the gap sits behind
-   the stuck card, so it never shows.
+/* How long each card holds before the next reaches it — the gap sits
+   behind the stuck card, so it never shows.
 
-   Space ABOVE the next element, never below the sticky one. A sticky
-   box is constrained by its containing block inset by its own margins,
-   so a margin-bottom shortens the range it can stay stuck for — card 2
-   released a few pixels before the work section had covered it, which
-   is the band across the top. */
+   ABOVE the next element, never below the sticky one: a sticky box is
+   constrained by its containing block inset by its own margins, so a
+   margin-bottom shortens the range it can stay stuck for. */
 @media (min-width: 992px) {
   html .design_sticky_track > .design_sticky_item + * {
     margin-top: var(--sticky-hold, 55vh);
   }
 
-  /* position:sticky always makes a stacking context, so the cards paint
-     in the positioned layer and a static section below them in the DOM
-     still renders underneath. This is what puts the work section over
-     the card it climbs. */
+  /* Sticky makes a stacking context, so the cards paint in the
+     positioned layer and a static section below them stays underneath.
+     This is what puts the work section over the card it climbs. */
   html .design_sticky_track > .work_wrap {
     position: relative;
     z-index: 1;
   }
 }
 
-/* No hover icon on a tablet or a phone. A tap fires :hover on a touch
-   screen and leaves it stuck there, so the icon slides in and stays —
-   and where the effect is a Webflow interaction rather than CSS there
-   is nothing to override, since IX2 writes inline styles. Removing the
-   element is the one answer that covers both.
-
-   The icon carries no meaning of its own; it exists for the hover. */
+/* No hover icon on touch: a tap fires :hover and leaves it stuck, and
+   where the effect is an IX2 interaction there is nothing to override —
+   it writes inline. The icon carries no meaning of its own. */
 @media (hover: none), (max-width: 991px) {
   .meganav_root .footer_link_hover_icon,
   .meganav_root .button_link_icon {
@@ -1367,13 +1176,10 @@ html .cta_wrap {
   }
 }
 
-/* The page you are on keeps the sheet's colour; every other link steps
-   back. Webflow marks the current page's anchor with w--current, but
-   that anchor is the invisible overlay covering the row — the text is
-   its sibling — so the row is matched on containing it.
-
-   Scoped a class deeper than the open-state colour rules above, which
-   is what lets it win without !important. */
+/* The current page keeps the sheet's colour, the rest step back.
+   w--current lands on the invisible overlay anchor, whose sibling is the
+   text, so the row is matched on containing it. A class deeper than the
+   open-state rules above, which is how it wins without !important. */
 .meganav_root .meganav.is-open .meganav_links_wrap .footer_link_text {
   color: var(--_theme---navlinks--text-inactive);
 }
@@ -1385,9 +1191,7 @@ html .cta_wrap {
   color: var(--meganav-panel-text);
 }
 
-/* Same in the footer: the page you are on stays lit, the rest step
-   back. The current row also keeps its hover icon showing, since that
-   is the mark of where you are rather than an invitation. */
+/* Same in the footer: the current page stays lit, the rest step back. */
 .footer_wrap .footer_link_text {
   color: var(--_theme---navlinks--text-inactive);
 }
@@ -1397,10 +1201,8 @@ html .cta_wrap {
   color: inherit;
 }
 
-/* The current page wears its icon permanently — the same end state the
-   hover animates to, so it reads as the mark of where you are rather
-   than a second effect. Values mirrored from the component's own rule;
-   change them there and change them here. */
+/* The current page wears its icon permanently, at the same end state the
+   hover animates to. Values mirrored from the component's own rule. */
 .footer_wrap .footer_link_wrap:has(a.is-current) .footer_link_hover_icon,
 .footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon {
   width: var(--icon-size);
@@ -1413,9 +1215,9 @@ html .cta_wrap {
   opacity: 1;
 }
 
-/* Corporate hero, mobile images — the home hero's entrance, borrowed.
-   Fade and scale from the same 0.6, staggered down the block; the
-   drift against the scroll is the corporateHero module. */
+/* Corporate hero, mobile images: the home hero's entrance borrowed —
+   same 0.6 scale, staggered down the block. The scroll drift is the
+   corporateHero module. */
 @keyframes corp-hero-in {
   from { opacity: 0; transform: scale(0.6); }
   to   { opacity: 1; transform: scale(1); }
@@ -1445,9 +1247,8 @@ html .cta_wrap {
   }
 }
 
-/* Eyebrow icon — the square is sized from the text beside it by the
-   eyebrowIcon module, which writes --icon-size and --icon-gap. The
-   fallbacks keep it sane if the script never runs. */
+/* Eyebrow icon: eyebrowIcon sizes the square from the text beside it
+   through --icon-size / --icon-gap. The fallbacks cover a dead script. */
 .icon_eyebrow_wrap,
 .design_sticky_eyebrow {
   display: flex;
@@ -1462,10 +1263,9 @@ html .cta_wrap {
   height: var(--icon-size, 0.72em);
 }
 
-/* The square with no variant on it takes the text's colour, the way the
-   footer link's does. Scoped away from the variants so their own
-   colours are left alone — they set background-color directly, and this
-   file loads after theirs. */
+/* An unvariant square takes the text's colour. Scoped away from the
+   variants, which set background-color directly and lose to this file's
+   position in the cascade. */
 .icon_eyebrow_item:not([class*="w-variant"]),
 .design_sticky_blcvk:not([class*="w-variant"]) {
   background-color: var(--icon-color, currentColor);
