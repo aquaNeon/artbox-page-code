@@ -1,35 +1,18 @@
 /* ============================================================
    Artbox — Barba page transitions
 
-   Load AFTER gsap, CustomEase, @barba/core, lenis and swiper,
-   and place it before </body>. This file runs immediately: it
-   queries .footer_wrap / .page_wrap and calls barba.init(), so
-   the DOM has to exist by the time it parses.
+   Load after gsap, CustomEase, @barba/core, lenis and swiper, before
+   </body>: it queries the DOM and calls barba.init() as it parses.
 
-   Required structure:
-
-   body                     data-barba="wrapper"
-     .global_embeds         CSS embeds, u-hide class dump
-     .meganav_root          persists, never swapped
-     .page_wrap             gets perspective during transition
-       main.page_main       data-barba="container"
-                            data-barba-namespace="home"
-                            data-nav-transparent="true"   (per template)
-     .footer_wrap           MUST be a sibling of .page_wrap, not inside it
-
-   The footer placement is not cosmetic. prepareForTransition puts
-   perspective on .page_wrap, and perspective creates a containing
-   block for fixed-position descendants. A footer inside .page_wrap
-   would stop resolving against the viewport.
+   Docs: README — required DOM structure, per-template attributes,
+   and a section per module.
    ============================================================ */
 
 (function () {
   'use strict';
 
-  /* Bump on every push. jsDelivr sends max-age=604800, so a plain reload
-     serves the browser's week-old copy without revalidating and it is
-     otherwise impossible to tell which build is running. Check the
-     console line against the repo before debugging anything else. */
+  /* Bump on every push: jsDelivr serves a week-old copy on a plain
+     reload, and this line is the only way to tell which build is live. */
   const BUILD = '2026-09-04-bw';
   console.info(`[page-transition] build ${BUILD}`);
 
@@ -57,18 +40,11 @@
   const has = (s) => !!nextPage.querySelector(s);
 
   /* ============================================================
-     EASING
+     EASING — EASE holds the curves, E maps a kind of motion to one.
+     Modules name a role only.  (docs: README ## Easing)
 
-     Two layers. EASE is the curves themselves; E is what each kind
-     of motion uses. Modules only ever name a role, so a curve change
-     is one line here rather than a hunt through every config below.
-
-     CustomEase takes the four numbers of a CSS cubic-bezier as-is.
-
-     Scrubbed motion — parallax, the CTA images, the sticky stacks —
-     stays on ease:'none' at the call site and is deliberately not a
-     role: scroll position is the timing there, and easing it twice
-     reads as lag.
+     Scrubbed tweens keep ease:'none' at the call site: scroll
+     position is their timing, and easing it twice reads as lag.
      ============================================================ */
 
   const durationDefault = 0.6;
@@ -107,11 +83,9 @@
 
 
   /* ============================================================
-     MODULE REGISTRY
-
-     Keyed by container, because sync:true means the incoming page
-     mounts while the outgoing one is still on screen animating.
-     A single shared cleanup list would tear down the wrong page.
+     MODULE REGISTRY — keyed by container: sync:true means both pages
+     are mounted at once, so one shared cleanup list tears down the
+     wrong page.  (docs: README ## Modules)
      ============================================================ */
 
   const Modules = (function () {
@@ -124,11 +98,8 @@
       },
       mount(container) {
         const root = container || document;
-        /* barba fires beforeEnter on the initial load as well as on
-           navigations, so this used to run twice for the first page: once
-           from the hook and once from the transition's own once(). Two
-           mounts meant two Swiper instances on one element, two marquee
-           rAF loops, and only the second set of teardowns being kept. */
+        // beforeEnter also fires on the initial load, alongside once():
+        // without this the first page mounts every module twice.
         if (mounted.has(root)) return;
         const cleanups = [];
         registry.forEach(({ name, init }) => {
@@ -156,15 +127,10 @@
 
 
   /* ============================================================
-     INTRO QUEUE
-
-     Modules mount at beforeEnter, while the incoming page is still a
-     fixed 100vh rectangle sliding in from the right. An intro timeline
-     started there plays behind the transition and is half over by the
-     time the page lands. Modules queue theirs here instead and it runs
-     once the container is laid out for real: afterEnter on a navigation,
-     and explicitly in once() for the first load, which afterEnter does
-     not fire for.
+     INTRO QUEUE — mount happens at beforeEnter, where the container is
+     still a fixed 100vh rectangle sliding in: an intro started there
+     plays behind the transition. Queued timelines run once the page is
+     laid out for real (afterEnter, and once() on first load).
      ============================================================ */
 
   const Intro = (function () {
@@ -243,14 +209,10 @@
       if (bg) card.style.setProperty('--card-bg', bg);
       if (text) card.style.setProperty('--card-text', text);
 
-      /* The colour panel covers the card, but only to the pixel. Wherever
-         its edge antialiases — which is most of the time, since card
-         heights land on fractions — the card's own background shows as a
-         hairline, and that background is near-black behind a light panel.
-         Paint the card in the panel's colour so there is nothing
-         contrasting left to expose. Read rather than configured, because
-         the colour comes from a Webflow variant class that only exists at
-         runtime. */
+      /* Card painted in the hover panel's own colour: the panel covers it
+         only to the pixel, and the antialiased edge otherwise exposes a
+         hairline of near-black. Read at runtime — the colour comes from a
+         Webflow variant class. */
       const panel = card.querySelector('.card_hover_bg_hover');
       if (!panel) return;
       const panelBg = getComputedStyle(panel).backgroundColor;
@@ -258,16 +220,10 @@
         card.style.backgroundColor = panelBg;
       }
 
-      /* The secondary lines derive their colour from currentColor, and the
-         parent already animates colour on hover — so a transition here
-         animates an already-animating value and the line lags behind the
-         rest of the card. Most visible on the light variants, where the
-         text swings the full distance to black.
-
-         Set inline rather than in a stylesheet: the competing rule lives in
-         another embed, three levels deep and later in the document, so any
-         rule we add ties on specificity and loses on order. An inline style
-         outranks every non-important rule regardless of where it sits. */
+      /* These inherit currentColor from a parent that is already animating
+         it, so their own transition makes them lag the rest of the card.
+         Inline, because the competing rule is in a later embed and any
+         stylesheet rule of ours ties on specificity and loses on order. */
       card.querySelectorAll(
         '.card_hover_details_name, .card_hover_details_position, .u-color-secondary'
       ).forEach((el) => { el.style.transition = 'none'; });
@@ -276,27 +232,8 @@
 
   /* ============================================================
      SMOOTHLY — .work_smoothly_wrap
-
-       data-autoplay              step a slide every 4000ms
-       data-autoplay="6000"       ms between steps
-       data-autoplay="drift"      continuous marquee-style motion
-       data-autoplay-speed="0.2"  drift only, slides per second
-       data-autoplay="false"      off, same as leaving the attribute out
-
-     Two modes because they read differently: stepping lands on a slide
-     and holds, which suits a slider somebody is meant to look through;
-     drift never settles, which suits a band of logos or images that is
-     really just texture.
-
-     Opt-in per slider, because most of them are things you read
-     rather than watch. Paused while the pointer is over it, while it
-     is being dragged, while it is off screen, while the tab is in the
-     background and through a page transition — anything that would
-     otherwise advance past a reader or animate where nobody is.
-
-     Driven off the module's own rAF rather than a timer: a setInterval
-     keeps firing in a background tab and would queue up a fistful of
-     steps to play out the moment somebody came back.
+     Opt-in autoplay: stepping or drift, paused whenever nobody is
+     watching.  (docs: README ### smooothy)
      ============================================================ */
 
  Modules.add('smooothy', function (root) {
@@ -308,11 +245,9 @@
   let rafId = null;
   let killed = false;
 
-  /* smooothy stores position as a NEGATIVE slide count: goToIndex(i)
-     assigns target = -i, and forward travel means target decreasing.
-     Reading the index back therefore needs -target, and stepping with
-     goToIndex(round(target) + 1) flips the sign on every call — which
-     lands on 0, -1, 0, -1, a slide forward and a slide back forever. */
+  /* smooothy stores position as a NEGATIVE slide count, so reading the
+     index back needs -target. Stepping without the sign flip lands on
+     0, -1, 0, -1 — forward and back forever. */
   const AUTOPLAY_DEFAULT = 4000;   // ms between steps
   const DRIFT_DEFAULT = 0.15;      // slides per second
   const FRAME_CAP = 100;           // ms of drift credited to one frame
@@ -333,9 +268,8 @@
     return { drift: false, delay: Number.isFinite(ms) && ms > 0 ? ms : AUTOPLAY_DEFAULT };
   };
 
-  /* Ours rather than the library's isVisible: that flag is internal and
-     only set when its own observer is running, and a slider quietly
-     advancing off screen is the failure this is meant to prevent. */
+  // Ours rather than the library's isVisible: that flag is internal and
+  // only set while its own observer runs.
   const seen = new WeakMap();
   const visibility = new IntersectionObserver((entries) => {
     entries.forEach((entry) => seen.set(entry.target, entry.isIntersecting));
@@ -346,9 +280,7 @@
   const advance = (inst, now) => {
     if (!inst.auto) return;
 
-    /* The clock is reset rather than paused, so coming back from a
-       background tab or a hover neither jumps a slide nor lurches
-       through however much drift the pause was worth. */
+    // Clock reset, not paused: no jump when the pause ends.
     if (inst.hover || inst.slider.isDragging || document.hidden
       || seen.get(inst.el) === false) {
       inst.last = now;
@@ -356,11 +288,8 @@
     }
 
     if (inst.auto.drift) {
-      /* Target is in slides, and current lerps toward it — so nudging
-         the target every frame reads as continuous motion rather than
-         as very small steps. Capped, because a dropped frame or a tab
-         that was hidden a moment ago would otherwise be paid out in
-         one jump. */
+      // Nudged every frame; current lerps toward it, so this reads as
+      // motion rather than steps. Capped against dropped frames.
       const dt = Math.min(now - inst.last, FRAME_CAP);
       inst.last = now;
       inst.slider.target -= inst.auto.speed * (dt / 1000);
@@ -396,8 +325,7 @@
           scrollInput: false
         });
 
-        /* Reduced motion takes the autoplay and leaves the slider: it can
-           still be dragged, it just will not move on its own. */
+        // Reduced motion drops the autoplay, not the slider.
         const auto = reducedMotion ? null : autoplayMode(el);
         const inst = { slider, el, auto, hover: false, last: performance.now() };
 
@@ -420,8 +348,8 @@
       });
 
       const tick = (now) => {
-        /* Mid-transition every layer is position:fixed, so a slider
-           measured or advanced here lands against the wrong box. */
+        // Mid-transition every layer is fixed, so measuring here reads
+        // the wrong box.
         if (!html.classList.contains('is-transitioning')) {
           const at = now || performance.now();
           instances.forEach((inst) => {
@@ -429,8 +357,7 @@
             advance(inst, at);
           });
         } else {
-          /* Held, not accumulating — otherwise the slider jumps as many
-             steps as the transition was long the moment it ends. */
+          // Held, not accumulating: no catch-up jump when it ends.
           const at = now || performance.now();
           instances.forEach((inst) => { inst.last = at; });
         }
@@ -462,67 +389,13 @@
 });
 
   /* ============================================================
-     SWIPER
-     ============================================================ */
-  /* ============================================================
-     SWIPER
-     ============================================================ */
-
-  /* ============================================================
      TEXT REVEAL — [data-text-anim]
 
-     Ported from the ManyChat creators-for-creators build with the
-     attribute contract unchanged, so markup moves between the two
-     sites as-is. Two things differ, both forced by this repo:
+     Every attribute, knob and quirk: README ### textAnim.
 
-       - it mounts per Barba container instead of a global registry,
-         so everything is torn down and the SplitText reverted when
-         the page leaves;
-       - the ScrollTriggers are created from the Intro queue, not at
-         mount. Mount happens at beforeEnter while the container is a
-         fixed 100vh rectangle sliding in, and a trigger measured
-         against that fires at the wrong scroll position — or fires
-         immediately and plays the reveal behind the transition. The
-         split and the hidden start state still happen at mount, so
-         nothing flashes in the meantime.
-
-     Marked explicitly, never guessed from the tag: Webflow text and
-     link components are div-based, so tag detection finds nothing on
-     real markup.
-
-       data-text-anim           group root, one trigger
-       data-text-anim-heading   splits to lines, each rises out of a mask
-       data-text-anim-body      neighbouring body elements rise as one block
-       data-text-anim-solo      breaks an element out into its own step
-       data-text-anim-list      repeated list, items wave in as one step
-       data-text-anim-stagger   on a shared ancestor: ONE trigger for all the
-                                [data-text-anim] cards under it, plus a
-                                per-card delay (default 0.15)
-
-       data-text-anim-delay     on the group root: seconds to wait after the
-                                trigger fires before the group starts.
-                                On a step: extra gap before that one step,
-                                on top of its overlap. Ignored on an element
-                                that is both root and step — there it is the
-                                group delay and nothing else.
-       data-text-anim-speed     on a step: that step alone runs at this
-                                rate. 0.6 slower, 1.5 quicker. The group
-                                root's own number still scales everything.
-
-     The group root takes a number too, and it is a speed, not a time:
-     data-text-anim="0.6" runs that whole group at 0.6x — slower and
-     more deliberate — while 1.5 runs it faster. It scales the tweens
-     and the gaps between them together, which is what you want when
-     the sequence reads too quick; the per-step value only moves the
-     steps closer or further apart and cannot slow anything down.
-
-     Steps run in DOM order, each overlapping the previous step's END
-     by the attribute's own value in seconds — data-text-anim-solo="0.7"
-     — default 0.4.
-
-     The scramble variant is deliberately not ported: it needs a
-     [data-text-anim-scramble]{opacity:0!important} rule in the site
-     head and the scramble util, and neither exists here yet.
+     Split and hidden start state at mount; the ScrollTriggers come from
+     the Intro queue, since a trigger measured against the transition's
+     100vh rectangle fires at the wrong scroll position.
      ============================================================ */
 
   const TEXT = {
@@ -530,26 +403,18 @@
     overlap: 0.4,           // step overlap when the attribute carries no value
     start: 'top 80%',
 
-    /* The mask is overflow:hidden, so it clips whatever sits below the
-       line box — the descenders of g, j, p, q, y, and accents on some
-       faces. Pad the mask and cancel the pad with an equal negative
-       margin: the clip moves down, the layout does not move at all.
-       In em, so it scales with the type rather than with a px guess. */
+    // em of descender room below the line box, cancelled by an equal
+    // negative margin so the clip moves and the layout does not.
     maskPad: 0.34,
 
-    /* And the same allowance upward. The mask clips whatever rises above
-       the line box — the ring on an Å, an accent, a tall ascender in a
-       face with a generous cap height — which is not something a line
-       box promises to contain. */
-    maskPadTop: 0.16,
+    maskPadTop: 0.16,       // em, the same allowance for accents and Å
 
     headingDuration: 0.75,
     headingStagger: 0.16,
     headingEase: E.heading,
 
-    /* Inline images inside a heading — the hero puts square photos
-       between the words. They scale rather than travel: the line mask
-       already carries them up with the type. */
+    // Inline heading images scale rather than travel — the line mask
+    // already carries them up with the type.
     imgFrom: 0.6,           // 0 turns the image scaling off
     imgDuration: 0.9,
     imgEase: E.small,
@@ -561,10 +426,7 @@
     bodyEase: E.body,
     bodyFromY: 30,          // yPercent
 
-    /* -solo is usually one line — an eyebrow, a button, a short
-       statement — where 30% of its own height is a bigger move than the
-       same number on a paragraph. Its own number. */
-    soloFromY: 14,
+    soloFromY: 14,          // -solo is one line, where 30% is a big move
 
     listDuration: 0.5,
     listStagger: 0.06,
@@ -575,7 +437,7 @@
     bodyBlur: 8             // px
   };
 
-  /* Dev override, no rebuild: ?blur=1 / ?blur=0 in the URL. */
+  // ?blur=1 / ?blur=0 overrides on a live URL.
   const blurParam = new URLSearchParams(location.search).get('blur');
   const BLUR = blurParam === '1' ? true : blurParam === '0' ? false : TEXT.blur;
 
@@ -593,12 +455,9 @@
     );
   }
 
-  /* How far the tallest thing on a line pokes out of the line box.
-     An inline image sized in em — the hero headings set one between
-     the words at 2em, pulled up with a negative margin — stands well
-     above the type, and the mask that saves the descenders would
-     otherwise slice its top clean off. Measured before the padding
-     goes on, so the line box is still the bare one. */
+  /* How far the tallest child pokes out of the line box — an inline
+     image at 2em stands well above the type, and the descender mask
+     would slice its top off. Measured before any padding goes on. */
   function maskBleed(line) {
     const box = line.getBoundingClientRect();
     let top = 0;
@@ -612,14 +471,10 @@
     return { top: Math.max(0, Math.ceil(top)), bottom: Math.max(0, Math.ceil(bottom)) };
   }
 
-  /* Webflow routinely marks the wrapper rather than the heading: a div
-     carrying the style class with an embedded <h1> inside it. SplitText
-     hoists the lines out of that inner block, and its revert puts them
-     back on the wrapper, not into the <h1> — so the first mount empties
-     the heading element permanently and the page is left with a hero
-     whose <h1> holds nothing. Descend to the element that actually holds
-     the text and split that: the lines stay inside it and revert is
-     lossless. Stops at anything inline, which cannot be a line box. */
+  /* Webflow marks the wrapper, not the heading. Splitting the wrapper
+     hoists the lines out of the inner <h1> and revert never puts them
+     back, emptying the heading for good — so descend to the element
+     that holds the text. Stops at inline, which is not a line box. */
   function splitTarget(el) {
     let node = el;
     for (let depth = 0; depth < 4; depth++) {
@@ -646,9 +501,8 @@
         line.style.paddingBottom = `${pad}px`;
         line.style.marginBottom = `${-pad}px`;
       }
-      /* Same trick upward, and the same two sources: whatever a child
-         element overhangs by, or the type's own allowance — whichever
-         is larger. */
+      // Same upward: child overhang or the type's allowance, whichever
+      // is larger.
       let padTop = TEXT.maskPadTop ? glyphPad(line, TEXT.maskPadTop) : 0;
       if (bleed.top > padTop) padTop = bleed.top;
       if (padTop) {
@@ -662,13 +516,9 @@
       line.appendChild(inner);
       return inner;
     });
-    /* overflow clips to the PADDING box, so every pad added above is a
-       strip the waiting line can show through — including the one that
-       clears an inline image's head. Derive the start from each line's
-       own pads rather than guessing a flat number: 100% clears the line
-       box, the ratio clears the pads, and 5% covers sub-pixel rounding.
-       A flat value is either short on a big pad or wastefully far on a
-       small one. */
+    /* overflow clips to the PADDING box, so a waiting line shows through
+       every pad added above. Start derived per line: 100% clears the line
+       box, the ratio clears its own pads, 5% covers rounding. */
     const from = {
       yPercent: (i, target) => {
         const h = target.offsetHeight || 1;
@@ -680,12 +530,9 @@
     return { split, inners };
   }
 
-  /* The pad has to be measured against the type that is actually being
-     clipped, not against the element doing the clipping. Webflow markup
-     routinely nests an h2 inside a plain wrapper, so the wrapper sits at
-     16px while the glyphs are 60 — an em on the wrapper resolves to about
-     3px and clips exactly as before. Take the largest font-size in the
-     subtree and return px. */
+  /* Measured against the type being clipped, not the element doing the
+     clipping: a wrapper around an h2 sits at 16px while the glyphs are
+     60, so an em on the wrapper clips exactly as before. */
   function glyphPad(el, ratio) {
     let size = parseFloat(getComputedStyle(el).fontSize) || 16;
     el.querySelectorAll('*').forEach((child) => {
@@ -699,20 +546,16 @@
     return glyphPad(el, TEXT.maskPad);
   }
 
-  /* Masks are ours to pad, but a -solo or -body element can be clipped by
-     a Webflow class of its own — a clamp, a fixed height, an overflow on
-     the wrapper. Same trick, applied to whatever actually clips: grow the
-     clip box downward, cancel the growth with an equal negative margin, so
-     nothing in the layout moves. Walks up to the group root, since the
-     clipper is as often the wrapper as the text element itself. */
+  /* -solo and -body can be clipped by a Webflow class of their own — a
+     clamp, a fixed height, an overflow on the wrapper. Same pad-and-
+     cancel trick, applied to whatever actually clips, up to the root. */
   function unclipDescenders(el, stop) {
     for (let node = el; node && node !== stop && node !== document.body; node = node.parentElement) {
       if (node.dataset.textAnimUnclipped) continue;
       const cs = getComputedStyle(node);
       if (cs.overflow === 'visible' && cs.overflowY === 'visible') continue;
       node.dataset.textAnimUnclipped = 'true';
-      /* Additive: these elements usually already carry padding from a
-         Webflow class, and replacing it would move the text. */
+      // Additive: they usually carry Webflow padding already.
       const pad = parseFloat(cs.paddingBottom) || 0;
       const margin = parseFloat(cs.marginBottom) || 0;
       const extra = descenderPad(node);
@@ -728,16 +571,15 @@
     return Number.isFinite(val) && val >= 0 ? val : TEXT.overlap;
   }
 
-  /* role="listitem" is what the CMS emits; data-text-anim-list-item covers
-     hand-added extras. Direct children are the last resort for a list built
-     by hand in the Designer. */
+  // role="listitem" is the CMS output; the attribute covers hand-added
+  // extras; children are the last resort for a Designer-built list.
   function listItems(el) {
     const items = el.querySelectorAll('[role="listitem"], [data-text-anim-list-item]');
     return items.length ? Array.from(items) : Array.from(el.children);
   }
 
-  /* A double <br><br> in a rich text block reads as a paragraph break, so
-     split there and let the halves stagger instead of rising fused. */
+  // A <br><br> reads as a paragraph break: split there so the halves
+  // stagger instead of rising fused.
   function splitDoubleBreaks(el) {
     const nodes = Array.from(el.childNodes);
     const groups = [[]];
@@ -768,12 +610,9 @@
     });
   }
 
-  /* An image inside a heading scales up as its line arrives. The
-     wrapper is what scales, not the img: the hero frames are
-     aspect-ratio boxes with object-fit:cover inside, so scaling the
-     picture alone would just show the frame's own background around a
-     shrunken photo. Scale never reflows, so the words on either side
-     hold their positions while it grows. */
+  /* The wrapper scales, not the img: the frames are aspect-ratio boxes
+     with object-fit:cover, so scaling the picture alone shows the
+     frame's background around a shrunken photo. */
   function addHeadingImages(tl, inners, start, speed) {
     if (!TEXT.imgFrom) return;
     const lineStagger = TEXT.headingStagger / speed;
@@ -794,8 +633,7 @@
   }
 
   function buildTextTimeline(wrap) {
-    /* Nested [data-text-anim]: a marked element belongs to its nearest
-       group root only, never to both. */
+    // Nested groups: a marked element belongs to its nearest root only.
     const own = ['data-text-anim-heading', 'data-text-anim-body',
                  'data-text-anim-solo', 'data-text-anim-list'];
     const selfMarked = own.some((attr) => wrap.hasAttribute(attr)) ? [wrap] : [];
@@ -804,13 +642,8 @@
       ...Array.from(wrap.querySelectorAll(
         '[data-text-anim-heading], [data-text-anim-body], [data-text-anim-solo], [data-text-anim-list]'
       )).filter((el) => el.closest('[data-text-anim]') === wrap)
-        /* Anything inside a [data-swap] belongs to that module. Marked
-           for both, an element is animated by both: this one parks it
-           at translate(0, 30%) and waits for its own trigger while the
-           swap animates the same transform, and whichever writes last
-           wins — a statement sitting a third of its height out of
-           place, and only the one carrying the attribute. Two
-           entrances for one element was never the intent. */
+        // [data-swap] elements belong to that module: both animate the
+        // same transform, and the loser is left parked out of place.
         .filter((el) => !el.closest('[data-swap]'))
     ];
     if (!marked.length) return null;
@@ -818,25 +651,23 @@
     const tl = gsap.timeline({ paused: true });
     const speed = parseFloat(wrap.dataset.textAnim);
     if (Number.isFinite(speed) && speed > 0) tl.timeScale(speed);
-    /* Held outside the timeline and applied as a delayedCall on play.
-       A paused timeline swallows its own delay when something calls
-       play() on it, so putting it here would silently do nothing. */
+    // Applied as a delayedCall on play: a paused timeline swallows its
+    // own delay when play() is called on it.
     const rawDelay = parseFloat(wrap.dataset.textAnimDelay);
     const delay = Number.isFinite(rawDelay) && rawDelay > 0 ? rawDelay : 0;
     const splits = [];
     let bodyBuffer = [];
     let isFirst = true;
-    /* Where the step that was added last begins, for [data-text-anim-with]
-       to line up against. Read off the timeline rather than accumulated by
-       hand, so overlaps and delays are already accounted for. */
+    // Where the last-added step begins, for -with to line up against.
+    // Read off the timeline, so overlaps and delays are accounted for.
     let lastStart = 0;
     const remember = () => {
       const step = tl.recent();
       if (step) lastStart = step.startTime();
     };
 
-    /* A step's own rate. Applied as duration / speed rather than a nested
-       timeScale, so the value reads the same way as the group root's. */
+    // Applied as duration / speed rather than a nested timeScale, so it
+    // reads the same way as the group root's number.
     const stepSpeed = (el) => {
       const v = parseFloat(el.dataset.textAnimSpeed);
       return Number.isFinite(v) && v > 0 ? v : 1;
@@ -848,28 +679,22 @@
       return Number.isFinite(v) && v > 0 ? v : 0;
     };
 
-    /* Overlap pulls a step earlier, delay pushes it later, and one step can
-       carry both — resolve them into a single signed offset rather than
-       stacking two position strings, which gsap applies in sequence and
-       would leave the timeline dependent on which one was written first. */
+    /* Overlap pulls earlier, delay pushes later, and a step can carry
+       both: resolved to one signed offset, since two stacked position
+       strings would depend on which was written first. */
     const position = (el) => {
       const delay = stepDelay(el);
       if (isFirst) { isFirst = false; return delay; }
-      /* data-text-anim-with: run alongside the previous step instead of
-         after it. Two cells sharing a row read as one move that way,
-         while staying separate elements — which they have to be when
-         each carries its own border. An absolute time, because a
-         relative one is measured from the timeline's end and the
-         previous step is still running. */
+      /* -with runs alongside the previous step. An absolute time: a
+         relative one measures from the timeline's end, and the previous
+         step is still running. */
       if (el.hasAttribute('data-text-anim-with')) return lastStart + delay;
       const offset = delay - stepOverlap(el);
       return offset >= 0 ? `+=${offset}` : `-=${-offset}`;
     };
 
-    /* Transforms do not apply to display:inline, and a Webflow Link (as
-       opposed to a Link Block) is inline — the element would fade but never
-       move, or with opacity already at 1 from a class, do nothing visible at
-       all. Promote it rather than fail quietly. */
+    // Transforms do not apply to display:inline, and a Webflow Link is
+    // inline — it would fade but never move.
     const ensureTransformable = (el) => {
       if (getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
     };
@@ -921,10 +746,8 @@
       flushBody();
 
       if (el.hasAttribute('data-text-anim-heading') && hasSplitText) {
-        /* From the heading itself, not its parent. A one-line heading is
-           exactly as tall as its single line box, so its own overflow —
-           or a Webflow class setting a height in line-height units —
-           crops the descenders before the parent ever gets a say. */
+        // From the heading itself: a one-line heading is exactly as tall
+        // as its line box and crops before the parent gets a say.
         const target = splitTarget(el);
         unclipDescenders(target, wrap);
         const { split, inners } = buildLineRise(target);
@@ -937,8 +760,8 @@
         if (BLUR) to.filter = 'blur(0px)';
         tl.to(inners, to, position(el));
         remember();
-        /* recent(), because timeline.to() returns the timeline — the
-           images need the line tween's own start time to sit on. */
+        // lastStart, not tl.to()'s return: that is the timeline, and the
+        // images need the line tween's own start.
         addHeadingImages(tl, inners, lastStart, speed);
       } else if (el.hasAttribute('data-text-anim-list')) {
         const items = listItems(el);
@@ -953,10 +776,8 @@
           remember();
         }
       } else {
-        /* -solo, and -heading when SplitText did not load. The fallback is
-           deliberate — a heading that never appears is worse than one that
-           rises as a block — but it is indistinguishable from a working
-           line rise unless it says so. */
+        // -solo, and -heading without SplitText: a block rise beats a
+        // heading that never appears, but it should say so.
         if (el.hasAttribute('data-text-anim-heading')) warnNoSplitText();
         addSolo(el);
       }
@@ -991,8 +812,8 @@
 
       const delay = parseFloat(repeater.dataset.textAnimStagger) || TEXT.stagger;
       const splits = [];
-      /* Staggered delayedCalls rather than nested paused timelines, which
-         do not reliably play when added to a parent with .add(). */
+      // delayedCalls rather than nested paused timelines, which do not
+      // reliably play once added to a parent.
       const kills = [];
       const calls = [];
 
@@ -1035,9 +856,8 @@
 
     if (!instances.length) return;
 
-    /* Triggers wait for the container to be laid out for real. Reduced
-       motion has already jumped every timeline to its end state, so it
-       needs no trigger at all. */
+    // Triggers wait for a real layout. Reduced motion has already
+    // jumped to the end state and needs none.
     if (!reducedMotion && hasScrollTrigger) {
       Intro.add(root, () => {
         instances.forEach((inst) => {
@@ -1046,9 +866,8 @@
             start: TEXT.start,
             once: true,
             onEnter: () => {
-              /* A group taller than the viewport fires on its own top edge,
-                 so its lower steps can finish while still off-screen and read
-                 as "never animated". This is what that looks like in the log. */
+              // A group taller than the viewport fires on its top edge, so
+              // its lower steps can finish off-screen. Visible in the log.
               if (TEXT_DEBUG) {
                 const r = inst.trigger.getBoundingClientRect();
                 console.info('[text-anim] fired', inst.trigger, {
@@ -1080,110 +899,25 @@
 
   /* ============================================================
      CTA — .cta_wrap
-
-     The section is white on the way in. It sticks, the yellow washes
-     up under it, and the images rise out of the fold, up their own
-     columns at their own rates, past the text and off the top. It is
-     still stuck when the last one leaves; only then does it let go.
-
-     Its own module rather than [data-parallax] because the shape is
-     different. That module is symmetric — displaced one way at the
-     start, the other at the end, at rest exactly at the midpoint —
-     which is a drift, not an arrival. Here every image travels one
-     way, from below the fold to above the frame, and the ones with
-     the higher numbers travel further in the same scroll, which is
-     what reads as speed.
-
-     The strengths already on the markup are reused as those rates, so
-     the Designer stays the place they are tuned. The attributes are
-     taken off their elements while this module owns them: two owners
-     of one transform fight and drift, and the generic module would
-     otherwise animate exactly these five.
-
-     The whole thing is scrubbed against the sticky window — the frame
-     is on screen for precisely start: top top / end: bottom bottom, so
-     nothing happens before it is watchable or after it is gone.
+     Sticks white, the yellow washes up under it, the images rise out
+     of the fold in three speed lanes and leave over the top. It lets
+     go once the last one is gone.  (docs: README ### ctaReveal)
      ============================================================ */
 
   const CTA = {
-    /* Screens of scrolled height for the section, the sticky screen
-       included: the pin lasts this minus one. Written to the section
-       from here so the number lives with the motion it paces rather
-       than in the embed. */
-    scroll: 4.7,
+    scroll: 4.7,        // screens of section height, sticky screen included
+    tint: 0.22,         // fractions of the pin: the neon wash
+    tintStart: 0.04,    // a beat after the lock, or the scrub starts it early
+    fit: 0.97,          // where the last image is made to finish
+    travel: 0.92,       // everything has cleared the screen by here
+    lead: 1.1,          // screens below the fold they all start
+    exit: 0.35,         // screens past the top they all finish
+    lanes: [0.6, 0.47, 0.34],  // slow, middle, fast: pin fractions to cross
+    stagger: 0.16,      // spread by DOM order, unless data-cta-delay says
+    spread: 0.62,       // multiplies every delay. Tune this one first
 
-    /* Fractions of the pin. The neon is done early — it is the ground
-       the images arrive onto, not an event of its own — and the travel
-       finishes before the end so the section is still holding when the
-       last image leaves, which is the beat the release needs. */
-    tint: 0.22,
-
-    /* The fade starts this far into the pin rather than on its first
-       pixel. start: 'top top' is the lock by definition, but a scrub
-       eases toward its target rather than sitting on it, so the colour
-       was already on its way while the section was still arriving. A
-       beat of nothing puts it unambiguously after the lock. */
-    tintStart: 0.04,
-
-    /* Where the last image is made to finish, as a fraction of the
-       pin. The schedule below is scaled to land on it — so the tail of
-       dead scrolling after everything has gone is whatever is left of
-       the pin past this number, and not an accident of five delays
-       adding up to less than the section is long. */
-    fit: 0.97,
-    travel: 0.92,
-
-    /* Screens below the fold they all start, and past the top where
-       they all finish — the same journey for every image. What
-       differs is how long each one takes over it and when it sets
-       off, which is speed and timing kept apart. Making the fast ones
-       travel further tangled the two: further meant starting lower,
-       so a fast image was also a late one and neither could be tuned
-       without moving the other. */
-    lead: 1.1,
-    exit: 0.35,
-
-    /* Two speeds, not five. A rate per image reads as noise — the eye
-       cannot tell 3 from 3.5 and does not try — while two clearly
-       different ones read as depth. The numbers on the markup pick a
-       side: at or below the middle of them is the slow lane, above it
-       the fast one. Fractions of the pin each lane takes to cross.
-
-       Add a third number here and there are three lanes; the sorting
-       follows the length of this list. */
-    /* Three lanes: slow, middle, fast. The middle one exists because
-       an image can be wrong in both directions — too quick against the
-       slow ones, too slow to sit with the fast ones — and rounding it
-       to one or the other is how a five-image drift turns back into
-       two columns moving in lockstep. */
-    lanes: [0.6, 0.47, 0.34],
-
-    /* Spread through the pin by DOM order when nothing says otherwise,
-       so five images do not set off together. data-cta-delay on any of
-       them overrides its share of this. */
-    stagger: 0.16,
-
-    /* One number for how spread out the whole sequence is. Every delay
-       below is multiplied by it, so the arrangement — which image is
-       early, which is late, and by how much relative to the others —
-       survives tightening or loosening the lot. Tune this before
-       touching individual numbers. */
-    spread: 0.62,
-
-    /* The arrangement, by the combo class each image carries. DOM order
-       is not the order they should rise in — the grid puts them where
-       the layout wants them, which has nothing to do with the sequence
-       — and is-1 to is-5 is how they are already named.
-
-       delay is a fraction of the pin. lane is an index into lanes
-       above: 0 is the slow one, 1 the fast one. Anything with
-       data-cta-delay or data-parallax on the element itself overrides
-       what is written here, so this is the default arrangement rather
-       than the only one.
-
-       A late image cannot also be slow — everything has to clear the
-       screen by travel — so the slow lane belongs to one that sets off
-       early. That is the whole trade: lateness is bought with speed. */
+    // The arrangement, by combo class. delay is a fraction of the pin,
+    // lane an index into lanes. A late image cannot also be slow.
     images: {
       'is-2': { delay: 0,    lane: 1 },
       'is-1': { delay: 0.14, lane: 0 },
@@ -1202,10 +936,9 @@
     const frame = section.querySelector('.cta_contain');
     if (!frame) return;
 
-    /* Taken off before the parallax module mounts — this one is
-       registered above it, so its querySelectorAll finds nothing to
-       take over. Restored on teardown, so the markup leaves exactly as
-       it arrived. */
+    /* Taken off before the parallax module mounts — it is registered
+       after this one, so it finds nothing to take over. Restored on
+       teardown. */
     const owned = Array.from(section.querySelectorAll('[data-parallax]'))
       .map((el) => {
         const raw = el.getAttribute('data-parallax');
@@ -1224,25 +957,16 @@
         };
       });
 
-    /* The neon is a layer, not the section's background. One element
-       cannot cross-fade one background into another, so the section
-       keeps the page's primary in the Designer and the neon arrives
-       over it. Both colours stay named there — this file only fades
-       the layer.
-
-       On the section, not inside the sticky frame. The frame is one
-       screen of a section several screens tall, so a colour laid in it
-       covers the screen while the pin holds and nothing at all once it
-       lets go — the neon would fall off the bottom of its own section.
-       First child, so the frame paints over it in DOM order. */
+    /* A layer, not the section's background: one element cannot
+       cross-fade between two backgrounds. On the section rather than in
+       the sticky frame, which only covers the screen while the pin
+       holds. First child, so the frame paints over it. */
     const tint = document.createElement('div');
     tint.className = 'cta_bg_tint';
     section.insertBefore(tint, section.firstChild);
 
-    /* Named in the Designer, resolved here. A var that does not resolve
-       in this scope is not an error to the browser — the layer is
-       simply transparent, and a fade to nothing is indistinguishable
-       from no fade at all. */
+    /* An unresolved var is not an error to the browser: the layer is
+       transparent, and a fade to nothing looks like no fade at all. */
     if (!getComputedStyle(tint).backgroundColor ||
         getComputedStyle(tint).backgroundColor === 'rgba(0, 0, 0, 0)') {
       console.warn(
@@ -1253,15 +977,13 @@
       );
     }
 
-    /* The clip is normally the parallax module's, applied to whatever
-       carries data-parallax-clip. It has nothing to apply it to any
-       more — its items are this module's now, so it returns before it
-       gets there — and without it the images are in plain sight below
-       the section long before it sticks.
+    /* Normally the parallax module's clip, but its items are ours now,
+       so it returns before applying one — and unclipped the images are
+       in plain sight long before the section sticks.
 
-       clip-path rather than overflow: an overflow other than visible
-       makes the element the scrollport its sticky descendants resolve
-       against, which is the pin this whole section is built on. */
+       clip-path rather than overflow: any overflow but visible makes
+       the element the scrollport its sticky descendants resolve
+       against, which is the pin all of this is built on. */
     const clipped = [];
     const clipTargets = section.querySelectorAll('[data-parallax-clip]');
     (clipTargets.length ? Array.from(clipTargets) : [frame]).forEach((el) => {
@@ -1280,18 +1002,14 @@
     };
 
     if (!hasScrollTrigger || reducedMotion) {
-      /* No scroll to scrub against, or nobody asking for motion: the
-         section is simply what it ends as. */
+      // No scrub to hang off, or reduced motion: land on the end state.
       tint.style.opacity = '1';
       return restore;
     }
 
-    /* Which lane each image is in. The DISTINCT numbers are what get
-       sorted, not all of them: one slow image among four fast ones is
-       a set where four fifths of the ranks are the same number, and
-       ranking by position in that list put every one of them in the
-       slow lane. What the Designer is choosing between is the values,
-       so those are what divide up the lanes. */
+    /* DISTINCT speeds are what get ranked, not all of them: with four
+       images sharing a number, ranking by position puts all four in the
+       same lane. The Designer is choosing between values. */
     const distinct = [...new Set(owned.map((o) => o.speed))].sort((a, b) => a - b);
     const laneOf = (speed) => {
       const at = distinct.length > 1
@@ -1301,11 +1019,9 @@
       return CTA.lanes[Math.max(0, Math.min(CTA.lanes.length - 1, i))];
     };
 
-    /* Where the image sits inside the frame, transforms excluded.
-       offsetTop is layout, so it is unaffected by the y this module is
-       writing — a rect would be measuring its own tween. The frame is
-       the screen while the pin holds, so this is the distance from the
-       top of the screen. */
+    /* offsetTop is layout, so it excludes the y this module writes — a
+       rect would be measuring its own tween. The frame is the screen
+       while the pin holds. */
     const inFrame = (el) => {
       let top = 0;
       let node = el;
@@ -1331,20 +1047,15 @@
             end: () => `top top-=${pin() * (CTA.tintStart + CTA.tint)}`,
             scrub: CTA.scrub,
             invalidateOnRefresh: true,
-            /* After anything that pins above it — this module is
-               registered above heroVideo and would otherwise be
-               measured against a document that has not been given the
-               hero's pin spacing yet. */
+            // After anything that pins above it: heroVideo's pin spacing
+            // has to be in the document before this is measured.
             refreshPriority: -1
           }
         }
       );
 
-      /* Scaled so the last one lands on fit. Written as fractions the
-         schedule ends wherever it happens to end — here 0.90 of a pin
-         that runs to 1, which is a third of a screen of scrolling with
-         nothing on it before the section lets go. Same shape, same
-         order, stretched to fill what it has. */
+      // Scaled so the last one lands on fit: same shape and order,
+      // stretched to fill the pin rather than ending wherever it ends.
       const ends = owned.map(({ speed, delay, lane }, i) => {
         const span = lane == null
           ? laneOf(speed)
@@ -1352,14 +1063,11 @@
         const off = (Number.isFinite(delay) ? delay : i * CTA.stagger) * CTA.spread;
         return off + span;
       });
-      /* Never past the release: fit is where the last image is asked to
-         land, travel is where it has to be gone by, and a fit beyond it
-         means every schedule overruns and gets hurried. */
+      // Never past the release: a fit beyond travel hurries everything.
       const fit = Math.min(CTA.fit, CTA.travel) / Math.max(...ends);
 
       owned.forEach(({ el, speed, delay, lane }, i) => {
-        /* Named lane first, then the number on the markup. Both say
-           the same thing; the class is simply the one already there. */
+        // Named lane first, then the number on the markup.
         let span = (lane == null
           ? laneOf(speed)
           : CTA.lanes[Math.max(0, Math.min(CTA.lanes.length - 1, lane))]) * fit;
@@ -1367,12 +1075,9 @@
           (Number.isFinite(delay) ? delay : i * CTA.stagger) * CTA.spread * fit;
         let end = off + span;
 
-        /* Nothing is still on screen when the section lets go. A late
-           image with a long window would otherwise be cut off by the
-           release, halfway up, mid-scroll. It is hurried instead —
-           the alternative is holding the pin open for one straggler,
-           which changes the section's length out from under every
-           other number here. */
+        /* Hurried rather than cut off at the release. Holding the pin
+           open for one straggler would change the section's length out
+           from under every other number here. */
         if (end > CTA.travel) {
           console.warn(
             `[cta] data-parallax="${speed}" starting at ${off.toFixed(2)} of ` +
@@ -1384,11 +1089,9 @@
           span = Math.max(0.05, end - off);
         }
 
-        /* Both ends are the screen, not the cell. y is relative to
-           wherever the grid put this image, and the cells sit at
-           different heights — so "up by its own height" cleared the
-           top for the ones already near it and left the low ones
-           still showing at the release. */
+        /* Both ends measured against the screen, not the cell: y is
+           relative to wherever the grid put the image, and the cells sit
+           at different heights. */
         const from = () => window.innerHeight * CTA.lead - inFrame(el);
         const to = () => -(inFrame(el) + el.offsetHeight +
           window.innerHeight * CTA.exit);
@@ -1400,9 +1103,7 @@
             ease: 'none',
             scrollTrigger: {
               trigger: section,
-              /* Offsets into the pin rather than a shared range: when
-                 an image sets off is its delay, how long it takes is
-                 its span, and neither touches the other. */
+              // Offsets into the pin, so delay and span stay independent.
               start: () => `top top-=${pin() * off}`,
               end: () => `top top-=${pin() * end}`,
               scrub: CTA.scrub,
@@ -1422,28 +1123,21 @@
 
 
   /* ============================================================
-     EYEBROW ICON — .icon_eyebrow_wrap
-
-     A square that matches the type beside it. The footer link does this
-     in em, which works because the size lives on the wrap there and the
-     label inherits it. Here the size class is on the text, so the wrap
-     has no idea how big it is — the text's own computed size is read
-     and handed back as a variable.
+     EYEBROW ICON — a square matching the type beside it. The size class
+     sits on the text, so the wrap cannot do this in em: the text's
+     computed size is read and handed back as a variable.
      ============================================================ */
 
   const EYEBROW = {
     ratio: 0.72,     // of the text's font size
     gap: 0.5,        // of the same, between square and text
 
-    /* Same component, drawn twice in the Designer under different
-       names. Add a pair rather than a second module. */
+    // Same component, drawn more than once under different names.
     pairs: [
       { wrap: '.icon_eyebrow_wrap', text: '.icon_eyebrow_text' },
       { wrap: '.design_sticky_eyebrow', text: '.design_sticky_eyebrow_text' },
-      /* The footer link's hover icon is em-sized against the wrap,
-         which only works while the wrap carries the type size. Once the
-         text's own class governs, the wrap has no idea — so it is
-         measured here like the rest. */
+      // The footer link's icon was em-sized against the wrap, which
+      // stopped working once the text carried its own size class.
       { wrap: '.footer_link_wrap', text: '.footer_link_text' }
     ]
   };
@@ -1466,7 +1160,7 @@
 
     size();
 
-    /* Fluid type changes with the viewport, so the square follows it. */
+    // Fluid type changes with the viewport, so the square follows.
     let timer = null;
     const onResize = () => {
       clearTimeout(timer);
@@ -1488,11 +1182,9 @@
 
 
   /* ============================================================
-     CORPORATE HERO — mobile images
-
-     The inline images in the heading are hidden below 767 and this
-     block takes their place: they fade and scale in on a stagger (the
-     keyframes are in page-transition.css) and drift against the scroll.
+     CORPORATE HERO — mobile images. The heading's inline images are
+     hidden below 767; these take their place, fading in on a stagger
+     (keyframes in the CSS) and drifting against the scroll.
      ============================================================ */
 
   const CORP_HERO = {
@@ -1540,90 +1232,31 @@
 
   /* ============================================================
      SCROLL PARALLAX — [data-parallax]
+     Column drift, scrubbed against the group crossing the screen.
+     Every attribute: README ### parallax.
 
-     Column drift: each marked element travels against the scroll at
-     its own rate while its group passes the viewport, so a grid of
-     images reads as several columns moving at different speeds with
-     static text sitting on top of them.
-
-       data-parallax="0.6"       strength. 1 is the base distance,
-                                 negative travels the other way, so
-                                 alternating signs give the columns
-                                 their counter-motion. 0 opts out.
-       data-parallax-group       on an ancestor: the element whose
-                                 pass through the viewport drives the
-                                 motion. Defaults to the nearest
-                                 section, which is usually right.
-       data-parallax-clip        on the group: keep the moving elements
-                                 inside it. Uses clip-path, not overflow:
-                                 an overflow other than visible turns the
-                                 element into the scrollport that sticky
-                                 descendants resolve against, which would
-                                 break the pin this section depends on.
-                                 clip-path clips without creating one.
-       data-parallax-axis="x"    horizontal instead of vertical
-       data-parallax-distance    distance for strength 1, overriding the
-                                 default on that one element. Accepts a
-                                 bare number as px, or vh/vw units, which
-                                 are resolved per refresh so they follow
-                                 a resize
-       data-parallax-mobile      strength multiplier below the mobile
-                                 breakpoint. Defaults to half; "1" keeps
-                                 the desktop travel, "0" switches the
-                                 element off on phones entirely
-       data-parallax-start       ScrollTrigger positions for the range,
-       data-parallax-end         overriding "top bottom" / "bottom top".
-                                 For a sticky group the pinned window is
-                                 start="top top" end="bottom bottom" —
-                                 the frame is on screen for exactly that
-                                 span, so all the travel is visible
-                                 instead of most of it happening before
-                                 and after.
-       data-parallax-from        px at the start of the range, and
-       data-parallax-to          px at the end. Given either one, the
-                                 element travels between them literally
-                                 and strength is ignored — that is how
-                                 you get a rise from below the fold
-                                 (from="420" to="0") rather than the
-                                 symmetric drift the strength form
-                                 produces.
-
-     Scrubbed, so it runs backwards on the way up, and the whole range
-     is the group crossing the screen — top of the group at the bottom
-     edge, through to the bottom of the group at the top edge. Nothing
-     jumps at either end because the element is at its extreme exactly
-     when the group is.
-
-     The transform stays on the marked wrapper. Put the parallax on a
-     wrapper and any hover or reveal on the image inside it, never both
-     on one element — two owners of one transform fight and drift.
+     The transform stays on the marked wrapper — put a hover or reveal
+     on the element inside it, never both on one.
      ============================================================ */
 
   const PARALLAX = {
     distance: 120,      // px of travel at strength 1, at the reference viewport
     scrub: 0.6,
 
-    /* The same 120px is a mild drift on a 900px-tall desktop window and a
-       lurch on a 600px phone, because what the eye reads is travel
-       relative to the screen, not in pixels. Scale the base by the
-       viewport against this reference, clamped so a very tall or very
-       small window does not go to either extreme. */
+    // The eye reads travel relative to the screen, so the base scales
+    // against this reference height, clamped at both ends.
     referenceHeight: 900,
     minScale: 0.45,
     maxScale: 1.2,
 
     mobile: '(max-width: 767px)',
-    /* Half by default. A phone shows a fraction of the group at a time, so
-       the same travel crosses far more of the screen per scrolled pixel and
-       reads as a lurch. Override per element or per group with
-       data-parallax-mobile. */
-    mobileFactor: 0.5
+    mobileFactor: 0.5   // a phone shows less of the group, so the same
+                        // travel crosses more screen and reads as a lurch
   };
 
-  /* Bare number = px. vh/vw resolve against the viewport at the moment they
-     are read, and every caller passes them to gsap as a function value, so
-     invalidateOnRefresh re-reads them after a resize or an orientation
-     change instead of freezing the value taken at mount. */
+  /* Bare number = px; vh/vw resolve when read. Returned as a function so
+     invalidateOnRefresh re-reads them after a resize rather than freezing
+     the value taken at mount. */
   function parallaxLength(raw) {
     if (raw == null) return null;
     const v = String(raw).trim();
@@ -1665,13 +1298,9 @@
         || el.parentElement;
       if (!marked) return;
 
-      /* A position:sticky element cannot describe its own scroll range —
-         while it is stuck its rect stops moving with the page, so
-         start/end resolve against a box that is standing still and the
-         whole range collapses to a fraction of the intended one. The
-         motion then reads as fast and short, which is exactly what a
-         sticky group produces. Climb to the first ancestor that actually
-         scrolls; that element's pass is the real range. */
+      /* A stuck element's rect stops moving with the page, so it cannot
+         describe its own range — start/end collapse against a box
+         standing still. Climb to the first ancestor that scrolls. */
       let group = marked;
       while (group && getComputedStyle(group).position === 'sticky') {
         group = group.parentElement;
@@ -1690,36 +1319,27 @@
       const baseFn = parallaxLength(el.dataset.parallaxDistance)
         || (() => PARALLAX.distance);
 
-      /* Mobile multiplier is applied at read time, not at mount, so
-         rotating a phone or resizing across the breakpoint lands on the
-         right value at the next refresh rather than keeping whatever was
-         true when the page loaded. */
+      // Read at refresh, not at mount, so rotating a phone lands on the
+      // right value rather than the one true at load.
       const rawMobile = parseFloat(
         el.dataset.parallaxMobile ?? marked.dataset.parallaxMobile ?? group.dataset.parallaxMobile
       );
       const mobileFactor = Number.isFinite(rawMobile) ? rawMobile : PARALLAX.mobileFactor;
       const isMobile = () => window.matchMedia(PARALLAX.mobile).matches;
 
-      /* An explicit distance is taken at face value — the author asked for
-         that number. Only the shared default is normalised, since that is
-         the one that has to look the same on every screen. */
+      // An explicit distance is face value; only the shared default is
+      // normalised, since that one has to travel on every screen.
       const normalise = el.dataset.parallaxDistance ? () => 1 : viewportScale;
 
-      /* One reduction or the other, never both. The viewport scale already
-         shrinks travel on a short screen, so multiplying the mobile factor
-         on top of it took a phone to roughly a third and the motion stopped
-         reading as parallax at all. Below the breakpoint the explicit
-         mobile factor wins outright. */
+      // One reduction or the other, never both: stacked, a phone ends up
+      // at about a third and stops reading as parallax at all.
       const travel = () =>
         isMobile()
           ? baseFn() * strength * mobileFactor
           : baseFn() * strength * normalise();
 
-      /* Two forms. Strength alone is symmetric: displaced one way at the
-         start, the other way at the end, so the element sits at its
-         designed position exactly at the group's midpoint. from/to is
-         literal px and one-directional, for a rise out of the fold that
-         has to land at 0 and stay there. */
+      // Strength alone is symmetric, at rest at the group's midpoint.
+      // from/to is literal and one-directional: a rise that lands at 0.
       const fromFn = parallaxLength(el.dataset.parallaxFrom);
       const toFn = parallaxLength(el.dataset.parallaxTo);
       const explicit = fromFn || toFn;
@@ -1766,35 +1386,11 @@
 
   /* ============================================================
      STICKY CARD STACK — [data-sticky-stack]
+     Attributes and the matching CSS: README ### stickyStack.
 
-     Cards pin one after another and the next one scrolls over the
-     one before it. The pinning itself is CSS — position:sticky on
-     each card — because a ScrollTrigger pin rebuilds layout on
-     every Barba swap and fights Lenis. This module owns the two
-     parts CSS cannot do:
-
-       - stacking order, so a later card always paints over an
-         earlier one. Set here rather than in nth-child rules so
-         adding a third card in the Designer needs no CSS edit;
-       - the depth cue: while a card is being covered, its content
-         lifts slightly, which is what makes the new card read as
-         sliding over the old one instead of the old one simply
-         vanishing under it.
-
-       data-sticky-stack        on the track holding the cards
-       data-sticky-card         each card. Optional — without it the
-                                track's element children are used
-       data-sticky-inner        what actually lifts inside a card.
-                                Optional; defaults to the card's
-                                element children, so the card's own
-                                background stays put while its
-                                contents move
-       data-sticky-lift="80"    px of lift, on the track or per card
-       data-sticky-fade="0.6"   opacity the covered content reaches
-       data-sticky-scale="0.96" scale the covered content reaches
-
-     Desktop only, matching the CSS: under 768px the cards are
-     static and stacking would just hide content behind content.
+     The pinning is CSS; this module owns stacking order and the lift
+     of the covered card, neither of which CSS can do. Desktop only —
+     below 768 the cards are static and stacking hides content.
      ============================================================ */
 
   const STICKY = {
@@ -1815,9 +1411,8 @@
         : Array.from(track.children).filter((el) => el.nodeType === 1);
       if (cards.length < 2) return;
 
-      /* Ascending, and above whatever sits before the stack. Applied
-         even on mobile: it is inert there and costs nothing, and it
-         means the order never depends on the media query having run. */
+      // Ascending, applied even on mobile: inert there, and the order
+      // never depends on the media query having run.
       cards.forEach((card, i) => { card.style.zIndex = String(i + 1); });
 
       if (reducedMotion) return;
@@ -1846,11 +1441,8 @@
           const scale = parseFloat(card.dataset.stickyScale ?? track.dataset.stickyScale);
           if (Number.isFinite(scale)) to.scale = scale;
 
-          /* Driven by the covering card, not by this one. This card is
-             pinned while it is being covered, so its own rect stops
-             changing and cannot describe the progress — the next card's
-             climb from the bottom edge to the top is the motion the eye
-             is actually following. */
+          // Driven by the covering card: this one is stuck, so its rect
+          // cannot describe the progress the eye is following.
           const tween = gsap.to(inner, {
             ...to,
             scrollTrigger: {
@@ -1939,19 +1531,13 @@
 
   /* ============================================================
      TABS — [data-tabs="wrapper"]
+     Clickable items on one side, cross-fading visuals on the other,
+     optional autoplay.  (docs: README ### tabs)
 
-     One content column of clickable items, one visual column of
-     matching panels. The open item's [data-tabs="item-details"]
-     animates height 0 <-> auto, its visual cross-fades in from the
-     right, and an optional progress bar drives autoplay.
-
-     Ported from the section embed. Two changes for this build:
-     the first tab is set with gsap.set instead of an animated
-     switch — mount runs on beforeEnter, while the container is
-     still a fixed 100vh rectangle, so an animated open would play
-     behind the transition and measure height:auto against the
-     wrong box — and the autoplay ScrollTrigger is created from the
-     intro queue for the same reason.
+     The first tab is set rather than animated open, and the autoplay
+     trigger comes from the Intro queue: mount runs against the fixed
+     100vh transition rectangle, where an animated open plays behind
+     the transition and measures height:auto on the wrong box.
      ============================================================ */
 
   const TABS = {
@@ -1962,18 +1548,16 @@
     shift: 3,           // xPercent the visual travels while fading
     autoplayMs: 5000,
 
-    /* The opening detail's own content rises as the height animates, the
-       same move data-text-anim-solo makes. It belongs here rather than on
-       the attribute: textAnim fires once when the section scrolls past,
-       which for a closed tab means animating text nobody can see and
-       leaving it at rest by the time the tab is opened. */
-    textShift: 28,      // px the detail's content rises. Small values are
-                        // swallowed by the box expanding underneath them
+    /* The detail's content rises with the height, rather than carrying
+       data-text-anim-solo: that fires once as the section passes, which
+       for a closed tab animates text nobody can see. */
+    textShift: 28,      // px. Small values are swallowed by the box
+                        // expanding underneath them
     textDuration: 0.6,
     textDelay: 0.15,    // after the height starts, so it arrives with the room
 
-    /* The stacked shape has no tab to open, so each pair reveals itself on
-       the way past instead — the same rise data-text-anim-solo makes. */
+    // Stacked below 992 there is no tab to open, so each pair reveals
+    // itself on the way past.
     stackShift: 24,     // px each pair rises
     stackDuration: 0.7,
     stackEase: E.body,
@@ -2000,8 +1584,7 @@
 
       const detail = (i) => contentItems[i].querySelector('[data-tabs="item-details"]');
       const bar = (i) => contentItems[i].querySelector('[data-tabs="item-progress"]');
-      /* What actually moves: the detail itself is the box being resized, so
-         animating it as well would fight the height tween. */
+      // The detail is the box being resized, so its child is what moves.
       const detailInner = (i) => {
         const d = detail(i);
         return d ? d.firstElementChild : null;
@@ -2019,19 +1602,15 @@
       let switchTl = null;
       let trigger = null;
 
-      /* Below 992 the section is a plain stack: every visual sits with its
-         own text, everything open, nothing playing. Tabs are a desktop
-         affordance — on a phone the same content reads as image, text,
-         image, text, and a progress bar advancing a tab nobody can see the
-         rest of is noise. */
+      /* Below 992 the section is a plain stack: every visual with its own
+         text, everything open, nothing playing. Tabs are a desktop
+         affordance. */
       const desktopMQ = window.matchMedia('(min-width: 992px)');
       let stacked = !desktopMQ.matches;
 
-      /* A comment node left in each visual's place, so the desktop layout
-         can be restored exactly. Sibling references do not survive the
-         move: once the second visual has been relocated too, the first
-         one's stored nextSibling is no longer a child of the old parent
-         and insertBefore throws. */
+      /* A marker per visual, so the desktop layout restores exactly.
+         Stored siblings do not survive the move — by the time the second
+         visual has gone, the first one's nextSibling has too. */
       const markers = visualItems.map(() => document.createComment('tabs-visual'));
 
       function openAll() {
@@ -2049,11 +1628,9 @@
         });
       }
 
-      /* The column the visuals came out of. Emptied by the stack, it would
-         otherwise still hold its half of the layout and leave the cards in
-         a narrow strip beside a blank space. Not hidden blindly: a column
-         that also holds the text is the wrapper itself, and hiding that
-         would take the section with it. */
+      /* The emptied column still holds its half of the layout, leaving
+         the cards in a strip beside a blank space. Skipped when it also
+         holds the text, since hiding that takes the section with it. */
       const visualColumns = [...new Set(
         visualItems.map((v) => v.parentElement).filter(Boolean)
       )].filter((col) => col !== wrapper && !contentItems.some((item) => col.contains(item)));
@@ -2174,9 +1751,8 @@
           defaults: { duration: TABS.duration, ease: TABS.ease },
           onComplete: () => {
             isAnimating = false;
-            /* height:auto changed the document height, so every
-               ScrollTrigger below this section is now measured against
-               the old one. Guarded and rAF'd inside. */
+            // height:auto moved the document, so every trigger below is
+            // measured against the old one. Guarded and rAF'd inside.
             refreshScrollHeight();
             if (autoplayReady) startProgress(index);
           }
@@ -2232,9 +1808,7 @@
 
       Intro.add(root, () => { if (stacked) buildStackReveal(); });
 
-      /* Crossing the breakpoint rebuilds the other shape in place, so a
-         rotated phone or a dragged window does not leave a stack with dead
-         tabs behind it. */
+      // Crossing the breakpoint rebuilds the other shape in place.
       const onBreakpoint = (e) => {
         const nowStacked = !e.matches;
         if (nowStacked === stacked || dead) return;
@@ -2280,8 +1854,7 @@
         switchTl?.kill();
         trigger?.kill();
         killStackReveal();
-        /* The visuals were moved, so put the markup back the way the
-           Designer wrote it before the container is discarded. */
+        // The visuals were moved; put the markup back as written.
         if (stacked) undoStack();
       });
     });
@@ -2291,19 +1864,13 @@
 
   /* ============================================================
      FAQ / ACCORDION — .faq_item_wrap or [data-faq-item]
+     Attributes and behaviour: README ### faq.
 
-     The Osmo reference does this in CSS, with grid-template-rows
-     0fr -> 1fr and a transition. That needs the Designer markup to
-     carry data-accordion-* attributes and a grid wrapper the answer
-     sits inside; this markup has neither, so the same motion is done
-     here in GSAP against the classes that already exist. Nothing to
-     add in the Designer — attributes below are opt-in overrides.
-
-     Height 0 <-> auto rather than a max-height guess: GSAP measures
-     the natural height per open, so a long answer never clips and a
-     short one never leaves dead space. The answer's height change
-     moves the document, hence refreshScrollHeight() at the end of
-     every toggle.
+     The Osmo reference does this in CSS with grid-template-rows and
+     needs markup this site does not have, so the same motion is built
+     in GSAP against the classes that already exist. Height 0 <-> auto
+     rather than a max-height guess: measured per open, so a long answer
+     never clips. Every toggle moves the document, hence the refresh.
      ============================================================ */
 
   const FAQ = {
@@ -2330,8 +1897,7 @@
       ]));
       if (!items.length) return;
 
-      /* Default is the reference's close-siblings behaviour: one answer
-         open at a time. data-faq-multi="true" lets them stack. */
+      // One answer at a time; data-faq-multi="true" lets them stack.
       const multi = group.dataset.faqMulti === 'true';
       const gi = groupIndex++;
       const records = [];
@@ -2343,9 +1909,8 @@
           || item.querySelector('.faq_items_info');
         if (!toggle || !panel) return;
 
-        /* .faq_items_heading_icon is on both the wrapper div and the svg
-           inside it. querySelector takes the wrapper, which is what we
-           want to rotate — the svg comes along with it. */
+        // The class is on both the wrapper and its svg; querySelector
+        // takes the wrapper, which is the one to rotate.
         const icon = item.querySelector('[data-faq-icon]')
           || item.querySelector('.faq_items_heading_icon');
         const inner = panel.firstElementChild;
@@ -2370,10 +1935,8 @@
         rec.panel.setAttribute('aria-hidden', String(!rec.open));
       }
 
-      /* Mount runs on beforeEnter, while the container is still a fixed
-         100vh rectangle sliding in. Set the state, never animate it: an
-         animated open here plays behind the transition and measures
-         height:auto against the wrong box. */
+      // Set, never animate: at mount the container is still the fixed
+      // 100vh rectangle, and height:auto measures the wrong box.
       function setState(rec) {
         rec.tl?.kill();
         rec.tl = null;
@@ -2398,8 +1961,8 @@
         rec.tl = gsap.timeline({
           defaults: { duration: FAQ.duration, ease: FAQ.ease },
           onComplete: () => {
-            /* auto, not the measured px, or a resize or a font swap
-               leaves the open answer frozen at yesterday's height. */
+            // auto, not the measured px, or a resize freezes the open
+            // answer at yesterday's height.
             if (open) gsap.set(rec.panel, { height: 'auto' });
             refreshScrollHeight();
           }
@@ -2428,8 +1991,8 @@
 
       const controller = new AbortController();
 
-      /* One delegated listener per group rather than one per item: the
-         answers can hold links, and a click there must not toggle. */
+      // Delegated per group: answers can hold links, and a click there
+      // must not toggle.
       group.addEventListener('click', (e) => {
         const rec = find(e.target);
         if (rec) toggleItem(rec);
@@ -2455,23 +2018,18 @@
   });
 
   /* ============================================================
-     HOME HERO
+     HOME HERO — the heading holds still, only the images move.
+     (docs: README ### homeHero)
 
-     Was an inline embed inside .home_wrap, which never executes once
-     the section arrives through a Barba swap. The heading is
-     deliberately left alone: text holds still, only the images move.
-
-     Two transforms per cell, on two different elements on purpose. The
-     scroll parallax drives .home_img_wrap and the pointer bump drives
-     the img inside it, so neither has to read or preserve the other's
-     matrix.
+     Two transforms per cell, deliberately on two elements: parallax on
+     .home_img_wrap, the pointer bump on the img inside it, so neither
+     has to preserve the other's matrix.
      ============================================================ */
 
   const HERO = {
-    /* The entrance is a @keyframes in the .home_wrap section embed, not
-       a timeline here — see the note on the module. Its numbers live
-       there: 0.9s, 0.6 start scale, 0.08 stagger, 0.15s delay. Change
-       them in the embed, there is nothing to keep in sync here. */
+    /* The entrance is a @keyframes in the .home_wrap embed, not a
+       timeline here: 0.9s, 0.6 start scale, 0.08 stagger, 0.15s delay.
+       Change them there; nothing here needs to keep in sync. */
 
     bump: true,
     bumpStrength: 0.12,
@@ -2497,28 +2055,15 @@
     const cleanups = [];
     let dead = false;
 
-    /* The entrance used to be a gsap timeline here, with the embed
-       holding the images at opacity 0 until it started. That made the
-       hero wait on this file, and on GSAP, ScrollTrigger and SplitText
-       before it — an element at opacity 0 is not painted, so LCP could
-       not fire until the whole chain had landed. It is a @keyframes in
-       the embed now: same fade, same scale, same stagger, but the paint
-       waits on a stylesheet instead of a bundle.
+    /* The entrance is CSS so the paint waits on a stylesheet rather than
+       on this bundle — at opacity 0 nothing is painted, and LCP could not
+       fire until gsap, ScrollTrigger and SplitText had all landed. Only
+       the bump and the parallax stay here.
 
-       What stays here is what CSS cannot do — a pointer bump and a
-       scrubbed parallax. */
-
-    /* A swapped container is inserted while it is still the transition's
-       fixed rectangle. Its keyframes start on insert, run through behind
-       the transition, and are finished by the time the page settles —
-       replaying them there is what showed the images and then flashed a
-       second entrance over them.
-
-       So on a swap the start state is pinned instead, before the browser
-       has painted the container, and the keyframes are released once from
-       the intro queue. One entrance, at the moment the old timeline used
-       to play. Inline opacity holds the images while the animation is
-       off; once it is running the animation outranks inline anyway. */
+       On a swap the container is inserted while it is still the fixed
+       transition rectangle, so its keyframes would run out behind the
+       transition. The start state is pinned inline before first paint and
+       the animation released once from the intro queue. */
     const swapped = root !== document;
 
     if (swapped) {
@@ -2528,12 +2073,10 @@
       });
     }
 
-    /* animation-fill-mode: both keeps the keyframe's end state applied
-       after it finishes, and a filled CSS animation outranks an inline
-       transform — so anything gsap writes to the img afterwards is
-       silently ignored and the bump never moves. The end state is
-       scale(1), the img's own base, so dropping the animation once it is
-       done looks identical and hands the transform back. */
+    /* A filled CSS animation outranks an inline transform, so gsap's
+       writes are ignored and the bump never moves. Its end state is
+       scale(1) — the img's base — so dropping it looks identical and
+       hands the transform back. */
     const afterEntrance = (img, fn) => {
       const done = () => {
         if (dead) return;
@@ -2545,10 +2088,9 @@
       cleanups.push(() => img.removeEventListener('animationend', done));
     };
 
-    /* Collected rather than bound inside the context: on a swap the
-       animation is still suppressed while the context is built, so
-       measuring it there would read `none` and bind the bump against an
-       entrance that has not run. Drained when the entrance is live. */
+    /* Collected, not bound inside the context: on a swap the animation
+       is still suppressed there, so measuring would read `none` and bind
+       against an entrance that has not run. */
     const binders = [];
     const bindBumps = () => binders.forEach((fn) => fn());
 
@@ -2584,9 +2126,7 @@
         });
       }
 
-      /* Scrubbed, so it runs backwards on the way up too. The triggers
-         are created inside the context, which is what lets the teardown
-         kill this page's and only this page's. */
+      // Created inside the context, so teardown kills this page's only.
       if (HERO.parallax && hasScrollTrigger) {
         wraps.forEach((wrap, i) => {
           const depth = HERO.parallaxDepths[i % HERO.parallaxDepths.length];
@@ -2618,8 +2158,8 @@
         bindBumps();
       });
     } else {
-      /* First load: the keyframes have been running since the stylesheet
-         parsed, which is the whole point — nothing here gated the paint. */
+      // First load: the keyframes have run since the stylesheet parsed,
+      // which is the point — nothing here gated the paint.
       bindBumps();
     }
 
@@ -2627,8 +2167,7 @@
       dead = true;
       cleanups.forEach((fn) => fn());
       ctx.revert();
-      /* The keyframe was cleared inline once it finished. Handing the
-         markup back means letting the embed own it again. */
+      // The inline clear goes back, so the embed owns the markup again.
       imgs.forEach((img) => {
         img.style.removeProperty('animation');
         img.style.removeProperty('opacity');
@@ -2638,28 +2177,15 @@
 
 
   /* ============================================================
-     SERVICES HOVER — .services_wrap
+     SERVICES HOVER — .services_wrap  (docs: README ### servicesHover)
 
-     Two things happen when a row is hovered: the neon wipes up
-     behind its text, and a preview follows the cursor.
+     Each preview image is stacked on the one showing and grown until
+     it covers it, and the covering tween removes what it covered — so
+     a fast run down the list is safe: whichever clone is on top wins.
 
-     The preview does not slide its images past a mask. Each new
-     image is stacked on top of the one already showing, starts
-     small and centred, and grows until it covers it — so the
-     transition reads as the next service landing on the last
-     rather than a filmstrip advancing. Layers are removed by the
-     tween that covered them, which is what makes a fast run down
-     the list safe: whichever clone is on top wins and takes
-     everything under it with it.
-
-     The follower is appended to <body>, never to the section.
-     prepareForTransition puts perspective on .page_wrap, and
-     perspective creates a containing block for fixed-position
-     descendants — a follower inside the container would stop
+     The follower belongs to <body>: perspective on .page_wrap makes a
+     containing block, and a fixed follower inside it would stop
      resolving against the viewport.
-
-     Desktop pointers only, matching the reference CSS. Below that
-     the rows are left exactly as the Designer painted them.
      ============================================================ */
 
   const SERVICES = {
@@ -2676,22 +2202,16 @@
   };
 
   /* ------------------------------------------------------------
-     The tablet-and-down shape of the services section.
-
-     The rows are lifted into a sticky viewport and layered on top of
-     each other, and the list itself is given the scroll height — one
-     screen per row — so a scrubbed trigger can dissolve row N into row
-     N+1. A viewport element is created rather than making each row
-     sticky in flow: sticky rows stack, with the next sliding up over
-     the last, and this is meant to be a crossfade with nothing moving.
+     Tablet and down: the rows are lifted into one sticky viewport and
+     crossfaded, the list carrying the scroll height. A viewport rather
+     than sticky rows in flow, which would slide up over each other —
+     this is meant to be a crossfade with nothing moving.
      ------------------------------------------------------------ */
 
   const SERVICES_STACK = {
     screens: 1,          // screens of scroll between one row and the next
-    hold: 1,             // screens the last row keeps the screen to itself
-                         // before the pin releases. Without it the final
-                         // dissolve lands exactly as the section lets go,
-                         // so the last row is never seen still.
+    hold: 1,             // screens the last row holds before the release,
+                         // or the final dissolve lands as it lets go
     duration: 0.9,       // the dissolve, once it is triggered
     ease: E.travel
   };
@@ -2712,25 +2232,20 @@
       list.appendChild(viewport);
       items.forEach((item) => viewport.appendChild(item));
       list.classList.add('is-stacked');
-      /* A sticky child holds while its container is passing, so the pinned
-         scroll is the track minus one screen. Size the track from what
-         happens inside it: a step per gap, then the hold, then the screen
-         the viewport itself occupies. */
+      // A sticky child holds while its container passes, so the track is
+      // a step per gap, plus the hold, plus its own screen.
       const screens = (items.length - 1) * SERVICES_STACK.screens
         + SERVICES_STACK.hold + 1;
       list.style.height = `${screens * 100}svh`;
 
-      /* The first row is the one on screen at rest; the rest wait at zero
-         rather than being hidden, so their images are already decoded by
-         the time they are needed. */
+      // The rest wait at zero rather than hidden, so their images are
+      // decoded before they are needed.
       gsap.set(items, { opacity: 0 });
       gsap.set(items[0], { opacity: 1 });
 
-      /* Triggered, not scrubbed: crossing a step boundary plays the
-         dissolve at its own pace, so the swap reads the same whether the
-         visitor eased down or flicked. A scrub ties the fade to the
-         scroll wheel, which on a trackpad flick means the rows blink
-         past half-drawn. */
+      /* Triggered, not scrubbed: the dissolve plays at its own pace, so
+         it reads the same eased or flicked. Scrubbed, a trackpad flick
+         blinks the rows past half-drawn. */
       let active = 0;
 
       const show = (index) => {
@@ -2749,12 +2264,10 @@
       if (!hasScrollTrigger) {
         gsap.set(items, { opacity: 1 });
       } else {
-        /* Built from the intro queue on first mount: a trigger measured
-           while the container is still the transition's fixed rectangle
-           starts at the wrong scroll position. A rebuild after a resize
-           has no such problem — and the queue for this container has
-           already been played and dropped, so a callback added now would
-           never run. */
+        /* From the intro queue on first mount, since a trigger measured
+           against the transition rectangle starts at the wrong scroll
+           position. A resize rebuild is direct: the queue for this
+           container has already been played and dropped. */
         const createTriggers = () => {
           /* One boundary per gap between rows. Positions are functions so
              they are recomputed on refresh — the step is a screen tall and
@@ -2765,9 +2278,8 @@
               start: () => `top top-=${i * window.innerHeight * SERVICES_STACK.screens}`,
               invalidateOnRefresh: true,
               onEnter: () => show(i),
-              /* Leave, not enter: the trigger element is the whole track, so the
-                 boundary is crossed by scrolling back out through its start,
-                 not by re-entering from beyond its end. */
+              // Leave, not enter: the trigger is the whole track, so the
+              // boundary is crossed on the way back out of its start.
               onLeaveBack: () => show(i - 1)
             });
             cleanups.push(() => boundary.kill());
@@ -2871,10 +2383,9 @@
         });
       }
 
-      /* The cover. The clone lands on top of whatever is showing and
-         grows into it; when it arrives it takes the layers it covered
-         with it. Nothing is removed early, so the image underneath is
-         there for the whole grow and never flashes through. */
+      /* The clone lands on what is showing and grows into it, taking
+         the covered layers with it on arrival — nothing is removed
+         early, so the image underneath never flashes through. */
       function pushVisual(source) {
         const clone = source.cloneNode(true);
         clone.removeAttribute('id');
@@ -2912,11 +2423,10 @@
         const imgWrap = item.querySelector('.services_hover_img_wrap');
         const img = imgWrap && imgWrap.querySelector('img');
 
-        /* The neon is set on the row itself in the Designer, which
-           paints it flat and leaves nothing to reveal. Read it off,
-           move it onto a layer we own, and hand the row its own
-           background back on teardown. data-services-fill overrides,
-           taking a literal or a variable name. */
+        /* The Designer paints the neon on the row itself, flat, with
+           nothing to reveal — so it moves to a layer of ours and the row
+           gets its background back on teardown. data-services-fill
+           overrides, as a literal or a variable name. */
         const declared = resolve(item.getAttribute('data-services-fill'));
         const painted = getComputedStyle(item).backgroundColor;
         const colour = declared || (opaque(painted) ? painted : null);
@@ -2939,18 +2449,16 @@
         if (colour && !declared) item.style.backgroundColor = 'transparent';
         item.prepend(fill);
 
-        /* The text has to sit over the wipe, and the source image is
-           only ever a source — it shows in the follower, not in the row. */
+        // The text sits over the wipe.
         const innerPos = inner && inner.style.position;
         const innerZ = inner && inner.style.zIndex;
         if (inner) {
           if (getComputedStyle(inner).position === 'static') inner.style.position = 'relative';
           inner.style.zIndex = '1';
         }
-        /* Taken out of the row's layout but left in the render tree.
-           display:none would stop a loading="lazy" image ever fetching,
-           and the clone would then land in the follower with nothing
-           decoded to show on the first hover. */
+        /* Out of the layout but still in the render tree: display:none
+           stops a lazy image fetching, and the first hover would clone
+           something with nothing decoded to show. */
         const wrapStyle = imgWrap && imgWrap.getAttribute('style');
         if (imgWrap) Object.assign(imgWrap.style, {
           position: 'absolute',
@@ -2988,8 +2496,7 @@
           duration: reducedMotion ? 0 : SERVICES.fill,
           ease: SERVICES.fillEase,
           overwrite: 'auto',
-          /* Parked back at the bottom edge so the next wipe rises again
-             rather than dropping in from the top. */
+          // Parked at the bottom edge, so the next wipe rises again.
           onComplete: () => { if (!open) gsap.set(rec.fill, { clipPath: 'inset(100% 0% 0% 0%)' }); }
         });
       }
@@ -3019,12 +2526,10 @@
         rec.item.addEventListener('mouseleave', () => wipe(rec, false), { signal });
       });
 
-      /* One leave for the whole list. The per-row leaves already put the
-         colour back; this is what ends the preview, and it does not fire
-         while the pointer is only crossing a border between rows. */
+      // One leave for the whole list: it ends the preview, and does not
+      // fire while the pointer only crosses between rows.
       collection.addEventListener('mouseleave', () => {
-        /* The rows close themselves on their own leave, but a pointer
-           that jumps straight out of the window can skip that one. */
+        // A pointer leaving the window can skip a row's own leave.
         records.forEach((rec) => wipe(rec, false));
         dim(null);
         hideFollower();
@@ -3042,21 +2547,14 @@
     return () => cleanups.forEach((fn) => fn());
   }
 
-  /* The section has two shapes and the viewport decides which: a pointer
-     follows the rows on a desktop, and below that they dissolve into one
-     another in a pinned stack. Rebuilt on the way across, so dragging a
-     window past the breakpoint does not leave a follower with nothing to
-     follow, or a stack nobody can scrub. */
+  /* Two shapes, chosen by viewport: pointer-following on desktop, a
+     pinned dissolve below. Rebuilt on the way across. */
   Modules.add('servicesHover', function (root) {
     if (!root.querySelector('.services_wrap')) return;
 
-    /* Width, not hover capability. The CSS half of the stack lives in a
-       max-width: 991px block, so keying the JS on hover:none meant a
-       touchscreen laptop — or a device-emulation window at desktop width —
-       built the stack while the CSS left the rows in flow: a screen of
-       white per row and a very long scroll. Both halves read the same line
-       now. A wide touch device gets the hover build and simply never fires
-       a hover, which is inert rather than broken. */
+    /* Width, not hover capability: the CSS half lives in a max-width
+       block, and a touchscreen laptop keyed on hover:none built the stack
+       while the CSS left the rows in flow. */
     const pointer = window.matchMedia('(min-width: 992px)');
     let teardown = null;
     let built = false;
@@ -3073,7 +2571,7 @@
       teardown?.();
       teardown = null;
       build(true);
-      /* The stack adds a few screens of height, or gives them back. */
+      // The stack adds a few screens of height, or gives them back.
       if (hasScrollTrigger) ScrollTrigger.refresh();
       refreshScrollHeight();
     };
@@ -3091,22 +2589,12 @@
 
   /* ============================================================
      SINGLE-SELECT FILTER CHECKBOXES — .insights_filter_check
+     Webflow checkboxes behaving like radios, since radios cannot be
+     unchecked back to an "all" state.  (docs: README ### filterSingle)
 
-     The insights filter is built out of Webflow checkboxes but should
-     behave like radios: checking one clears the rest. Radios would do
-     this for free, except they cannot be unchecked by clicking again,
-     which is what an "all" state needs.
-
-     Two things a naive version gets wrong. Webflow paints the tick with
-     a w--redirected-checked class that it only toggles on real user
-     events, so a box cleared in script keeps its tick. And Finsweet
-     reads its filters off change events, so a box cleared behind its
-     back stays in the query — the list ends up filtered by a category
-     whose box is visibly empty.
-
-     Groups: put the group's name in data-filter-single on each box, or
-     data-filter-single-group on a shared ancestor, if the page has more
-     than one filter set. Unnamed boxes are all one set.
+     Two traps: Webflow's w--redirected-checked tick only toggles on real
+     user events, and Finsweet reads its filters off change events, so a
+     box cleared behind its back stays in the query.
      ============================================================ */
 
   Modules.add('filterSingle', function (root) {
@@ -3116,10 +2604,8 @@
     ]));
     if (!nodes.length) return;
 
-    /* The class can be on the real input or on the div Webflow paints —
-       they sit side by side in the same label and either one is a
-       reasonable thing to have named in the Designer. Resolve both from
-       whichever was matched. */
+    // The class can be on the input or on the div Webflow paints; both
+    // resolve to the same pair.
     const boxes = [];
     nodes.forEach((node) => {
       const label = node.closest('label') || node.parentElement;
@@ -3144,21 +2630,16 @@
     const controller = new AbortController();
     let syncing = false;
 
-    /* is-checked on the label, mirrored from the input on every change
-       including the first paint. The idle border and text colours hang
-       off it rather than off w--redirected-checked, which sits on
-       whichever element Webflow decided to own and is absent entirely
-       when the box is a plain input. */
+    /* is-checked on the label, for the idle border and text colours:
+       w--redirected-checked sits on whichever element Webflow owns, and
+       is absent entirely for a plain input. */
     const paint = () => boxes.forEach((box) => {
       box.label?.classList.toggle('is-checked', box.input.checked);
     });
 
-    /* Finsweet binds a listener to each input and updates the field from
-       that input's own state, so a change event for a box we cleared is a
-       second update in the same tick as the user's — and the pair lands on
-       an empty condition, which filters the list to nothing. Clear those
-       silently: Finsweet only needs the box the visitor actually clicked,
-       and it hears that one itself. */
+    /* Finsweet updates its field per input, so a change event for a box
+       we cleared lands as a second update in the same tick and the pair
+       filters the list to nothing. Those are cleared silently. */
     const finsweetManaged = (input) => input.hasAttribute('fs-list-field')
       || input.hasAttribute('fs-list-value')
       || !!input.closest('[fs-list-element="filters"]');
@@ -3169,8 +2650,7 @@
       box.visual?.classList.remove('w--redirected-checked');
       box.input.classList.remove('w--redirected-checked');
       if (finsweetManaged(box.input)) return;
-      /* Anything else listening — a Webflow form, a custom handler — has
-         no way to know the box changed unless we say so. */
+      // Anything else listening cannot know the box changed otherwise.
       box.input.dispatchEvent(new Event('input', { bubbles: true }));
       box.input.dispatchEvent(new Event('change', { bubbles: true }));
     };
@@ -3179,8 +2659,7 @@
       box.label?.classList.add('filter-single');
 
       box.input.addEventListener('change', () => {
-        /* syncing guards the change events we fire ourselves, which come
-           back through this same listener. */
+        // Guards the change events we fire, which land back here.
         if (syncing) return;
         if (box.input.checked) {
           syncing = true;
@@ -3204,25 +2683,12 @@
 
   /* ============================================================
      TEXT SWAP — [data-swap]
+     One statement at a time in the same spot, the outgoing one leaving
+     upward.  (docs: README ### textSwap)
 
-     One statement at a time in the same spot: the one showing leaves
-     upward, the next arrives from below. Marked on the wrapper, so the
-     items stay whatever the Designer made them.
-
-     The items are laid over each other in a single grid cell rather
-     than being positioned absolutely — absolute children collapse the
-     wrapper to nothing and the section loses its height. In one cell
-     the tallest statement still sets the box, so nothing jumps as they
-     take turns.
-
-       data-swap                  the wrapper
-       data-swap-item             optional, marks the items. Without it
-                                  the wrapper's element children are used
-       data-swap-hold="4000"      ms each statement holds, default 3500
-       data-swap-loop="false"     stop on the last one instead of cycling
-
-     Starts when the section arrives rather than on load: a statement
-     that changed twice before anybody scrolled to it has said nothing.
+     Laid over each other in one grid cell rather than absolutely:
+     absolute children collapse the wrapper and the section loses its
+     height, while in one cell the tallest still sets the box.
      ============================================================ */
 
   const SWAP = {
@@ -3235,17 +2701,9 @@
   };
 
   /* ============================================================
-     FINSWEET ATTRIBUTES
-
-     Attributes scans the DOM once, on load. A barba swap hands it a
-     list it has never seen, so a page reached by navigating had filters
-     that did nothing — the markup was right and nothing was listening.
-     Restart the list solution for each container that carries one.
-
-     Only on a swap: on the first load the solution is still fetching
-     when modules mount, so `restart` is not there yet and Attributes is
-     about to initialise itself anyway. Calling it then would either
-     throw or re-run an init that had not finished.
+     FINSWEET ATTRIBUTES — it scans the DOM once on load, so a swapped-in
+     list is one it has never seen and its filters do nothing. Restarted
+     per container.  (docs: README ### Finsweet Attributes)
      ============================================================ */
 
   Modules.add('finsweet', function (root) {
@@ -3253,9 +2711,8 @@
 
     let dead = false;
 
-    /* Fetched here rather than from the site-wide embed, so a page with
-       no list never pays for it. Resolves immediately when it is already
-       in the document, which is every visit after the first list. */
+    // Fetched here, not site-wide, so a page with no list never pays
+    // for it. Resolves immediately once it is in the document.
     Assets.finsweet().then(() => {
       if (dead) return;
 
@@ -3287,30 +2744,19 @@
       const hold = parseInt(wrap.dataset.swapHold, 10) || SWAP.hold;
       const loop = wrap.dataset.swapLoop !== 'false';
 
-      /* data-swap-wait hands the start to somebody else — on the home
-         page that is heroVideo, which fires it once the video has
-         finished growing. Its own trigger would go off while the video
-         was still travelling, and the statements would be halfway
-         through before there was anything to read them against.
-
-         A swap inside the hero stage is that case whether or not the
-         attribute survived the Designer. heroVideo is going to drive
-         it either way, and without this the first statement is shown
-         at mount and its cue arrives to find it already read. */
+      /* data-swap-wait hands the start to heroVideo, which fires it once
+         the video has finished growing — its own trigger goes off while
+         the video is still travelling. Assumed inside the hero stage
+         whether or not the attribute survived the Designer. */
       const waits = wrap.hasAttribute('data-swap-wait') ||
         !!wrap.closest('.home_video_wrap');
 
       wrap.classList.add('is-swapping');
 
-      /* Stack them where the FIRST one already sits, rather than in cell
-         1/1: that cell is a single track, so a statement styled to span
-         half the grid came out a column wide. The placement is read off
-         the first item, which is the one the layout was designed around.
-
-         Set inline, because Webflow writes placement against the node id on
-         each child (#w-node-…) and an id outranks any class rule here — by
-         class alone the statements keep their own columns and take turns
-         side by side. Override the whole thing with data-swap-area. */
+      /* Stacked where the FIRST item sits, not in cell 1/1: that is a
+         single track, and a statement spanning half the grid came out a
+         column wide. Inline, because Webflow writes placement against
+         each child's node id and an id outranks any class rule. */
       const track = (start, end) => {
         const span = /span\s+(\d+)/.exec(start) || /span\s+(\d+)/.exec(end);
         if (start !== 'auto' && !/span/.test(start)) return `${start} / ${end}`;
@@ -3319,13 +2765,10 @@
 
       const stacked = window.matchMedia(SWAP.stack);
 
-      /* Re-read on every resize. Measured once at mount, the desktop track
-         was written inline to each statement, and inline outranks the
-         Designer's tablet and mobile rules — so below 992 the text kept a
-         column count that breakpoint no longer has. */
+      // Re-read on resize: measured once, the desktop track is written
+      // inline and outranks the Designer's smaller breakpoints.
       const place = () => {
-        /* Cleared first. list[0] is carrying whatever the last pass wrote,
-           and measuring that back would only re-freeze it. */
+        // Cleared first, or the last pass's values measure back in.
         list.forEach((el) => {
           el.style.removeProperty('grid-area');
           el.style.removeProperty('grid-column');
@@ -3339,12 +2782,9 @@
           return;
         }
 
-        /* Stacked, the wrap is made a grid and every statement takes the
-           same cell. grid-column and grid-row were enough only while the
-           wrap was still a grid — where the Designer switches it to flex
-           below the breakpoint they do nothing, the statements run down
-           the page instead of over each other, and the one you see is
-           whichever the frame's bottom edge lands on. */
+        /* The wrap is forced to grid: where the Designer switches it to
+           flex below the breakpoint, grid-column and grid-row do nothing
+           and the statements run down the page instead. */
         if (stacked.matches) {
           wrap.style.display = 'grid';
           list.forEach((el) => {
@@ -3381,33 +2821,22 @@
       let dead = false;
       let scrubbed = false;
 
-      /* A statement the Designer hid — display:none on the second one is how
-         these usually arrive — cannot take its turn. Put it back in the flow
-         and let opacity decide who is showing, which is the whole point of
-         the swap. Recorded so teardown returns the markup as it was. */
+      // These usually arrive with display:none on every statement but
+      // the first, which cannot take its turn. Restored on teardown.
       const hidden = list.filter((el) => getComputedStyle(el).display === 'none');
       hidden.forEach((el) => { el.style.display = 'block'; });
 
-      /* data-text-anim-solo on a statement, or on the wrap, asks for
-         the -solo entrance instead of the swap's own. It cannot come
-         from textAnim: that module skips everything inside a
-         [data-swap] on purpose, since an element marked for both gets
-         two entrances fighting over one transform. So the swap plays
-         the solo motion itself.
-
-         Group-wide rather than per item. The attribute usually lands
-         on the first statement only, and statements that arrive
-         differently from each other read as a mistake rather than as a
-         sequence. */
+      /* -solo asks for that entrance instead of the swap's own, played
+         here because textAnim skips everything inside a [data-swap].
+         Group-wide: the attribute usually lands on the first statement
+         only, and statements arriving differently read as a mistake. */
       const solo = wrap.hasAttribute('data-text-anim-solo') ||
         list.some((el) => el.hasAttribute('data-text-anim-solo'));
 
       const dur = solo ? TEXT.bodyDuration : SWAP.duration;
       const ease = solo ? TEXT.bodyEase : SWAP.ease;
-      /* Both units are written every time. A statement that entered
-         under one of them and leaves under the other would otherwise
-         keep the first one's leftovers and start from the wrong
-         place. */
+      // Both units written every time, or a statement that entered under
+      // one and leaves under the other starts from the wrong place.
       const hiddenBelow = solo
         ? { autoAlpha: 0, yPercent: TEXT.bodyFromY, y: 0 }
         : { autoAlpha: 0, yPercent: 0, y: SWAP.shift };
@@ -3417,10 +2846,8 @@
       const resting = { autoAlpha: 1, yPercent: 0, y: 0 };
 
       gsap.set(list, hiddenBelow);
-      /* Waiting means waiting for the first one too. Shown at mount it
-         had already been read by the time the cue arrived, and the only
-         thing that looked like an entrance was the SECOND statement —
-         a hold later, which is why it read as arriving at the release. */
+      // Waiting means waiting for the first one too: shown at mount, it
+      // has been read by the time its cue arrives.
       if (!waits) gsap.set(list[0], resting);
 
       const queue = () => {
@@ -3435,12 +2862,9 @@
         const current = list[index];
         index = next;
 
-        /* Anything neither leaving nor arriving is put away outright.
-           A swap interrupted mid-flight — which is what scrolling
-           quickly back and forth through the pin is — leaves its
-           outgoing statement wherever the kill caught it, and two of
-           them half-showing over each other is the result. Only the
-           pair actually changing is ever in motion. */
+        /* Anything neither leaving nor arriving is put away outright: an
+           interrupted swap leaves its statement wherever the kill caught
+           it, and two half-showing over each other is the result. */
         list.forEach((el) => {
           if (el !== current && el !== list[index]) gsap.set(el, hiddenBelow);
         });
@@ -3464,9 +2888,8 @@
 
       let trigger = null;
 
-      /* Queued rather than started here: mount runs while the container is
-         still the transition's fixed rectangle, and a trigger measured
-         against that fires at the wrong scroll position. */
+      // Queued, not started here: at mount a trigger measured against the
+      // transition rectangle fires at the wrong scroll position.
       const onExternalStart = () => {
         if (dead) return;
         if (reducedMotion) gsap.set(list[0], resting);
@@ -3474,10 +2897,9 @@
         queue();
       };
 
-      /* Driven by scroll instead of a clock. Whoever sends swap:to owns
-         the sequence from then on — the timer is dropped, because a
-         statement changing on its own while another is changing with
-         the scroll is two things disagreeing about what is being read. */
+      /* Scroll-driven from here on: whoever sends swap:to owns the
+         sequence, and the timer is dropped rather than have two things
+         disagree about what is being read. */
       let shown = false;
       const onExternalTo = (e) => {
         if (dead) return;
@@ -3489,21 +2911,16 @@
           shown = true;
           index = i;
           if (reducedMotion) gsap.set(list[i], resting);
-          /* fromTo, not to. Whoever sends swap:to owns the entrance,
-             and a `to` from wherever the statement happens to be is a
-             tween with nowhere to travel if it is already showing —
-             the first statement appearing without the rise every one
-             after it gets. The from state is the same one swap() uses,
-             so first and second arrive identically. */
+          // fromTo, not to: a `to` from wherever it sits has nowhere to
+          // travel, and the first statement arrives without the rise.
           else gsap.fromTo(list[i], hiddenBelow, { ...resting, duration: dur, ease });
           return;
         }
         swap(i);
       };
 
-      /* Back to before the first cue: hidden, index 0, and the latch
-         released so the next swap:to is an entrance again rather than
-         a change from wherever it stopped. */
+      // Back to before the first cue, latch released so the next
+      // swap:to is an entrance again.
       const onExternalReset = () => {
         if (dead) return;
         clearTimeout(timer);
@@ -3557,18 +2974,10 @@
 
 
   /* ============================================================
-     LAZY ASSETS
-
-     Swiper and Finsweet Attributes were loaded from the site-wide
-     embeds, so every page paid for them. Home uses neither. Together
-     they are about 90 KiB, and Attributes fans out into twenty-odd ESM
-     chunks that made the longest critical chain on the page — the
-     entry cannot even start resolving them until it has been parsed.
-
-     Fetched here instead, once, and only for a container that has the
-     markup. The promise is cached per asset, so a second slider on the
-     page, or a swap back to one, reuses the first fetch rather than
-     appending a second tag.
+     LAZY ASSETS — Swiper and Finsweet came from the site-wide embeds,
+     about 90 KiB every page paid for and home uses neither. Fetched
+     here instead, once per asset and only for a container that has the
+     markup; the promise is cached, so a second slider reuses it.
      ============================================================ */
 
   const Assets = (function () {
@@ -3588,8 +2997,8 @@
       document.head.appendChild(el);
     });
 
-    /* Resolves either way. A stylesheet that 404s leaves an ugly slider,
-       refusing to build one over it leaves no slider at all. */
+    // Resolves either way: a 404 leaves an ugly slider, refusing to
+    // build leaves none at all.
     const style = (href) => new Promise((resolve) => {
       const el = document.createElement('link');
       el.rel = 'stylesheet';
@@ -3609,12 +3018,9 @@
         });
       },
 
-      /* Two attributes that are not decoration. type=module because the
-         entry is ESM and opens with a bare import — as a classic script
-         it is a syntax error. fs-list because v2 boots the solutions
-         named on its own tag: without it Attributes loads, finds nothing
-         asked for, and initialises nothing, which reads exactly like a
-         filter that has stopped working. */
+      /* Both attributes are load-bearing: type=module because the entry
+         is ESM, and fs-list because v2 boots the solutions named on its
+         own tag — without it nothing initialises at all. */
       finsweet() {
         return once('finsweet', () => {
           if (window.FinsweetAttributes) return Promise.resolve();
@@ -3629,7 +3035,7 @@
 
 
   Modules.add('slider', function (root) {
-    /* Nothing to build and, more to the point, nothing to fetch. */
+    // Nothing to build, and nothing to fetch.
     if (!root.querySelector('.c_slider_swiper')) return;
 
     const instances = [];
@@ -3659,8 +3065,7 @@
         const mq = window.matchMedia('(max-width: 767px)');
         const tabletMq = window.matchMedia('(max-width: 991px)');
 
-        /* Three tiers, each falling back to the one above it, so a
-           slider that only sets data-gap behaves as it always did. */
+        // Three tiers, each falling back to the one above it.
         const applyGap = () => {
           const value = mq.matches
             ? (gapMobileAttr || gapTabletAttr || gapAttr)
@@ -3668,10 +3073,9 @@
           if (value) el.style.setProperty('--slider-gap', value);
         };
 
-        /* Rounded. A rem-based gap measures fractional (23.84px), Swiper
-           multiplies it into every slide offset, and the accumulated
-           fraction lands slide edges on half pixels — which is the hairline
-           of the neighbouring image showing along the edge of a slide. */
+        /* Rounded: a rem gap measures fractional, Swiper multiplies it
+           into every offset, and the accumulated fraction lands edges on
+           half pixels — the hairline of the next image. */
         const measureGap = () => {
           const probe = document.createElement('div');
           probe.className = 'c_slider_gap_probe';
@@ -3683,21 +3087,11 @@
 
         applyGap();
 
-        /* Left bleed with a loop, without showing the loop's own machinery.
-           The track runs full-bleed and the first slide is pushed in to line
-           up with the page text, so the clipping edge is the viewport rather
-           than the text margin — a slide leaving to the left stays visible
-           all the way out, while the slides Swiper relocates far off-screen
-           stay hidden.
-
-           Set data-align-to to a selector inside the section whose left edge
-           the first slide should match; defaults to the section's container.
-           Requires the track itself to be full width: drop the margin-left
-           from .c_slider_offset. */
-        /* Several names for the same thing across the site, so all of
-           them are candidates and the first that actually describes a
-           margin wins. One class was a single rename away from the rail
-           running to the edge again. */
+        /* Full-bleed track with the first slide pushed in to the page
+           text, so the clipping edge is the viewport and a slide leaving
+           to the left stays visible all the way out. data-align-to names
+           the element to match; the defaults are the several names the
+           site uses for the same container. */
         const alignSel = str('data-align-to') || '.u-container, .u-container-full';
         const section = el.closest('section') || el.parentElement;
 
@@ -3707,8 +3101,8 @@
 
           let best = 0;
           section.querySelectorAll(alignSel).forEach((target) => {
-            /* A container the rail sits inside already applies its own
-               margin — matching it would double the inset. */
+            // A container the rail sits inside already applies its own
+            // margin; matching it would double the inset.
             if (target.contains(el)) return;
             const delta = target.getBoundingClientRect().left - rail;
             if (delta > best) best = delta;
@@ -3717,19 +3111,14 @@
           return Math.round(best);
         };
 
-        /* The rail runs edge to edge, so without a matching offset at the far
-           end Swiper stops with the last card's right edge against the
-           viewport rather than against the page margin — the card reads as
-           cut off, and with loop and rewind both off there is nothing left to
-           scroll. Symmetry also gives the track somewhere to travel to. */
+        /* Without a matching offset at the far end the last card stops
+           against the viewport rather than the page margin, and reads as
+           cut off. */
         const measureOffsetAfter = () => measureOffset();
 
-        /* One-per-view means one WHOLE card. Swiper divides the rail by the
-           per-view number, and the rail is the full viewport, so a slide
-           comes out viewport-wide and the left offset then pushes its right
-           edge off screen — the sliver of overflow on phones. Ask for
-           slightly more than one so the card fits between the two margins.
-           Fractional values are left alone: a peek is the author's intent. */
+        /* One-per-view means one WHOLE card: the rail is the viewport, so
+           a slide comes out viewport-wide and the offset pushes its right
+           edge off screen. Fractional values are the author's peek. */
         const fitPerView = (authored) => {
           if (authored !== 1) return authored;
           const width = el.clientWidth;
@@ -3740,11 +3129,9 @@
 
         const wrap = el.closest('.c_slider_wrap');
 
-        /* Swiper finds slides by class, and a card component built in the
-           Designer arrives without it — the slider then initialises against
-           zero slides, so nothing is given a width and the track never
-           moves. Tag the wrapper's own children when none of them carry it,
-           which is what putting cards in a slider is meant to express. */
+        /* A Designer card component arrives without .swiper-slide, and
+           Swiper then initialises against zero slides: nothing gets a
+           width and the track never moves. */
         const track = el.querySelector('.swiper-wrapper, .c_slider_swiper_wrap');
         if (track && !track.querySelector(':scope > .swiper-slide')) {
           const children = Array.from(track.children);
@@ -3764,18 +3151,14 @@
           slidesPerView: fitPerView(num('data-slides-mobile', 1)),
           spaceBetween: measureGap(),
           loop,
-          /* Mutually exclusive in Swiper 11: with both set the loop
-             re-orders slides while rewind also tries to jump the index back
-             to the start, and the two fight on the same transition — the
-             jump you see at the ends. rewind only applies without loop. */
+          // Mutually exclusive in Swiper 11: with both, the re-order and
+          // the index jump fight on the same transition.
           rewind: loop ? false : bool('data-rewind', true),
           loopAdditionalSlides: num('data-loop-extra', 4),
           speed: num('data-speed', 600),
 
-          /* The module mounts at beforeEnter, while the container is a fixed
-             100vh rectangle mid-transition, so the first measurement is
-             taken against a box that is about to change. These make Swiper
-             re-measure itself rather than keeping those numbers. */
+          // Mount measures against the transition rectangle, which is
+          // about to change; these make Swiper re-measure.
           observer: true,
           observeParents: true,
           resizeObserver: true,
@@ -3784,17 +3167,11 @@
           slidesOffsetBefore: measureOffset(),
           slidesOffsetAfter: measureOffsetAfter(),
 
-          /* slidesPerView 2.25 divides the container into fractional widths
-             (605.778px) and translates the track by fractional amounts. Every
-             layer inside a card then rounds independently, so a colour panel
-             at inset:0 can land a pixel short of the image beneath it and let
-             an edge of it show. Rounding lengths and translates to whole
-             pixels removes the seam at the source — padding the panel instead
-             just makes it overhang the card. */
+          /* Fractional per-view widths translate the track by fractions,
+             and every layer inside a card rounds independently — a panel
+             at inset:0 lands a pixel short of its image. */
           roundLengths: true,
-          /* Three tiers. data-slides-tablet covers 768 to 991 and falls
-             back to the desktop number when it is not set, so a slider
-             that never wanted a tablet value behaves as it always did. */
+          // data-slides-tablet covers 768-991, falling back to desktop.
           breakpoints: {
             768: {
               slidesPerView: fitPerView(
@@ -3812,11 +3189,9 @@
           }
         });
 
-        /* loop parks duplicate slides just outside the container on both
-           sides and re-orders them as you cross the seam. The container's
-           clipping is what keeps that machinery off screen — without it the
-           duplicates read as a sliver of the neighbouring image along the
-           edges, and the re-order reads as a jump. */
+        /* loop parks duplicates just outside the container and re-orders
+           them at the seam, so the clipping is what keeps that machinery
+           off screen. */
         if (loop) {
           const overflow = getComputedStyle(el).overflowX;
           if (overflow === 'visible') {
@@ -3830,9 +3205,8 @@
           }
         }
 
-        /* Belt and braces on top of the observers: one explicit update once
-           the page is actually laid out. Cheap, and it closes the window
-           where a slide starts at the wrong offset and snaps on first drag. */
+        // One explicit update once the page is laid out, closing the
+        // window where the first drag snaps.
         Intro.add(root, () => {
           if (!swiper.destroyed) swiper.update();
         });
@@ -3844,12 +3218,9 @@
             applyGap();
             const gap = measureGap();
             const offset = measureOffset();
-            /* Only the base value is ours to set — that is the one below
-               the first breakpoint. Above it Swiper owns slidesPerView
-               and re-applies the breakpoint's number on every resize;
-               writing to params as well left the snap grid describing a
-               layout that was no longer current, which is a track that
-               scrolls a slide or two past its end. */
+            /* Only the base value is ours: above the first breakpoint
+               Swiper owns slidesPerView and re-applies it on resize, and
+               writing to params too leaves a stale snap grid. */
             const base = fitPerView(num('data-slides-mobile', 1));
             const tablet = fitPerView(
               num('data-slides-tablet', num('data-slides-per-view', 1.25))
@@ -3860,14 +3231,9 @@
               || swiper.params.slidesOffsetAfter !== offset
               || (mq.matches && swiper.params.slidesPerView !== base);
 
-            /* Applying a breakpoint rebuilds params from the ORIGINAL
-               init values merged with that breakpoint's — so anything
-               written to params at runtime is thrown away the next time
-               a breakpoint lands. The offsets have to live in all three
-               places or the track is laid out against whatever the
-               offsets were when the page first loaded: every snap after
-               the first sits short of the margin, and the end overshoots
-               by the difference. */
+            /* A breakpoint rebuilds params from the ORIGINAL init values,
+               so runtime writes are thrown away when one lands. The
+               offsets have to live in all three places. */
             const carry = (target) => {
               if (!target) return;
               target.slidesOffsetBefore = offset;

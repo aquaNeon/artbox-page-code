@@ -337,6 +337,7 @@ columns at different speeds with static text on top.
 | `data-parallax-axis="x"` | the moving element | Horizontal instead of vertical |
 | `data-parallax-distance` | the moving element | px for strength 1 on that element, overriding the 120 default |
 | `data-parallax-from` / `-to` | the moving element | Start and end of the range as a length. Given either, strength is ignored and the element travels between them — the rise-from-below form, e.g. `from="60vh" to="0"` |
+| `data-parallax-start` / `-end` | the moving element | ScrollTrigger positions for the range, overriding `top bottom` / `bottom top`. A sticky group's pinned window is `start="top top" end="bottom bottom"`, which puts all the travel on screen instead of most of it before and after |
 | `data-parallax-mobile="0.5"` | element or group | Strength multiplier below 768px. **Defaults to 0.5** — a phone shows less of the group at once, so the same travel crosses more screen per scrolled pixel. `1` keeps desktop travel, `0` disables on phones |
 
 Scrubbed, so it reverses on the way back up. The range is the group crossing
@@ -974,6 +975,83 @@ the bundle lands was a flash of video in the grid. The hold has no fill, so a
 page that never gets the script shows the video rather than an empty cell; the
 module drops the animation at mount, since a running animation would outrank
 the tween's inline opacity.
+
+### smooothy — `.work_smoothly_wrap`
+
+Autoplay for the smooothy sliders. Opt-in per slider, because most of them
+are things you read rather than watch.
+
+| Attribute | Effect |
+| --- | --- |
+| `data-autoplay` | step a slide every 4000ms |
+| `data-autoplay="6000"` | ms between steps |
+| `data-autoplay="drift"` | continuous marquee-style motion |
+| `data-autoplay-speed="0.2"` | drift only, slides per second (default `0.15`) |
+| `data-autoplay="false"` | off, same as leaving the attribute out |
+
+Two modes because they read differently. Stepping lands on a slide and
+holds, which suits a slider somebody is meant to look through; drift never
+settles, which suits a band of logos or images that is really just texture.
+
+Paused while the pointer is over it, while it is being dragged, while it is
+off screen, while the tab is in the background, and through a page
+transition — anything that would otherwise advance past a reader or animate
+where nobody is. The clock is reset rather than paused, so returning from a
+background tab neither jumps a slide nor pays out the whole pause at once.
+
+Driven off the module's own rAF rather than a timer: a `setInterval` keeps
+firing in a background tab and queues up a fistful of steps to play the
+moment somebody comes back.
+
+Reduced motion takes the autoplay and leaves the slider — it can still be
+dragged.
+
+### ctaReveal — `.cta_wrap`
+
+The section arrives white. It sticks, the yellow washes up under it, and
+the images rise out of the fold up their own columns at their own rates,
+past the text and off the top. It is still stuck when the last one leaves;
+only then does it let go.
+
+Its own module rather than `[data-parallax]` because the shape is
+different. Parallax is symmetric — displaced one way at the start, the
+other at the end, at rest at the midpoint — which is a drift, not an
+arrival. Here every image travels one way, from below the fold to above the
+frame. The `data-parallax` strengths already on the markup are reused as
+the rates, so the Designer stays where they are tuned; the attributes are
+taken off the elements while this module owns them, since two owners of one
+transform fight and drift, and restored on teardown.
+
+Everything is scrubbed against the sticky window (`top top` → `bottom
+bottom`), so nothing happens before it is watchable or after it is gone.
+
+Knobs in the `CTA` object:
+
+| Key | Meaning |
+| --- | --- |
+| `scroll` | screens of scrolled height for the section, sticky screen included — the pin lasts this minus one. Written to the section from JS so the number lives with the motion |
+| `tint` / `tintStart` | fractions of the pin for the neon wash. It starts a beat after the lock because a scrub eases toward its target, so at `0` the colour was already moving while the section was still arriving |
+| `fit` | fraction of the pin where the last image is made to finish. The whole schedule is scaled to land on it, so the dead tail is a decision rather than five delays adding up short |
+| `travel` | fraction of the pin by which everything must have cleared the screen |
+| `lead` / `exit` | screens below the fold every image starts, and past the top every image finishes. The journey is the same for all of them; only rate and start time differ |
+| `lanes` | fractions of the pin each lane takes to cross — slow, middle, fast. The numbers on the markup pick a lane; the sorting follows the length of this list, so a fourth number is a fourth lane |
+| `stagger` | default spread through the pin by DOM order, overridden per image by `data-cta-delay` |
+| `spread` | one multiplier over every delay: tightens or loosens the whole sequence while keeping the arrangement. Tune this before touching individual numbers |
+| `images` | the arrangement, keyed by the `is-1`…`is-5` combo class. `delay` is a fraction of the pin, `lane` an index into `lanes` |
+| `scrub` | ScrollTrigger scrub, in seconds |
+
+Three lanes rather than one rate per image: the eye cannot tell 3 from 3.5
+and does not try, while clearly separated speeds read as depth. The middle
+lane exists because an image can be wrong in both directions, and rounding
+it to one of two lanes is how a five-image drift collapses back into
+columns moving in lockstep.
+
+A late image cannot also be slow — everything has to clear by `travel` — so
+the slow lane belongs to images that set off early. Lateness is bought with
+speed.
+
+Per-element overrides: `data-cta-delay` on an image, or its own
+`data-parallax` number, beat the `images` table.
 
 ## Underline links — `[data-underline-link]`
 
