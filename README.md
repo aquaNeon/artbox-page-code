@@ -1053,6 +1053,57 @@ speed.
 Per-element overrides: `data-cta-delay` on an image, or its own
 `data-parallax` number, beat the `images` table.
 
+### share — `[data-share]`
+
+A share menu: LinkedIn, copy link, and the OS sheet where there is one.
+
+| Attribute | Role |
+| --- | --- |
+| `data-share` | the wrapper |
+| `data-share-url` | optional, defaults to the page url |
+| `data-share-open` | the trigger |
+| `data-share-menu` | the panel, hidden until opened |
+| `data-share-close` | closes it |
+| `data-share-copied` | "Link copied", shown for a moment |
+| `data-share-action="linkedin"` | opens LinkedIn's share dialog |
+| `data-share-action="copy"` | copies the url |
+| `data-share-action="native"` | the OS share sheet, phones mostly |
+
+A native action with no OS support hides itself rather than sitting there
+doing nothing when tapped.
+
+Closes on the close button, on Escape, and on a click outside. Focus moves
+into the panel on open and back to the trigger on close, so it can be
+operated without a pointer — except after a copy, where the menu closes and
+the confirmation is what is left on screen: the trigger is faded out under
+it, and a focus ring on something invisible is worse than none.
+
+Knobs in `SHARE`: `copiedFor` (ms the confirmation holds, default 3000) and
+`window` (the popup features string).
+
+### videoPoster — `[data-video="component"]`
+
+Holds the poster over a base-lib video until the first frame is actually
+painted.
+
+base-lib drops the poster the moment it decides to play, which is before
+any frame exists. Webflow ships `<source>` carrying both `data-src` and
+`src`, so base-lib's `lazyLoadVideo` takes its early-out and resolves
+without loading anything, and `preload="none"` means not a byte has been
+fetched. The poster leaves, the video box is still empty, and the section
+background shows through as a grey frame — intermittently, since it is a
+race the cache sometimes wins.
+
+So the poster is faded on the first painted frame instead:
+`requestVideoFrameCallback`, or the `playing` event plus a rAF where that
+is missing. Nothing else is taken over — base-lib keeps its lazy load, its
+scroll-in play and its pause. If the video never arrives (an expired or 404
+url) no frame is painted, nothing fades, and the poster stays, which is the
+correct fallback.
+
+Registered ahead of `baseLib`, so the poster is under this module's control
+before video-min touches it.
+
 ## Underline links — `[data-underline-link]`
 
 Hovering wipes the resting line out to the right while a fresh one wipes in

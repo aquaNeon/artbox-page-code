@@ -3565,23 +3565,8 @@
 
   /* ============================================================
      SHARE — [data-share]
-
-       data-share                     the wrapper
-       data-share-url                 optional, defaults to the page url
-       data-share-open                the trigger
-       data-share-menu                the panel, hidden until opened
-       data-share-close               closes it
-       data-share-copied              "Link copied", shown for a moment
-       data-share-action="linkedin"   opens LinkedIn's share dialog
-       data-share-action="copy"       copies the url
-       data-share-action="native"     the OS share sheet, phones mostly
-
-     A native action with no OS support hides itself rather than
-     sitting there doing nothing when tapped.
-
-     Closes on the close button, on Escape, and on a click outside.
-     Focus moves into the panel on open and returns to the trigger on
-     close, so it can be operated without a pointer.
+     LinkedIn, copy, and the OS sheet where there is one. Attributes and
+     keyboard behaviour: README ### share.
      ============================================================ */
 
   const SHARE = {
@@ -3611,8 +3596,7 @@
       let copiedTimer = null;
       let open = false;
 
-      /* Webflow ships the panel with an inline display:none. Cleared so a
-         class can own the state, and restored on teardown. */
+      // Webflow's inline display:none, cleared so a class owns the state.
       const inlineDisplay = menu.style.display;
       if (getComputedStyle(menu).display === 'none') menu.style.removeProperty('display');
       if (copied) copied.style.removeProperty('display');
@@ -3631,10 +3615,9 @@
         }
       };
 
-      /* A third state, not just a message: the menu is gone, the trigger
-         is still held back, and the confirmation stands on its own until
-         the timer hands the trigger back. Driven from the wrapper so one
-         class decides which of the three is showing. */
+      /* A third state, not a message: menu gone, trigger still held back,
+         confirmation standing alone until the timer. One class on the
+         wrapper decides which of the three is showing. */
       const clearCopied = () => {
         clearTimeout(copiedTimer);
         wrap.classList.remove('is-share-copied');
@@ -3649,8 +3632,7 @@
         }, SHARE.copiedFor);
       };
 
-      /* Clipboard needs a secure context, so an http preview or an older
-         browser lands on the textarea route rather than on nothing. */
+      // Clipboard needs a secure context; an http preview falls back.
       const copy = async (value) => {
         try {
           await navigator.clipboard.writeText(value);
@@ -3710,13 +3692,9 @@
           if (action === 'copy') {
             const ok = await copy(value);
             if (!ok) { console.warn('[share] could not copy', value); return; }
-            /* Closed on success, so the confirmation is what is left on
-               screen. Hunting for a small X to dismiss a menu whose job
-               is already done is the worse half of this interaction.
-
-               Focus is not sent back to the trigger here: it is still
-               faded out under the confirmation, and a focus ring on
-               something invisible is worse than none. */
+            /* Closed on success, leaving the confirmation. Focus does not
+               go back to the trigger: it is faded out under it, and a
+               focus ring on something invisible is worse than none. */
             setOpen(false, false);
             showCopied();
             return;
@@ -3763,25 +3741,14 @@
 
   /* ============================================================
      VIDEO POSTER — [data-video="component"]
+     base-lib drops the poster when it decides to play, which is before
+     any frame exists — so the box is empty and the section shows
+     through. Held here and faded on the first PAINTED frame instead; a
+     video that never arrives keeps its poster, which is the right
+     fallback.  (docs: README ### videoPoster)
 
-     base-lib drops the poster the moment it decides to play, which is
-     before any frame exists. Webflow ships <source> carrying both
-     data-src and src, so base-lib's lazyLoadVideo takes its early-out
-     and resolves without loading anything; preload="none" means not a
-     byte has been fetched. The poster leaves, the video box is still
-     empty, and the section background shows through as a grey frame.
-     Intermittent, because it is a race the cache sometimes wins.
-
-     So the poster is held here instead and faded on the first PAINTED
-     frame — requestVideoFrameCallback, or the playing event plus a rAF
-     where that is missing. Nothing else is taken over: base-lib keeps
-     its lazy load, its scroll-in play and its pause. If the video never
-     arrives — an expired or 404 url — no frame is painted, nothing
-     fades, and the poster simply stays. That is the correct fallback
-     and the current code has it backwards.
-
-     Registered ahead of baseLib so the poster is under this module's
-     control before video-min touches it.
+     Registered ahead of baseLib, so the poster is ours before video-min
+     touches it.
      ============================================================ */
 
   Modules.add('videoPoster', function (root) {
@@ -3817,13 +3784,12 @@
           handle = video.requestVideoFrameCallback(reveal);
           return;
         }
-        /* No rVFC. `playing` means a frame is presentable, not that it
-           has been composited, so wait for the frame after the next. */
+        // No rVFC: `playing` means presentable, not composited, so wait
+        // for the frame after the next.
         requestAnimationFrame(() => requestAnimationFrame(reveal));
       };
 
-      /* Already running by the time this mounts — a swap back to a page
-         whose video kept playing never fires `playing` again. */
+      // A swap back to a still-playing video never fires `playing` again.
       if (!video.paused && video.readyState >= 3) onPlaying();
       video.addEventListener('playing', onPlaying);
 
@@ -3844,80 +3810,56 @@
 
   /* ============================================================
      HERO VIDEO — cell 6 of the hero grid to full screen
+     Docs: README ### heroVideo.
 
-     The video sits in the last cell of the hero grid. Scrolling out
-     of the hero releases it: it travels to the middle of the screen
-     and scales to full bleed on its own clock, not the scroll's. The
-     stage below it then pins for a screen while the statements play
-     over it; after that the whole thing scrolls away as one.
+     Triggered rather than scrubbed: a scrubbed growth is only as
+     committed as the hand on the wheel, and stopping mid-scroll left
+     the video stranded at whatever size the scroll had bought. Where it
+     travels to stays scroll-bound.
 
-     Triggered rather than scrubbed on purpose — a scrubbed growth is
-     only ever as committed as the hand on the wheel, and stopping
-     mid-scroll left the video stranded at whatever size the scroll
-     had bought. Where it travels *to* is still scroll-bound: p is
-     what the video is doing, the scroll term is what the page is
-     doing under it.
+     Fixed and out of flow for the travel — inside the grid it would be
+     clipped by the section and fighting the hero's parallax for the
+     same matrix. The cell it leaves keeps its aspect ratio so the grid
+     does not collapse around a hole.
 
-     It is taken out of flow and fixed for the travel. A transform
-     inside the grid would be clipped by the section, and would be
-     fighting the hero's own parallax for the same matrix on the same
-     element. Fixed, it owns its transform and nothing clips it.
-
-     The cell it leaves behind is given the aspect ratio it had while
-     it was still in flow, so the grid keeps its shape rather than
-     collapsing around a hole.
-
-     Position is arithmetic off one measurement per refresh, not a
-     rect read per frame: the cell travels linearly with the scroll,
-     so where it would be at any progress is known without asking the
-     layout engine again.
+     Position is arithmetic off one measurement per refresh: the cell
+     travels linearly with the scroll, so there is nothing to ask the
+     layout engine per frame.
      ============================================================ */
 
   const HERO_VIDEO = {
     pin: 1.5,          // screens of pin once it is full bleed
 
-    /* The growth is a second long and a flick of the wheel is a
-       screen, so it was entirely possible to arrive at the pin having
-       seen none of it. On the same scroll that fires the growth the
-       page is carried the rest of the way to the pin, locked while it
-       goes, so the travel is watched rather than skipped.
-
-       Reduced motion never gets it: taking someone's scroll away is
-       exactly what that setting is asking you not to do. */
+    /* The growth is a second long and a flick of the wheel is a screen,
+       so the page is carried to the pin and locked while it travels —
+       otherwise it is possible to arrive having seen none of it. Never
+       under reduced motion: taking the scroll away is the one thing
+       that setting asks you not to do. */
     takeover: true,
     takeoverDuration: 1,
     z: 5,              // over the hero and the stage, under the nav
 
-    /* The growth is triggered, not scrubbed: a couple of notches of
-       scroll out of the hero and the video goes to full bleed on its
-       own clock, whatever the scroll does next. In pixels rather than
-       a fraction of the screen, because what fires it is the gesture
-       — a flick of the wheel is the same flick on any viewport. */
+    // px of scroll out of the hero before the growth fires. Pixels, not
+    // a fraction: what fires it is the gesture, the same on any screen.
     growAfter: 120,
     growDuration: 1,
     growEase: E.travel,
 
-    /* Milliseconds a statement holds before the next one can take
-       over, however fast the pin is scrolled. */
-    dwell: 1300,
+    dwell: 1300,       // ms a statement holds, however fast the pin runs
 
-    /* Fallback only. The real delay is this cell's slot in the
-       entrance order, read off --hero-in-* in page-transition.css. */
+    // Fallback only: the real delay is this cell's slot in the entrance
+    // order, read off --hero-in-* in the CSS.
     from: 0.6,
     duration: 0.9,
     delay: 0.55,
     ease: E.small,
 
-    /* How much larger than its frame the video is painted, matching
-       the resting value in page-transition.css. */
-    overspill: 1.02,
+    overspill: 1.02,   // painted larger than its frame, as in the CSS
 
-    /* A pixel past the viewport on every side. A scaled layer's edges
-       land on fractions, and at the seam the compositor rounds the
-       other way from the paint — a hairline of whatever is behind,
-       flickering as the number changes. It never appears in a
-       screenshot, because that captures the composited result after
-       the rounding rather than the seam itself. */
+    /* px past the viewport on every side: a scaled layer's edges land on
+       fractions and the compositor rounds the other way from the paint,
+       leaving a flickering hairline. Never visible in a screenshot,
+       which captures the composited result. */
     bleed: 2
   };
 
@@ -3969,91 +3911,56 @@
     let dead = false;
     let lifted = false;
 
-    /* position:fixed is only relative to the viewport when no ancestor
-       carries a transform — and this component's own cell is exactly
-       what the hero parallax transforms. Left in place it resolved
-       against the parallaxed cell instead, which threw it off to one
-       side and let it scroll away with its ancestor.
-
-       So it is moved to the body for the journey, and a comment holds
-       its seat so teardown can put it back where the Designer had it. */
+    /* position:fixed resolves against the viewport only while no
+       ancestor is transformed — and the hero parallax transforms this
+       very cell. So it moves to the body for the journey, and this
+       marker holds its seat for teardown. */
     const seat = document.createComment('hero-video');
 
-    /* The statements move INTO the video for the pin. Fixed and living
-       on the body, the video paints over the whole stage — every
-       section here is its own stacking context, so no number given to
-       the text inside one could ever outrank it. As children of the
-       video they are simply painted after it, and nothing global has to
-       be re-ranked to make that true. Only for the pin, when the scale
-       is 1 and their size is their own. */
+    /* The statements move INTO the video for the pin: fixed on the body
+       it paints over the whole stage, and every section is its own
+       stacking context, so no z-index on the text could outrank it. As
+       children they are simply painted after. */
     const text = stage.querySelector('.home_video_contain');
     const textSeat = document.createComment('hero-video-text');
 
-    /* The theme comes with them. Colour here is a variable the stage
-       sets through u-theme-dark, and inside the component they were
-       reading whatever the page's default theme said instead — which
-       is how white text arrived black. */
+    // The theme travels with them: colour is a variable the stage sets,
+    // and inside the component they read the page default instead.
     const themed = stage.classList.contains('u-theme-dark');
 
-    /* Where it sits in the stage is the design; anything this module
-       decides instead is a guess, and centring it was the wrong guess.
-       So the box is measured before the move and reproduced inside the
-       video.
+    /* The statements keep the box the design gave them in the stage,
+       measured before the move: centring them was a guess, and a wrong
+       one. All four edges, since the frame is no longer the viewport —
+       it is the video's own shape, scaled until it covers, running well
+       past both sides of a phone.
 
-       All four edges, not just the top. The frame is no longer the
-       viewport — it is the video's own shape, scaled until it covers,
-       so on a phone it runs a long way past both sides of the screen.
-       The stylesheet's left: 0 / right: 0 spans the frame, which is
-       the statements stretched off both edges and centred on something
-       nobody can see. Its own left and width put it back where the
-       design had it.
+       Measured against the frame's RESTING box, not its current rect: a
+       fast scroll reaches the pin with the growth still running, and a
+       rect read mid-flight is a scaled one.
 
-       Measured against the frame's resting box rather than its current
-       rect: a fast scroll can reach the pin with the growth still
-       running, and a rect read mid-flight is a scaled one. Every
-       number here is where the frame is about to settle.
+       Anchored to the bottom, because the gap to the foot of the stage
+       is the design and the height is whatever the text needs.
 
-       Anchored to the bottom, not the top. The statements sit at the
-       foot of the stage, and top plus a measured height only holds
-       them there while the height is right — a statement of another
-       length, a wrap at another width, and the block drifts up from
-       the edge it was aligned to. The gap to the bottom is the design;
-       the height is whatever the text needs.
-
-       Its own width and left are reproduced too. Giving it the
-       viewport instead sounded structure-proof and threw the padding
-       away with the box: what insets the statements is the stage's
-       layout around this element, not anything inside it. */
-    /* Kept as offsets, not as viewport numbers. A box written once at
-       pin entry goes stale the moment the viewport changes size, which
-       on a phone is every time the address bar retracts.
-
-       Measured off the stage, but resolved against the VIEWPORT: while
-       the pin holds, the stage is the screen. Reading the stage's rect
-       at refresh time gives its unpinned position instead — refresh
-       reverts pins to measure them — and placing the text against a
-       stage that is a page away is the statement leaping into the
-       middle of the frame. */
+       Kept as offsets rather than viewport numbers, which go stale as
+       soon as the address bar retracts — and resolved against the
+       VIEWPORT, since while the pin holds the stage is the screen.
+       (A refresh reverts pins to measure them, so the stage's own rect
+       at that moment is a page away.) */
     let textBox = null;
 
     const placeText = () => {
       if (!text || !textBox || text.parentNode !== comp) return;
 
-      /* Settled, the component is the stage: absolute at inset 0
-         inside it, so the gaps measured off the stage are the gaps to
-         write, unchanged. Travelling, it is the frame — bigger than
-         the screen and hanging off it — so the same gaps have to be
-         resolved through where the frame sits. */
+      /* Settled, the component IS the stage, so the measured gaps are
+         written unchanged. Travelling, it is the frame — bigger than the
+         screen — so they resolve through where the frame sits. */
       const settled = comp.classList.contains('is-settled');
       if (!settled && !cover) return;
 
       /* Travelling, the component is laid out at viewport width and
-         scaled up to cover — so everything inside it is scaled too,
-         which put the statements at four times their size and off the
-         screen. The scale is undone here and the offsets are expressed
-         in the component's own units, so the text lands at 1:1 over the
-         video. Origin at the bottom left, which is the corner the
-         placement is anchored to. */
+         scaled to cover, so its children scale too — the statements came
+         out at four times their size. Offsets are expressed in the
+         component's own units so the text lands 1:1. */
       const k = 1;
       const fromLeft = textBox.leftRatio * window.innerWidth;
       const width = textBox.widthRatio * window.innerWidth;
@@ -4084,12 +3991,9 @@
       const t = text.getBoundingClientRect();
       const st = stage.getBoundingClientRect();
 
-      /* Horizontals as fractions of the stage, not pixels. Measured
-         once at pin entry, a phone's box stayed a phone's box on a
-         desktop window — the statements a narrow column in the middle
-         of a wide screen. The vertical stays in pixels: where the text
-         sits above the bottom edge is a fixed offset in the design, not
-         a share of the height. */
+      /* Horizontals as fractions of the stage: measured once in pixels,
+         a phone's box survives into a desktop window. The vertical stays
+         in px — the gap above the bottom edge is a fixed offset. */
       const stageW = st.width || window.innerWidth;
       textBox = {
         fromBottom: st.bottom - t.bottom,
@@ -4104,11 +4008,8 @@
       placeText();
     };
 
-    /* Leaving the pin in either direction puts the statements back
-       where they started. Without it the sequence is a one-off: the
-       statements stay where the last scroll left them, and coming back
-       finds them already read — nothing to dispatch, nothing to
-       animate, the first one simply present. */
+    /* Leaving the pin either way rewinds the statements. Without it the
+       sequence is a one-off: coming back finds them already read. */
     const resetSwap = () => {
       if (dead || !swap) return;
       clearTimeout(catchUp);
@@ -4136,11 +4037,9 @@
     gsap.set(comp, { autoAlpha: 0 });
 
     const measure = () => {
-      /* The cell carries its own height from the Designer, so measuring
-         it gave the cell's shape rather than the video's — a square box
-         with a 16/9 component sitting inside it. The ratio the
-         component declares is stamped on the cell first, so the cell
-         IS that shape and the measurement describes the video. */
+      /* The cell carries its own Designer height, so it measured as a
+         square box around a 16/9 component. Stamping the component's
+         ratio on it first makes the measurement describe the video. */
       if (!lifted) {
         const declared = getComputedStyle(comp).aspectRatio;
         cell.style.aspectRatio = declared && declared !== 'auto' ? declared : '16 / 9';
@@ -4160,12 +4059,10 @@
 
       base = { x: r.left, y: r.top + y, w: r.width, h: r.height };
 
-      /* The box is the viewport, never wider. A frame kept at the
-         video's ratio is vh * 16/9 on a phone — four times the screen —
-         and a browser scales the whole page to something that size.
-
-         The shape change that costs is undone on the video inside
-         instead: see apply(). */
+      /* The frame is the viewport, never wider: kept at the video's
+         ratio it is four screens wide on a phone, and the browser scales
+         the whole page to that. The shape is fixed on the video inside
+         instead — see apply(). */
       const b = HERO_VIDEO.bleed;
       const cw = window.innerWidth + b * 2;
       const ch = window.innerHeight + b * 2;
@@ -4178,18 +4075,15 @@
         sx: base.w / cw,
         sy: base.h / ch,
         ratio,
-        /* What the video has to be scaled to at the end to cover a frame
-           of another shape. */
+        // Scale the video needs to cover a frame of another shape.
         toCover: Math.max(1, (ch * ratio) / cw),
         x: -b,
         y: -b
       };
 
-      /* The video is laid out in its own ratio inside the frame, not
-         stretched to fill it: object-fit against a portrait box crops
-         the picture to portrait before any transform gets to it, which
-         is a 16/9 video shown as 9/16. Sized here, covered by the
-         scale in apply(). */
+      /* Laid out in its own ratio rather than stretched to the frame:
+         object-fit against a portrait box crops a 16/9 video to 9/16
+         before any transform sees it. */
       if (visual) {
         visual.style.position = 'absolute';
         visual.style.left = '50%';
@@ -4199,9 +4093,8 @@
         visual.style.maxWidth = 'none';
       }
 
-      /* Once only, and only after the first measurement: the cell needs
-         the component's own height to be measured at all, and can hold
-         the shape itself from then on. */
+      // Once, and after the first measurement: the cell needs the
+      // component's height before it can hold the shape itself.
       if (!lifted) {
         cell.insertBefore(seat, comp);
         document.body.appendChild(comp);
@@ -4213,47 +4106,38 @@
       comp.style.height = `${cover.h}px`;
     };
 
-    /* Started with the travel rather than left to base-lib's own
-       observer: by the time that fires the video is already halfway
-       across the screen, and the first thing anyone sees of it is a
-       still. Once only — a second play() mid-flight would restart it. */
-    /* base-lib pauses this video whenever its own observer says it is
-       out of view, and once the component is fixed and living on the
-       body that observer's idea of "in view" has nothing to do with
-       what is on screen. Taken off its books before it initialises —
-       heroVideo mounts first — so nothing else is deciding when this
-       one plays. */
+    /* Taken off base-lib's books before it initialises (heroVideo mounts
+       first): once the component is fixed on the body, that observer's
+       idea of "in view" has nothing to do with what is on screen, and it
+       would pause the video mid-flight. Started with the travel here
+       instead, or the first thing anyone sees of it is a still. */
     video?.removeAttribute('data-video-scroll-in-play');
 
     let playing = false;
     const play = () => {
       if (!video) return;
       playing = true;
-      /* An autoplay refusal is a decision, not a fault. */
+      // An autoplay refusal is a decision, not a fault.
       video.play?.().catch(() => {});
     };
 
-    /* Re-asserted while it travels: something else pausing it is far
-       more likely than it having ended, and a paused video mid-flight
-       is the one thing nobody would think to look for. */
+    // Re-asserted while it travels: something else pausing it is likelier
+    // than it having ended.
     const keepPlaying = () => {
       if (playing && video && video.paused) video.play?.().catch(() => {});
     };
 
     const lerp = (a, b, t) => a + (b - a) * t;
 
-    /* The entrance cannot be a CSS animation on the component: apply()
-       writes its transform every frame and the two would overwrite each
-       other. So the entrance scale is a number the transform is
-       composed from, and they coexist. */
+    // The entrance cannot be a CSS animation: apply() writes the same
+    // transform every frame, so its scale is composed in instead.
     let intro = HERO_VIDEO.from;
     let lastP = 0;
     let lastScroll = 0;
 
-    /* p 0 is the cell where it sits, p 1 is the screen filled. In
-       between it has to keep travelling with the page, or it would
-       hang in the viewport while the hero scrolled out from under it —
-       hence the scroll term, which is faded out as p rises. */
+    /* p 0 is the cell, p 1 the filled screen. In between it still has to
+       travel with the page, or it hangs in the viewport while the hero
+       leaves — hence the scroll term, faded out as p rises. */
     let frozen = false;
 
     const visual = comp.querySelector('.g_visual_video') || video;
@@ -4268,21 +4152,17 @@
       const sx = lerp(cover.sx, 1, p);
       const sy = lerp(cover.sy, 1, p);
 
-      /* The frame morphs from the cell's shape to the screen's; the
-         video is given that difference back, so on screen it is only
-         ever scaled by one number. That number walks from filling the
-         cell exactly to covering the viewport, which is the whole 16/9
-         in the grid and a full screen at the end. */
+      /* The frame morphs from the cell's shape to the screen's and the
+         video is handed that difference back, so it is only ever scaled
+         by one number: the cell's fill at one end, cover at the other. */
       if (visual && sx > 0 && sy > 0) {
         const f = lerp(cover.sx, cover.toCover, p) * HERO_VIDEO.overspill;
         visual.style.transform =
           `translate(-50%, -50%) scale(${f / sx}, ${f / sy})`;
       }
 
-      /* The images scale about their middle; the travel scales from the
-         top left, which is what keeps the placement arithmetic simple.
-         So the centre is held by hand — shrinking by intro leaves half
-         the difference on each side. */
+      // The travel scales from the top left, so the entrance's centre is
+      // held by hand: half the shrink on each side.
       const dx = (cover.w * sx * (1 - intro)) / 2;
       const dy = (cover.h * sy * (1 - intro)) / 2;
 
@@ -4290,48 +4170,27 @@
         `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${sx * intro}, ${sy * intro})`;
     };
 
-    /* Measured against the STAGE, not the hero. Tied to the hero's own
-       height the travel finished whenever that section happened to end,
-       which is unrelated to when the pin takes hold — so the video was
-       still partway through its journey, small and off to one side, at
-       the moment it was supposed to have arrived.
+    /* Measured against the STAGE, not the hero: the stage's top entering
+       the viewport to reaching it is one screen, and its end is the
+       pin's start by definition. Tied to the hero's height instead, the
+       travel finished whenever that section happened to end.
 
-       From the stage's top entering the viewport to it reaching the
-       top is exactly one screen of scroll, and its end is the pin's
-       start by definition. */
-    /* p used to be the trigger's own progress, so the growth was the
-       scroll: a slow scroll grew it slowly, a stopped scroll stopped
-       it halfway. It is a tween on its own clock now — once past
-       growAt it goes to full bleed and lands there, scroll or no
-       scroll.
-
-       The scroll term stays live throughout regardless. p is what the
-       video is doing; scroll is what the page is doing under it, and
-       until p reaches 1 the video still has to travel with the hero
-       rather than hang in the viewport while it leaves. */
-    /* Declared before everything that reaches for it. The trigger's
-       own callbacks run during its creation, and a const assigned on
-       that same line is still in its dead zone when they do — which
-       is a ReferenceError, not an undefined. */
+       Declared before anything that reaches for it — the trigger's own
+       callbacks run during its creation, where a const on the same line
+       is still in its dead zone. */
     let travel = null;
 
     const growth = { p: 0 };
     let growing = false;
     let wants = 0;
 
-    /* Driven by its own tween rather than by the trigger's updates:
-       once it is going it has to keep going, and a scroll that races
-       past the trigger's range — or stops dead inside it — takes the
-       trigger's updates with it. The tween is on the ticker, so it
-       does not care.
+    /* Its own tween, not the trigger's updates: once it is going it has
+       to keep going, and a scroll that races past the range — or stops
+       dead inside it — takes those updates with it. The scroll is read
+       live for the same reason.
 
-       Reading the scroll live for the same reason. Where the video
-       has to be is p plus where the page is, and while it is growing
-       both are moving. */
-    /* Carrying the page to the pin, not merely blocking it: a lock on
-       its own is a page that stops answering, which reads as broken.
-       Lenis owns the wheel here and takes a lock for the length of the
-       throw; without it the same throw is written frame by frame. */
+       The page is carried to the pin rather than merely blocked: a lock
+       on its own is a page that stops answering. */
     let tookOver = false;
     let scrollTween = null;
 
@@ -4367,9 +4226,8 @@
       wants = target;
       growing = true;
 
-      /* Armed again only once the growth has been let go of entirely,
-         so scrolling back up to the hero and down again gets the same
-         throw rather than one free pass. */
+      // Re-armed only once the growth is let go entirely, so scrolling
+      // back up and down again gets the same throw.
       if (target === 1) takeover();
       else tookOver = false;
       gsap.to(growth, {
@@ -4382,10 +4240,8 @@
       });
     };
 
-    /* Latched, with the two edges far apart on purpose. One threshold
-       for both directions means a scroll that hovers on it flips the
-       growth back and forth — it goes at growAfter and only comes back
-       at the very top of the range, so there is nothing to sit on. */
+    /* Latched, edges far apart: one threshold for both directions means
+       a scroll hovering on it flips the growth back and forth. */
     const wanted = (distance) => {
       if (distance >= HERO_VIDEO.growAfter) return 1;
       if (distance <= 0) return 0;
@@ -4398,11 +4254,9 @@
       end: 'top top',
       invalidateOnRefresh: true,
 
-      /* A refresh lands on every navigation and every footer resize,
-         so snapping p to where the scroll says it belongs would put a
-         jump in the middle of a growth that is already running. Only
-         the settled value is corrected — which is what a reload
-         partway down the page needs. */
+      /* Refreshes land on every navigation and footer resize, so only
+         the settled value is corrected — snapping p mid-growth is a jump
+         in the middle of it. */
       onRefresh: (self) => {
         measure();
         placeText();
@@ -4421,12 +4275,9 @@
       }
     });
 
-    /* Which step of the entrance this cell takes. The order and the
-       spacing are authored in page-transition.css, on .home_wrap,
-       alongside the five images' own delays — one place to change the
-       sequence, and this reads its slot out of it rather than keeping
-       a second copy of the arithmetic. Falls back to the constants
-       above if the stylesheet has not loaded. */
+    /* The entrance order lives on .home_wrap in the CSS, next to the
+       images' own delays; this reads its slot out of there rather than
+       keeping a second copy. Falls back to the constants above. */
     const introDelay = () => {
       const cs = getComputedStyle(hero);
       const num = (name) => {
@@ -4442,12 +4293,10 @@
       return lead + step * slot;
     };
 
-    /* The entrance is a tween rather than a keyframe: moving an element
-       in the DOM restarts its CSS animations, and this one is moved to
-       the body to travel and back again on the way up — so the fade
-       replayed every time, which is the flash on scrolling back.
-
-       Opacity only. The transform belongs to apply(). */
+    /* A tween, not a keyframe: moving an element in the DOM restarts its
+       CSS animations, and this one moves to the body and back — so the
+       fade replayed on the way up. Opacity only; apply() owns the
+       transform. */
     Intro.add(root, () => {
       if (dead) return;
       play();
@@ -4480,9 +4329,8 @@
        viewport for the rest of the page. */
     const settle = () => {
       if (dead) return;
-      /* Past the pin the transform is cleared and the stage owns the
-         box, so a growth still writing to it would be writing to
-         nothing — and would be mid-flight if it ever came back. */
+      // Past the pin the stage owns the box, so a growth still running
+      // would be writing to nothing.
       gsap.killTweensOf(growth);
       growing = false;
       wants = 1;
@@ -4490,8 +4338,8 @@
       stage.appendChild(comp);
       comp.classList.remove('is-travelling');
       comp.classList.add('is-settled');
-      /* Settled, the frame is the stage's own box and the stylesheet's
-         object-fit is the right answer again. */
+      // Settled, the frame is the stage's box and object-fit is right
+      // again.
       if (visual) {
         ['position', 'left', 'top', 'width', 'height', 'max-width', 'transform']
           .forEach((prop) => visual.style.removeProperty(prop));
@@ -4510,18 +4358,14 @@
       if (!cover) return;
       comp.style.width = `${cover.w}px`;
       comp.style.height = `${cover.h}px`;
-      /* Re-placed at once. settle() cleared the transform, so without
-         this it sits at the stylesheet's 0,0 — the top left corner —
-         until something else happens to move it, and if the travel is
-         already behind us nothing ever does. */
+      // Placed at once: settle() cleared the transform, and with the
+      // travel behind us nothing else would ever write one.
       apply(growth.p, travel.scroll());
     };
 
-    /* One statement at a time, and each one gets its moment. Driving
-       the index straight off the pin's progress means a flick through
-       the pin skips whatever it crosses — on a phone the first
-       statement was never seen at all. Advance one step, hold it for
-       dwell, then catch up to wherever the scroll now is. */
+    /* One statement at a time: driven straight off the pin's progress, a
+       flick skips whatever it crosses. Advance a step, hold it for
+       dwell, then catch up to where the scroll now is. */
     let readAt = 0;
     let catchUp = null;
 
@@ -4536,8 +4380,7 @@
         return;
       }
 
-      /* One at a time, so a jump of several still plays as a sequence
-         rather than landing on the last and dropping the rest. */
+      // One at a time, so a jump of several still plays as a sequence.
       reading += want > reading ? 1 : -1;
       readAt = performance.now();
       swap.dispatchEvent(new CustomEvent('swap:to', { detail: reading }));
@@ -4551,26 +4394,16 @@
       pin: true,
       pinSpacing: true,
 
-      /* Refreshed before anything below it. Pin spacing is real height
-         added to the document, so every trigger further down the page
-         starts that much later — but only if it is measured after this
-         one has laid its spacing out. Measured before, they are early
-         by exactly the pin's length, which is a section further down
-         playing its whole entrance a screen and a half before it
-         arrives. Creation order does not settle this; priority does. */
+      /* Refreshed before anything below it: pin spacing is real height,
+         so a trigger measured before it lands is early by exactly the
+         pin's length. Creation order does not settle this. */
       refreshPriority: 1,
       onEnter: () => {
         if (dead) return;
-        /* A fast scroll can reach the pin while the growth is still
-           running. Left to finish rather than snapped to 1 — that snap
-           is the jump, the video going from half-grown to full bleed
-           in a frame. It is a second at most and the pin holds for a
-           screen, so it lands well inside the hold. */
-        /* The entrance is over by definition here — whatever it was
-           doing, the pin is the destination. Left at its start value it
-           renders the video at 60% of the screen with the page showing
-           around it, which is not a state anything should be able to
-           reach. */
+        /* A growth still running is left to finish rather than snapped
+           to 1, which is the jump; it lands well inside the hold. The
+           entrance is over by definition here — left at its start value
+           the video renders at 60% with the page showing around it. */
         intro = 1;
         if (!growing) {
           wants = 1;
@@ -4582,48 +4415,30 @@
       onEnterBack: () => {
         if (dead) return;
         lift();
-        /* Already inside the component if it left through the bottom,
-           so bringText has nothing to do — but the gaps now have to be
-           resolved against the frame again rather than the stage. */
+        // If it left through the bottom the text is already inside, but
+        // the gaps now resolve against the frame again.
         bringText();
         placeText();
       },
-      /* Out the bottom, the last statement stays where it is. It is
-         the one the pin ended on and the page is still showing the
-         stage — clearing it there would be the sequence deleting its
-         own conclusion. Only going back up above the pin resets, and
-         that is somebody asking to see it again. */
-      /* Kept inside the component on the way out, not handed back.
-         In the stage .home_video_contain is a screen-tall block with
-         its content centred, so returning it there is the statement
-         jumping to the middle of the video — the layout it has when
-         nobody is holding it. Settled, the component is the stage's
-         own box, so it keeps sitting exactly where the pin left it and
-         scrolls away with everything else. */
+      /* Out the bottom the last statement stays put — it is the one the
+         pin ended on, and only going back above the pin resets. It also
+         stays inside the component: handed back to the stage it jumps to
+         the middle of a screen-tall centred block. */
       onLeave: () => { settle(); placeText(); },
       onLeaveBack: () => { returnText(); resetSwap(); },
 
-      /* One statement per equal share of the pin, changed on the way in
-         and on the way back out. Tied to the scroll rather than a hold,
-         so nobody scrolls past a statement that never got its turn. */
+      // One statement per equal share of the pin, both directions.
       onUpdate: (self) => {
         if (dead || !swap || !statements) return;
         step(Math.min(statements - 1, Math.floor(self.progress * statements)));
       }
     });
 
-    /* A swap collapses the document under the triggers: the footer
-       margin goes, both containers become fixed layers, and the scroll
-       they are measured against is suddenly somewhere else entirely.
-       Left live they read that as the user racing back up the page,
-       and play the travel in reverse over the top of the transition —
-       the video lifting off the stage and shrinking into a grid nobody
-       is looking at any more.
-
-       Hiding it does not answer this: at that scroll position it is
-       settled, in flow, part of what the outgoing page still shows.
-       So it is frozen instead — whatever it was showing when the
-       navigation started is what it shows until it is taken away. */
+    /* A swap collapses the document under the triggers — the footer
+       margin goes and both containers become fixed layers — which they
+       read as a race back up the page, playing the travel in reverse
+       over the transition. Hiding it is wrong (it is part of what the
+       outgoing page still shows), so it is frozen where it stands. */
     const freeze = () => {
       if (dead) return;
       frozen = true;
@@ -4635,10 +4450,8 @@
 
     document.addEventListener('page:leaving', freeze);
 
-    /* Re-measured on the resize itself, not on ScrollTrigger's own
-       refresh a beat later. The component is sized in pixels off the
-       viewport, so between the two it is a desktop-sized box on a phone
-       — briefly, but that is the frame a device switch lands on. */
+    // On the resize itself, not ScrollTrigger's refresh a beat later:
+    // sized in px off the viewport, it is briefly the old box.
     const onResize = () => {
       if (dead || frozen || !lifted) return;
       measure();
@@ -4677,11 +4490,9 @@
 
 
   /* ============================================================
-     THIRD PARTY (base-lib)
-
-     form-validation, match-container and video-min bind on
-     DOMContentLoaded, which only fires once. Until each exposes an
-     init(root), video and form validation die after the first swap.
+     THIRD PARTY (base-lib) — form-validation, match-container and
+     video-min bind on DOMContentLoaded, which fires once, so they die
+     after the first swap unless re-initialised per container.
      ============================================================ */
 
   Modules.add('baseLib', function (root) {
@@ -4697,17 +4508,11 @@
      PERSISTENT: FOOTER REVEAL
      ============================================================ */
 
-  /* The margin below is what the fixed footer is revealed through, so it
-     changes the scrollable height. Lenis and ScrollTrigger both cache that
-     height, and during a transition every layer is position:fixed, so the
-     document briefly measures as almost nothing. Re-measure on the frame
-     after the margin lands, or the last footer-height of scroll is gone.
-
-     Never mid-transition though. sync:true resolves enter() at timeline
-     position 0, so afterEnter fires while the leave is still playing, and
-     resizing Lenis under a running animation visibly disturbs it. The
-     after hook drops is-transitioning before its own sync, so the
-     re-measure still happens, just once the motion is done. */
+  /* The footer is revealed through a margin, so it changes the scrollable
+     height that Lenis and ScrollTrigger both cache. Re-measured on the
+     frame after the margin lands — but never mid-transition, where every
+     layer is fixed and the document measures as almost nothing. The after
+     hook drops is-transitioning first, so it still happens. */
   function refreshScrollHeight() {
     if (document.documentElement.classList.contains('is-transitioning')) return;
     requestAnimationFrame(() => {
@@ -4737,12 +4542,9 @@
 
 
   /* ============================================================
-     NAV SYNC
-
-     The meganav persists, so data-transparent and any active-link
-     state have to be copied from the incoming page. Put
-     data-nav-transparent="true|false" on each template's container,
-     and data-barba-update on nav links you want class/aria synced.
+     NAV SYNC — the meganav persists, so data-transparent and the
+     active-link state are copied off the incoming page.
+     (docs: README ## Per-template attributes)
      ============================================================ */
 
   function syncNavFrom(container) {
@@ -4753,12 +4555,10 @@
     nav.classList.remove('is-open', 'is-mobile-open');
     if (window.scrollY <= 10) nav.classList.remove('is-scrolled');
 
-    /* The nav is persistent, so a menu opened before a navigation is still
-       open after it — and the tap that navigated was usually a link inside
-       that menu. The nav's own embed cannot close it: it only toggles on
-       click and knows nothing about a page change. Clear every piece of
-       the open state, including the body overflow lock, which would
-       otherwise leave the incoming page unscrollable. */
+    /* A menu open before a navigation is still open after it, and the tap
+       that navigated was usually a link inside it. The nav's own embed
+       only toggles on click, so every piece of the open state is cleared
+       here — including the body lock, or the next page cannot scroll. */
     document.querySelectorAll(
       '[data-nav-mobile].is-open, .meganav_mobile_open.is-open, ' +
       '.meganav_panel.is-open, .meganav_backdrop.is-open, ' +
@@ -4789,61 +4589,39 @@
 
 
   /* ============================================================
-     NAV SCROLL STATE
+     NAV SCROLL STATE — is-scrolled on the persistent nav: transparent
+     at the top of the page, solid past the threshold.
 
-     is-scrolled on the persistent nav: transparent over the top of the
-     page, solid once past the threshold.
+     Owned here rather than by the nav's embed, whose guard returns on a
+     mega-panel selector the markup does not use, taking the scroll
+     state, burger, panel and locale with it. Delete that embed's SCROLL
+     WATCHER block — two owners of one class is still wrong.
 
-     This was briefly left to the nav's own embed, which has the same
-     four lines. It should not be: that embed opens with
-
-       const item = document.querySelector('[data-nav-item="industries"]');
-       if (!nav || !panel || !item) return;
-
-     and the markup uses data-nav-trigger, so item is null and the whole
-     IIFE returns before binding anything — scroll state, burger, panel
-     and locale all dead together. A nav state that depends on an
-     unrelated mega-panel selector existing is not a nav state. Owning it
-     here also means it survives the embed being edited in the Designer.
-
-     Setting the class from two places is still wrong, so delete the
-     SCROLL WATCHER block from that embed once this is live.
-
-     .meganav is the name in the published markup; data-nav overrides it
-     if the class is ever renamed in the Designer.
+     .meganav is the published class name; data-nav overrides it.
      ============================================================ */
 
   const NAV_SCROLL_AT = 10;
 
-  /* The footer is fixed behind the page and revealed by the page sliding
-     up off it, so how much of it is showing is just the distance left to
-     the bottom of the document. Once enough of it is out, the nav gets
-     out of the way — it is the only thing left overlapping a section that
-     is meant to read as a full-bleed panel.
-
-     Two thresholds rather than one. A single line at the same place
-     flickers the nav on and off while a scroll rests exactly on it, and
-     inertia scrolling rests on things constantly. */
+  /* The footer is fixed behind the page, so how much shows is the
+     distance left to the bottom. Past enough of it the nav leaves, being
+     the last thing overlapping a full-bleed panel. Two thresholds, since
+     one line flickers wherever an inertia scroll rests on it. */
   const NAV_HIDE = {
     hideAt: 0.5,          // fraction of the footer revealed → nav leaves
     showAt: 0.35,         // scrolled back above this → nav returns
     duration: 0.45,
     ease: E.small,
 
-    /* Direction hiding. offset keeps the nav put over the first screen,
-       where a small scroll is usually someone settling rather than
-       travelling; threshold is the movement needed to count as a
-       direction at all, which is what stops an inertia wobble from
-       flickering it. */
-    offset: 120,          // px from the top before hiding is allowed
-    threshold: 6          // px of movement before a direction is read
+    offset: 120,          // px from the top before hiding is allowed: a
+                          // small scroll there is settling, not travel
+    threshold: 6          // px of movement before a direction is read,
+                          // so an inertia wobble does not flicker it
   };
 
   let updateNavScroll = () => {};
-  /* Navigating from the footer starts with the nav parked off-screen, and
-     the scroll check cannot put it back on its own: is-transitioning is
-     still set while the pages animate, and it is dropped two frames after
-     the last scroll event of the navigation. */
+  /* Navigating from the footer starts with the nav parked off-screen and
+     the scroll check cannot recover it: is-transitioning outlives the
+     navigation's last scroll event by two frames. */
   let resetNav = () => {};
 
   function footerRevealed() {
@@ -4855,9 +4633,8 @@
     return Math.min(1, Math.max(0, (window.scrollY - (max - height)) / height));
   }
 
-  /* An open mega panel outranks the footer: hiding the nav out from under
-     a menu the visitor just opened leaves them with a lock and no way
-     back. Same list the nav sync clears on navigation. */
+  // An open panel outranks the footer: hiding the nav under a menu
+  // leaves a lock and no way back.
   function navMenuOpen() {
     return !!document.querySelector(
       '[data-nav-mobile].is-open, .meganav_mobile_open.is-open, ' +
@@ -4865,15 +4642,10 @@
     );
   }
 
-  /* Chrome carries the page scale across a viewport width change, so a
-     desktop window resized to a phone stays magnified by the ratio
-     between them — 1745 to 440 is the 4x that looks like the whole site
-     blew up. Nothing can set the scale directly; clamping maximum-scale
-     for one frame makes the browser recompute it, and restoring the
-     meta immediately after leaves pinch-zoom alone.
-
-     Only on a width change, never on a pinch: someone zooming in by
-     hand keeps their zoom. */
+  /* Chrome carries the page scale across a width change, so a desktop
+     window resized to phone width stays magnified by the ratio between
+     them. Clamping maximum-scale for one frame makes it recompute.
+     Width changes only — a pinch is someone's own zoom. */
   function initZoomReset() {
     const vv = window.visualViewport;
     const meta = document.querySelector('meta[name="viewport"]');
@@ -4936,19 +4708,17 @@
       if (hide === hidden) return;
       hidden = hide;
       nav.classList.toggle('is-hidden', hide);
-      /* Travel only, no fade. pointer-events goes with it so the nav
-         cannot take a click meant for the footer during the slide, when
-         it is still overlapping the top of the screen. */
+      // pointer-events goes with it, or the sliding nav takes a click
+      // meant for the footer.
       nav.style.pointerEvents = hide ? 'none' : '';
       gsap.to(nav, {
         yPercent: hide ? -100 : 0,
         duration: reducedMotion ? 0 : NAV_HIDE.duration,
         ease: NAV_HIDE.ease,
         overwrite: 'auto',
-        /* Back to no transform at all once it is home. A transform,
-           even an identity one, keeps the bar on its own composited
-           layer, and a layer whose edge lands on half a device pixel
-           leaves whatever is behind it showing through the seam. */
+        /* Cleared once home: even an identity transform keeps the bar on
+           its own layer, and a layer edge on half a device pixel shows a
+           seam of whatever is behind it. */
         onComplete: () => {
           if (!hidden) gsap.set(nav, { clearProps: 'transform,translate,rotate,scale' });
         }
@@ -4956,14 +4726,14 @@
     };
 
     resetNav = () => {
-      /* The incoming page starts at the top, so the old reading would
-         read as a large scroll up on the next event. */
+      // The incoming page starts at the top, so the old reading would
+      // land as a large scroll up.
       lastY = 0;
       setHidden(false);
     };
 
-    /* Coalesced to one read per frame: a Lenis-driven page fires scroll
-       continuously and every scrollY read forces layout. */
+    // One read per frame: Lenis fires scroll continuously and every
+    // scrollY read forces layout.
     const apply = () => {
       queued = false;
 
@@ -4973,16 +4743,14 @@
         nav.classList.toggle('is-scrolled', next);
       }
 
-      /* Mid-transition both pages are fixed and the document height is
-         whatever the transition left behind, so the footer fraction is
-         meaningless. Hold the nav where it is until the page lands. */
+      // Mid-transition the document height is meaningless, so the footer
+      // fraction is too. Hold until the page lands.
       if (document.documentElement.classList.contains('is-transitioning')) return;
 
-      /* Three inputs, in priority order: an open menu pins the nav on
-         screen, the footer reveal takes it away, and otherwise the
-         scroll direction decides. Between the two footer thresholds the
-         state is held rather than recomputed — that dead band is what
-         keeps an inertia scroll resting on the line from flickering it. */
+      /* Priority order: an open menu pins the nav on, the footer reveal
+         takes it away, otherwise direction decides. Between the two
+         footer thresholds the state is held — that band is the
+         anti-flicker. */
       const revealed = footerRevealed();
       const y = Math.max(0, window.scrollY);   // iOS rubber-banding goes negative
       const moved = y - lastY;
@@ -5014,22 +4782,15 @@
   }
 
   /* ============================================================
-     MEGANAV
+     MEGANAV — a full-viewport sheet swiping down from the top edge,
+     its contents rising behind the swipe.  (docs: README ## Meganav)
 
-     The Meny button opens a full-viewport sheet that swipes down from
-     the top edge, and its contents rise in behind the swipe.
+     The panel is absolute and sized in viewport units, not fixed: it
+     lives inside the nav, and the nav's footer-hide transform would
+     otherwise become its containing block. CSS half in the stylesheet.
 
-     The panel lives INSIDE <nav class="meganav">, which is where the
-     Designer put it, and the nav carries a GSAP transform for the
-     footer hide. Any non-none transform on an ancestor makes a
-     position:fixed descendant resolve against that ancestor rather than
-     the viewport, so the panel is absolute and sized in viewport units
-     instead: same rectangle, no dependency on the nav's transform being
-     the identity. The CSS half of this lives in page-transition.css.
-
-     Init runs once, not per container: the nav is persistent, and a
-     per-container mount would bind a second set of listeners on every
-     navigation while sync:true keeps the outgoing page alive.
+     Init runs once, not per container: the nav persists, and sync:true
+     would leave a second set of listeners bound per navigation.
      ============================================================ */
 
   const MENU = {
@@ -5040,22 +4801,17 @@
     contentStagger: 0.05,
     contentShift: 40,        // px the rows rise
     contentEase: E.body,
-    /* The CTA goes last: after the swipe has landed AND after the last
-       row has finished rising, whichever of the two ends later. The
-       rows rise under the swipe, which is what makes the sheet feel
-       like it is carrying them — the button doing it too just looked
-       like it had been there all along.
-       data-nav-delay on any row adds to its own position. */
+    /* The CTA goes last, after both the swipe and the final row: the
+       rows rise under the swipe, which is what makes the sheet read as
+       carrying them, and the button doing it too looked like it had
+       been there all along. data-nav-delay adds to a row's position. */
     buttonGap: 0.02,
 
-    /* How much of the last row's rise the button starts inside. 1 waits
-       for it to finish, 0 leaves with it. */
-    buttonOverlap: 0.45,
+    buttonOverlap: 0.45,     // of the last row's rise: 1 waits it out,
+                             // 0 leaves with it
 
-    /* When the bar takes its own colours back, as a fraction of the
-       close. The sheet clips upward, so its top — the strip behind the
-       bar — is the last thing to go; waiting for the very end left the
-       logo white a beat too long. */
+    // Fraction of the close where the bar takes its colours back: the
+    // sheet clips upward, so the strip behind it goes last.
     restore: 0.72,
 
     labelClosed: 'Meny',
@@ -5066,10 +4822,9 @@
   const CLOSED_CLIP = 'inset(0% 0% 100% 0%)';
   const OPEN_CLIP = 'inset(0% 0% 0% 0%)';
 
-  /* Called from beforeLeave. A navigation started from inside the menu
-     has to leave nothing behind: syncNavFrom drops the is-open class,
-     but the inline clip-path and pointer-events set here would survive
-     it and leave an invisible sheet over the incoming page. */
+  /* Called from beforeLeave: syncNavFrom drops is-open, but the inline
+     clip-path and pointer-events set here would survive it as an
+     invisible sheet over the incoming page. */
   let closeMeganav = () => {};
 
   function initMeganav() {
@@ -5078,10 +4833,8 @@
       || document.querySelector('.meganav_panel');
     if (!nav || !panel) return;
 
-    /* The Designer's toggle is a div wrapping an <a href="#">, and the
-       mobile burger is another anchor. Both are matched here, and the
-       click is intercepted on the wrapper so the inner anchor's default
-       is cancelled on the way past. */
+    // The toggle is a div wrapping an <a href="#">, the burger another
+    // anchor. Clicks are caught on the wrapper.
     const toggles = Array.from(new Set([
       ...document.querySelectorAll('[data-nav-toggle]'),
       ...document.querySelectorAll('.meganav_button_nav_open-wrap'),
@@ -5092,20 +4845,16 @@
       return;
     }
 
-    /* In DOM order, so the stagger reads down the sheet: the statement
-       and its button first, then each group heading and its links. */
+    // DOM order, so the stagger reads down the sheet.
     const content = Array.from(panel.querySelectorAll(
       '.meganav_feature_text, .button_main_wrap, ' +
       '.meganav_heading, .meganav_links_wrap .footer_link_wrap, [data-nav-content]'
     ));
 
-    /* The container class is on the panel in the Designer, but the panel
-       has to be full-bleed for the black to reach the edges — so its
-       max-width is overridden here and the content lost its margins with
-       it. Move the class down to the inner, where it constrains the
-       content and leaves the sheet alone. Done in script rather than in
-       CSS because the container's own rules (max-width, padding, the
-       auto margins) live in the Designer and are not ours to restate. */
+    /* The panel has to be full-bleed for the black to reach the edges,
+       which costs the content its container margins — so the class moves
+       down to the inner. In script because the container's own rules
+       live in the Designer and are not ours to restate. */
     const inner = panel.querySelector('.meganav_panel_inner');
     const containerClass = Array.from(panel.classList)
       .find((c) => c === 'u-container' || c.startsWith('u-container'));
@@ -5116,12 +4865,9 @@
       movedContainer = containerClass;
     }
 
-    /* The visible label and the screen-reader one, which live in
-       different elements of the Webflow component: the text div is
-       aria-hidden and the accessible name comes from the sr-only span
-       inside the overlay anchor. Both have to say the same thing.
-
-       Per-toggle overrides: data-nav-label-open / data-nav-label-closed. */
+    /* The visible label and the screen-reader one are different elements
+       of the Webflow component and both have to say the same thing.
+       Overrides: data-nav-label-open / -closed. */
     const labels = [];
     toggles.forEach((toggle) => {
       const els = Array.from(toggle.querySelectorAll(
@@ -5130,10 +4876,8 @@
       if (!els.length) return;
       const override = toggle.getAttribute('data-nav-label-closed');
       const opened = toggle.getAttribute('data-nav-label-open') || MENU.labelOpen;
-      /* Each element keeps its OWN resting text. The two are not the same
-         string — the visible label reads Meny and the screen-reader one
-         Menu — and taking the first element's text for both quietly
-         rewrote the visible label on the first close. */
+      // Each keeps its OWN resting text: the visible label reads Meny
+      // and the screen-reader one Menu.
       els.forEach((el) => labels.push({
         el,
         closed: override || el.textContent.trim() || MENU.labelClosed,
@@ -5141,8 +4885,7 @@
       }));
     });
 
-    /* Faded rather than swapped outright — a hard text change mid-swipe
-       reads as a glitch next to a second of eased motion. */
+    // Faded, not swapped: a hard text change mid-swipe reads as a glitch.
     const setLabels = (isOpen, instant) => {
       labels.forEach(({ el, closed, opened }) => {
         const next = isOpen ? opened : closed;
@@ -5175,18 +4918,15 @@
 
     let open = false;
     let tl = null;
-    /* A close finishes in its timeline's onComplete, and kill() does not
-       fire that — so an interrupted close left the classes on and the
-       state disagreeing with the sheet. Held here and run before
-       anything kills the timeline. */
+    /* kill() does not fire onComplete, so an interrupted close left the
+       classes on and the state disagreeing with the sheet. Held here and
+       run before anything kills the timeline. */
     let pending = null;
 
-    /* The sheet sits under the bar on mobile, so it has to start at the
-       bar's real height — --nav--height is a guess that leaves a strip
-       of page between them when it is wrong. */
-    /* Lenis swallows touchmove while it is stopped, which is the whole
-       sheet unscrollable on a phone. This attribute is how it is told to
-       keep its hands off an element that scrolls itself. */
+    /* Lenis swallows touchmove while stopped, which is the whole sheet
+       unscrollable on a phone; this attribute opts the panel out. The
+       bar's real height is measured below — --nav--height is a guess,
+       and a wrong one leaves a strip of page under the bar. */
     panel.setAttribute('data-lenis-prevent', '');
 
     const root = nav.closest('.meganav_root') || document.documentElement;
@@ -5199,10 +4939,9 @@
     const lock = (on) => {
       document.documentElement.classList.toggle('is-menu-open', on);
 
-      /* The lock takes the scrollbar with it, so anything measured
-         while the menu was open was measured against a wider viewport.
-         Re-measure once it is back, and drop anything a cut-short swap
-         left on the container while it was covered by the sheet. */
+      /* The lock takes the scrollbar with it, so anything measured while
+         the menu was open used a wider viewport. Also drops what a
+         cut-short swap left under the sheet. */
       if (!on) {
         requestAnimationFrame(() => {
           clearTransitionLeftovers();
@@ -5211,19 +4950,15 @@
       }
 
       if (!hasLenis || !lenis) return;
-      /* Lenis owns the scroll, so overflow:hidden alone does nothing —
-         it would keep scrolling the page behind the sheet. */
+      // Lenis owns the scroll, so overflow:hidden alone does nothing.
       if (on) lenis.stop(); else lenis.start();
     };
 
-    /* aria and the bar flip immediately; .is-open is what carries
-       visibility on the panel, so on the way out it has to outlive the
-       swipe or the sheet disappears instead of leaving. */
+    /* aria and the bar flip at once; .is-open carries the panel's
+       visibility, so on the way out it outlives the swipe. */
     const paint = (instant) => {
-      /* Added on the way in, dropped when the swipe is done — the bar
-         carries the sheet's colour on mobile, and dropping it at the
-         start of the close turns the bar white while the sheet is still
-         leaving. Same shape as the panel's own class. */
+      // The bar carries the sheet's colour on mobile, so it is dropped
+      // when the swipe ends rather than when the close starts.
       if (open) nav.classList.add('is-open');
       if (open) panel.classList.add('is-open');
       panel.setAttribute('aria-hidden', String(!open));
@@ -5290,8 +5025,7 @@
       tl?.kill();
       gsap.killTweensOf(content);
 
-      /* Clicks pass through from the first frame of the close, but the
-       class stays until the swipe is done. */
+      // Clicks pass through from the first frame of the close.
       gsap.set(panel, { pointerEvents: 'none' });
 
       const restore = gsap.delayedCall(
@@ -5304,8 +5038,8 @@
         restore.kill();
         panel.classList.remove('is-open');
         nav.classList.remove('is-open');
-        /* Back to the CSS's own closed state, so a resize or a theme
-           change is not competing with a stale inline clip-path. */
+        // Back to the CSS's closed state, so nothing competes with a
+        // stale inline clip-path.
         gsap.set(panel, { clearProps: 'clipPath,pointerEvents' });
         gsap.set(content, { clearProps: 'transform,opacity' });
       };
@@ -5321,17 +5055,14 @@
     const controller = new AbortController();
     const { signal } = controller;
 
-    /* One click, one toggle. The Designer nests these — an overlay
-       anchor inside a wrapper that is itself a toggle — so a single
-       click bubbles through two of them and the menu opened and shut
-       again in the same frame, which killed the row stagger and left
-       the sheet open with nothing animated. */
+    /* One click, one toggle: the Designer nests an overlay anchor inside
+       a wrapper that is itself a toggle, so one click bubbles through
+       both and the menu opens and shuts in the same frame. */
     let lastClick = null;
 
     toggles.forEach((toggle) => {
       toggle.addEventListener('click', (e) => {
-        /* The anchor inside is href="#": left alone it jumps the page to
-           the top and, on some templates, adds a history entry. */
+        // The anchor inside is href="#", which jumps the page to the top.
         e.preventDefault();
         if (lastClick === e) return;
         lastClick = e;
@@ -5339,8 +5070,8 @@
       }, { signal });
     });
 
-    /* A link inside the sheet is a normal navigation — barba's beforeLeave
-       closes the menu — but a link to the current page never fires it. */
+    // beforeLeave closes the menu on a navigation, but a link to the
+    // current page never fires one.
     panel.addEventListener('click', (e) => {
       if (e.target.closest('a[href]')) hide();
     }, { signal });
@@ -5444,15 +5175,10 @@
 
 
   /* ============================================================
-     PAGE TRANSITIONS
-     Crossfade. Both pages occupy the same rectangle for a second:
-     the outgoing one blurs and fades out under the incoming one,
-     which sharpens and fades in on top of it.
-
-     The layer machinery below is unchanged from the 3D version and
-     is not decoration — the two pages have to be lifted out of flow
-     to overlap at all, which is the same thing swup's parallel
-     plugin does by keeping both containers in the DOM at once.
+     PAGE TRANSITIONS — a crossfade: both pages hold the same rectangle
+     for a second, the outgoing one blurring out under the incoming one.
+     The layers below are what lets them overlap at all.
+     (docs: README ## The transition)
      ============================================================ */
 
   function runPageOnceAnimation(next) {
@@ -5475,18 +5201,15 @@
     const scrollY = window.scrollY || 0;
     window.scrollTo(0, 0);
 
-    /* The perspective set below turns parent into the containing block
-       for every fixed child here, so their 0,0 is parent's padding box
-       and not the viewport. Parent starts under the persistent nav, which
-       is exactly how far the whole transition used to sag. Measure the
-       gap after the scroll reset and cancel it out. */
+    /* The perspective below makes parent the containing block for every
+       fixed child, so their 0,0 is its padding box — which starts under
+       the persistent nav. Measured after the scroll reset, cancelled. */
     const rect = parent.getBoundingClientRect();
     const offsetX = rect.left;
     const offsetY = rect.top;
 
-    /* Sits behind both pages so the 3D gap has something of its own to
-       show. Without it the gap exposed parent's page background, which
-       left no way to colour the transition separately. */
+    // Behind both pages, so the gap between them is colourable
+    // separately from the page background.
     const backdrop = document.createElement('div');
     backdrop.className = 'page-transition__backdrop';
     const bg = next.dataset.transitionBg;
@@ -5506,22 +5229,18 @@
 
     gsap.set(parent, {
       perspective: '100vw',
-      /* Default 50% 50% resolves against parent, which is as tall as the
-         whole document, dropping the vanishing point way below the fold.
-         Pin it to the middle of the viewport instead. */
+      // 50% 50% resolves against a parent as tall as the document, which
+      // puts the vanishing point below the fold.
       perspectiveOrigin: `50% ${window.innerHeight / 2 - offsetY}px`,
       transformStyle: 'preserve-3d'
     });
 
-    /* No overflow:clip on any of these three. A non-visible overflow makes
-       the element the scrollport that position:sticky descendants resolve
-       against, so every sticky section in the page stuck to the top of a
-       100vh box at once and the whole page composited onto itself. The
-       clip-path below does the clipping without that side effect;
-       html.is-transitioning handles the scrollbars. */
-    /* The outgoing page sits UNDER the incoming one and stops taking
-       clicks the moment the swap starts — it is still in the DOM for a
-       full second and its links are still live otherwise. */
+    /* No overflow:clip on any of these three: a non-visible overflow
+       makes the element the scrollport sticky descendants resolve
+       against, and every sticky section lands in the same 100vh box.
+       clip-path clips without that; is-transitioning takes the
+       scrollbars. pointer-events off, since the outgoing page keeps live
+       links for a full second underneath. */
     gsap.set(wrapper, {
       position: 'fixed', top: -offsetY, left: -offsetX,
       width: '100%', height: '100vh',
@@ -5540,14 +5259,9 @@
       footerAtLeave = null;
     }
 
-    /* Symmetry with the outgoing side, and the reason the home page
-       composited onto itself. The outgoing page sits inside a fixed 100vh
-       wrapper and keeps its own natural height. The incoming page used to
-       BE the box: height:100vh on the container itself, so every
-       percentage height and every sticky section inside it resolved
-       against one viewport instead of the real page height, and they all
-       landed in the same place. Give it a wrapper too and the container
-       is left to lay out exactly as it does on a normal load. */
+    /* A wrapper of its own, for symmetry with the outgoing side: as the
+       fixed 100vh box itself, every percentage height and sticky section
+       inside the incoming container resolved against one viewport. */
     const nextWrapper = document.createElement('div');
     nextWrapper.className = 'page-transition__wrapper';
     parent.insertBefore(nextWrapper, next);
@@ -5567,9 +5281,9 @@
       willChange: 'transform, opacity', backfaceVisibility: 'hidden'
     });
 
-    /* Every symptom so far has come down to one of these five facts, and
-       none of them is visible from a screenshot. Logged mid-leave so the
-       state is the animating one, not the cleaned-up one. */
+    /* Every symptom so far has come down to one of these, and none is
+       visible in a screenshot. Logged mid-leave, so this is the
+       animating state rather than the cleaned-up one. */
     requestAnimationFrame(() => {
       const cs = getComputedStyle(next);
       console.info('[page-transition] state', {
@@ -5588,44 +5302,24 @@
     return { wrapper, nextWrapper, backdrop, scrollY };
   }
 
-  /* A leave timeline that never reaches onComplete (interrupted
-     navigation, barba timeout, a thrown hook) leaves its wrappers in the
-     DOM. They are fixed and 100vh and still hold a page, so they read as
-     an extra page overlaid on the live one. Both pages now live in one of
-     these, so a leftover can be holding markup we still need: lift the
-     children out before dropping the wrapper, never delete it wholesale.
-     Runs before the parent is resolved, since a stale wrapper would
-     otherwise be mistaken for it. */
-  /* The footer is fixed and lives outside .page_wrap, so it is not part of
-     the outgoing page and the transition used to hide it outright — click
-     a link in the footer and the thing you were looking at vanished a
-     frame before the page it belongs to started moving.
-
-     Move the real element into the outgoing layer for the duration,
-     pinned at the viewport position it already occupied. Inside a fixed
-     wrapper an absolute child resolves against the viewport rect, so the
-     footer does not move a pixel at the swap — it just stops being fixed
-     and starts being part of the card that scales away. Inserted before
-     the page, which keeps the page painting over it exactly as z-index 1
-     over z-index 0 did.
-
-     The element itself, not a clone: it carries links, a form and IX2
-     bindings, and a clone would drop all three. */
+  /* The footer is fixed and lives outside .page_wrap, so it is no part of
+     the outgoing page — and hiding it meant clicking a footer link made
+     the footer vanish a frame before the page moved. The real element is
+     moved into the outgoing layer instead, pinned where it already was:
+     inside a fixed wrapper an absolute child resolves against the same
+     rect, so it does not shift a pixel. The element, not a clone, which
+     would drop its links, form and IX2 bindings. */
   let footerLayer = null;
   let footerAtLeave = null;
 
-  /* Read at beforeLeave, before FooterReveal.collapse() runs. Collapsing
-     the reserved space shortens the document, the browser clamps the
-     scroll position to the new bottom, and the page slides down over the
-     footer — so by the time the leave timeline measures anything, a footer
-     that filled half the screen looks like one nobody ever scrolled to. */
+  /* Read at beforeLeave, before FooterReveal.collapse(): collapsing the
+     reserved space shortens the document and the scroll clamps, so a
+     footer filling half the screen measures as one nobody reached. */
   function captureFooterForLeave(current) {
     const footer = document.querySelector('.footer_wrap');
-    /* The OUTGOING container, not .page_wrap. sync:true runs beforeEnter
-       first, so by the time this fires the incoming container is already
-       sitting in .page_wrap and the wrapper measures twice as tall as the
-       page anybody is looking at — every navigation then reads as one
-       where the footer was nowhere near the screen. */
+    /* The OUTGOING container, not .page_wrap: sync:true has already put
+       the incoming one in there, so the wrapper measures twice as tall
+       as the page anybody is looking at. */
     const page = current || document.querySelector('.page_wrap');
     footerAtLeave = null;
     if (!footer || !page) return;
@@ -5639,11 +5333,9 @@
     footerLayer = { el: footer, parent: footer.parentElement, next: footer.nextSibling };
     footer.classList.add('is-transition-layer');
     wrapper.insertBefore(footer, wrapper.firstChild);
-    /* left/right rather than a width, and no height at all. An absolutely
-       positioned box with only left set shrinks to fit, and pinning the
-       measured offsetHeight as a CSS height adds the padding a second
-       time wherever box-sizing is content-box — the footer grew by its
-       own padding at the swap. Let it lay out at its natural height. */
+    /* left/right rather than a width, and no height: an absolute box with
+       only left shrinks to fit, and a pinned offsetHeight adds the
+       padding twice under content-box. */
     gsap.set(footer, { position: 'absolute', top, left: 0, right: 0, zIndex: 0 });
   }
 
@@ -5657,9 +5349,8 @@
   }
 
   function sweepStaleLayers() {
-    /* Before the wrappers are dismantled: a stale layer is holding the
-       real footer, and lifting its children out would leave it inside
-       .page_wrap wearing the layer's inline styles. */
+    // First: a stale layer holds the real footer, and lifting its
+    // children out strands it in .page_wrap with inline styles on.
     restoreFooterLayer();
     document.querySelectorAll('.page-transition__wrapper').forEach((el) => {
       const host = el.parentElement;
@@ -5695,8 +5386,7 @@
 
     if (reducedMotion) return tl.set(current, { autoAlpha: 0 });
 
-    /* Both at position 0. The overlap is the whole effect: a sequential
-       version reads as two separate fades with a flat gap between them. */
+    // Both at position 0: the overlap is the whole effect.
     tl.to(wrapper, {
       autoAlpha: 0, filter: `blur(${FADE.blur}px)`,
       duration: FADE.duration, ease: FADE.ease
@@ -5710,38 +5400,25 @@
     return tl;
   }
 
-  /* resetPage strips the fixed positioning and the 100vh box off the
-     incoming container, which is what makes it read as a clipped
-     rectangle alongside the outgoing one. It used to run at position 0 of
-     this timeline, roughly a frame after prepareForTransition set those
-     properties, so the incoming page reflowed full-bleed and only the
-     outgoing page kept its rectangle. Hold it until the leave is done.
-     leaveDone is created in beforeLeave, which barba guarantees runs
-     before either leave or enter. */
+  /* resetPage strips the fixed 100vh box off the incoming container, so
+     it has to wait for the leave: run at position 0 the incoming page
+     reflows full-bleed a frame after being placed, and only the outgoing
+     one keeps its rectangle. leaveDone is created in beforeLeave, which
+     barba runs before either leave or enter. */
   function runPageEnterAnimation(next) {
     if (reducedMotion) gsap.set(next, { autoAlpha: 1 });
     return (leaveDone || Promise.resolve()).then(() => resetPage(next));
   }
 
-  /* beforeEnter fixes the container so it can be animated as a layer, and
-     the leave timeline clears it again when the transition finishes. On the
-     very first load there is no leave timeline, so whichever hook ran last
-     could leave the fixed positioning on — and a fixed container contributes
-     no height to the document, which collapses the page to one viewport and
-     kills scrolling entirely. Idempotent, so calling it more than once is
-     free. */
-  /* A swap that is cut short — interrupted, errored, or navigated away
-     from mid-flight — leaves the container holding the transform it was
-     partway through. Under the parent's perspective that renders the
-     whole page scaled: smaller with the dark ground showing around it,
-     or larger and cropped, depending on which way the z was going.
-     Cleared from hooks that run whatever the timeline did. */
+  /* A cut-short swap leaves the container holding the transform it was
+     partway through, which under the parent's perspective renders the
+     whole page scaled. Called from hooks that run whatever the timeline
+     did, and idempotent. */
   function clearTransitionLeftovers() {
     if (document.documentElement.classList.contains('is-transitioning')) return;
 
-    /* The wrapper is the one that holds the transform, so a container
-       left inside one reads as untransformed while the page is visibly
-       scaled. Unwrapped back to where a normal load leaves it. */
+    // The wrapper holds the transform, so a container left inside one
+    // reads as untransformed while the page is visibly scaled.
     document.querySelectorAll('.page-transition__wrapper').forEach((w) => {
       const inner = w.querySelector('[data-barba="container"]');
       if (inner && w.parentNode) w.parentNode.insertBefore(inner, w);
@@ -5789,15 +5466,13 @@
 
   barba.hooks.beforeLeave((data) => {
     root.classList.add('is-transitioning');
-    /* Anything travelling belongs to the page being left — it is fixed
-       to the viewport on the body, so it would otherwise hang above
-       both pages for the length of the swap. Marked here, before the
-       incoming page has mounted anything of its own, so only the
-       outgoing one is caught. page-transition.css does the hiding. */
+    /* A travelling video is fixed on the body, so it would hang above
+       both pages for the swap. Marked before the incoming page mounts
+       anything of its own; the CSS does the hiding. */
     document.querySelectorAll('[data-video="component"].is-travelling')
       .forEach((el) => el.classList.add('is-page-leaving'));
-    /* Before the footer margin collapses two lines down — that is the
-       change the outgoing page's scroll triggers would react to. */
+    // Before the footer margin collapses below: that is the change the
+    // outgoing page's triggers would react to.
     document.dispatchEvent(new CustomEvent('page:leaving'));
     closeMeganav();
     resetNav();
@@ -5807,24 +5482,16 @@
     leaveDone = new Promise((resolve) => { resolveLeave = resolve; });
   });
 
-  /* Barba appends the incoming container to [data-barba="wrapper"], which
-     here is body. The published markup nests the container inside
-     .page_wrap, so the first load is fine and every navigation after it
-     leaves the page one level too high. That breaks three things at once:
-     .page_wrap holds the perspective, so a container outside it gets no
-     3D and never scales down; the transition backdrop lives inside
-     .page_wrap at z-index 0, so a container in body covers it; and once
-     the inline styles are cleared the static container loses to the
-     positioned z-index 0 footer, which then paints over the page.
-
-     Move it back before anything measures or mounts against it. */
+  /* Barba appends the incoming container to [data-barba="wrapper"] —
+     body — while the published markup nests it in .page_wrap, so every
+     navigation after the first leaves the page one level too high: no
+     perspective, above the backdrop, and losing to the footer once the
+     inline styles are cleared. Moved back before anything measures it. */
   function reparentContainer(next, current) {
     const parent = current?.parentElement || document.querySelector('.page_wrap');
     if (!parent || !next || next.parentElement === parent) return;
-    /* insertBefore, not appendChild. .page_wrap holds siblings besides the
-       container, so appending dropped the incoming page to the bottom of
-       that stack and changed how it layered against them. Take the slot
-       the outgoing page is in and document order is preserved. */
+    // insertBefore, not appendChild: .page_wrap has other children, and
+    // appending relayers the page against them.
     if (current && current.parentElement === parent) parent.insertBefore(next, current);
     else parent.appendChild(next);
   }
@@ -5832,11 +5499,9 @@
   barba.hooks.beforeEnter((data) => {
     reparentContainer(data.next.container, data.current?.container);
 
-    /* Only a real navigation needs the container lifted into a layer. On the
-       initial load there is nothing to animate against, and — with no leave
-       timeline to clean up after it — the fixed positioning stayed on. A
-       fixed container contributes no height to the document, so the whole
-       page collapsed to one viewport and could not be scrolled. */
+    /* Only a real navigation lifts the container: on the initial load
+       there is no leave timeline to clear it again, and a fixed container
+       contributes no height, collapsing the page to one viewport. */
     if (data.current?.container) {
       gsap.set(data.next.container, { position: 'fixed', top: 0, left: 0, right: 0 });
       if (lenis?.stop) lenis.stop();
@@ -5853,11 +5518,9 @@
   // Runs once the outgoing container is gone, so its Swiper and
   // marquee stay alive and animating through the whole leave.
   barba.hooks.afterLeave((data) => {
-    /* Scoped, not ScrollTrigger.getAll().kill(). sync:true mounts the
-       incoming page back at beforeEnter, so by the time this runs its
-       triggers already exist and a blanket kill took them out with the
-       outgoing page's. Orphans — trigger element gone from the document
-       — go too, since nothing will ever refresh them again. */
+    /* Scoped, never getAll().kill(): sync:true has already mounted the
+       incoming page's triggers by now. Orphans go too — nothing will
+       ever refresh a trigger whose element has left the document. */
     if (hasScrollTrigger) {
       ScrollTrigger.getAll().forEach((t) => {
         const el = t.trigger || t.vars?.trigger;
@@ -5885,9 +5548,8 @@
 
   barba.hooks.after((data) => {
     clearContainerLayer(data?.next?.container);
-    /* The marked one leaves with its container, so this is for the
-       swap that never completes — a cancelled navigation would
-       otherwise leave a page holding an invisible video. */
+    // The marked one leaves with its container; this is for the swap
+    // that never completes.
     document.querySelectorAll('[data-video="component"].is-page-leaving')
       .forEach((el) => el.classList.remove('is-page-leaving'));
     requestAnimationFrame(clearTransitionLeftovers);
@@ -5912,15 +5574,10 @@
       if (!el) return false;
       const href = el.getAttribute('href') || '';
 
-      /* Finsweet pages a list by clicking Webflow's own pagination anchor
-         (?…_page=2) and reading the response. Those are real same-origin
-         links, so barba took them as navigations: pressing Load more ran a
-         page transition and landed on page two showing one post. Leave every
-         paging control to whoever owns the list.
-
-         Scoped to the controls, not to [fs-list-element] generally — the
-         list itself carries that attribute, and the cards inside it are
-         ordinary links that should still transition. */
+      /* Finsweet pages a list by clicking Webflow's own pagination
+         anchor, which is a real same-origin link — so Load more ran a
+         page transition. Scoped to the controls, not [fs-list-element]
+         generally: the cards inside the list should still transition. */
       const paging = el.closest(
         '.w-pagination-wrapper, [fs-list-element="load-more"], ' +
         '[fs-list-element="pagination-next"], [fs-list-element="pagination-previous"], ' +
