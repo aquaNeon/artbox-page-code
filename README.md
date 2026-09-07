@@ -167,6 +167,48 @@ Per template, put `data-transition-bg` on the Barba container; it wins over the
 site-wide value for navigations landing on that page. Unset, it falls back to
 black.
 
+## Easing
+
+Every curve the site uses is declared in one place, near the top of
+`page-transition.js`. Nothing else in the file names a curve directly.
+
+`EASE` holds the three custom curves, written as the four numbers of a CSS
+`cubic-bezier`:
+
+| name | numbers | used for |
+| --- | --- | --- |
+| `EASE.brand` (`osmo`) | `0.625, 0.05, 0, 1` | the site default, via `gsap.defaults` |
+| `EASE.page` (`pageFade`) | `0.25, 0.46, 0.45, 0.94` | the page crossfade |
+| `EASE.menu` (`menuSwipe`) | `0.05, 0.7, 0.1, 1` | the meganav sheet |
+
+`E` maps a *kind* of motion to a curve. Modules reference the role, so
+retuning one kind of movement across the whole site is a single line:
+
+| role | current | applies to |
+| --- | --- | --- |
+| `E.heading` | `power4.out` | heading lines rising out of their mask |
+| `E.body` | `power3.out` | paragraphs, `-solo` elements, `[data-swap]`, tab stack, services follower, menu rows |
+| `E.small` | `power2.out` | list items, inline heading images, hero bump, nav hide, menu close |
+| `E.panel` | `power3` | tab crossfades |
+| `E.open` | `osmo` | things opening in place: FAQ, the services colour fill |
+| `E.travel` | `power2.inOut` | long journeys: the video takeover, the services row dissolve |
+| `E.hover` | `power3` | pointer-following |
+| `E.hoverOut` | `power3.inOut` | the services follower scaling away |
+| `E.label` | `power1.out` | the burger label swapping under the button |
+| `E.page` | `pageFade` | the crossfade, via `FADE` |
+| `E.menuSheet` | `menuSwipe` | the meganav sheet clip |
+
+To put one curve on everything, point every role at `EASE.brand`.
+
+Scrubbed motion — parallax, the CTA images, both sticky stacks, the
+marquee — stays on `ease: 'none'` at the call site and is deliberately not
+a role. Scroll position is the timing there; easing on top of it reads as
+lag.
+
+Durations are not centralised: they sit in each module's own config object
+(`TEXT`, `TABS`, `SERVICES`, `MENU`, …) because they are paced against that
+module's distances, not against each other.
+
 ## Modules
 
 Modules are registered with `Modules.add(name, init)` and mounted per container.

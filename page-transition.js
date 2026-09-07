@@ -56,21 +56,53 @@
 
   const has = (s) => !!nextPage.querySelector(s);
 
-  const durationDefault = 0.6;
-  CustomEase.create('osmo', '0.625, 0.05, 0, 1');
-  gsap.defaults({ ease: 'osmo', duration: durationDefault });
+  /* ============================================================
+     EASING
 
-  /* The page transition itself: the outgoing page blurs and fades out
-     while the incoming one sharpens and fades in, both at once, both
-     filling the same rectangle. CustomEase takes the four numbers of a
-     CSS cubic-bezier as-is, so this is the same curve the reference CSS
-     used. */
+     Two layers. EASE is the curves themselves; E is what each kind
+     of motion uses. Modules only ever name a role, so a curve change
+     is one line here rather than a hunt through every config below.
+
+     CustomEase takes the four numbers of a CSS cubic-bezier as-is.
+
+     Scrubbed motion — parallax, the CTA images, the sticky stacks —
+     stays on ease:'none' at the call site and is deliberately not a
+     role: scroll position is the timing there, and easing it twice
+     reads as lag.
+     ============================================================ */
+
+  const durationDefault = 0.6;
+
+  CustomEase.create('osmo', '0.625, 0.05, 0, 1');
   CustomEase.create('pageFade', '0.25, 0.46, 0.45, 0.94');
+  CustomEase.create('menuSwipe', '0.05, 0.7, 0.1, 1');
+
+  const EASE = {
+    brand: 'osmo',
+    page: 'pageFade',
+    menu: 'menuSwipe'
+  };
+
+  const E = {
+    heading: 'power4.out',    // lines rising out of a mask
+    body: 'power3.out',       // paragraphs, solo elements, swapped statements
+    small: 'power2.out',      // short moves: list items, inline images, nav
+    panel: 'power3',          // tab crossfades
+    open: EASE.brand,         // things opening in place: faq, colour fills
+    travel: 'power2.inOut',   // long journeys: video takeover, row dissolve
+    hover: 'power3',          // pointer-following
+    hoverOut: 'power3.inOut', // the follower scaling away
+    label: 'power1.out',      // text swapping under a button
+    page: EASE.page,
+    menuSheet: EASE.menu
+  };
+
+  gsap.defaults({ ease: EASE.brand, duration: durationDefault });
 
   const FADE = {
     duration: 1,
     blur: 5,          // px, on both layers
-    ease: 'pageFade'
+    ease: E.page
   };
 
 
@@ -513,20 +545,20 @@
 
     headingDuration: 0.75,
     headingStagger: 0.16,
-    headingEase: 'power4.out',
+    headingEase: E.heading,
 
     /* Inline images inside a heading — the hero puts square photos
        between the words. They scale rather than travel: the line mask
        already carries them up with the type. */
     imgFrom: 0.6,           // 0 turns the image scaling off
     imgDuration: 0.9,
-    imgEase: 'power2.out',
+    imgEase: E.small,
     imgOffset: 0.08,        // after its own line starts
     imgStagger: 0.08,       // between images sharing a line
 
     bodyDuration: 0.9,
     bodyStagger: 0.08,
-    bodyEase: 'power3.out',
+    bodyEase: E.body,
     bodyFromY: 30,          // yPercent
 
     /* -solo is usually one line — an eyebrow, a button, a short
@@ -536,7 +568,7 @@
 
     listDuration: 0.5,
     listStagger: 0.06,
-    listEase: 'power2.out',
+    listEase: E.small,
 
     blur: false,            // layers onto the existing tweens, not a separate mode
     headingBlur: 10,        // px per line
@@ -1924,7 +1956,7 @@
 
   const TABS = {
     duration: 0.65,
-    ease: 'power3',
+    ease: E.panel,
     outProgress: 0.3,   // how long the leaving progress bar takes to empty,
                         // and how long the incoming visual waits
     shift: 3,           // xPercent the visual travels while fading
@@ -1944,7 +1976,7 @@
        the way past instead — the same rise data-text-anim-solo makes. */
     stackShift: 24,     // px each pair rises
     stackDuration: 0.7,
-    stackEase: 'power3.out',
+    stackEase: E.body,
     stackStart: 'top 85%'
   };
 
@@ -2276,7 +2308,7 @@
 
   const FAQ = {
     duration: 0.6,
-    ease: 'osmo',
+    ease: E.open,
     iconRotate: 45,   // the icon is a plus: 45deg reads as a close cross
     textShift: 12     // px the answer rises as it opens
   };
@@ -2444,7 +2476,7 @@
     bump: true,
     bumpStrength: 0.12,
     bumpDuration: 0.4,
-    bumpEase: 'power2.out',
+    bumpEase: E.small,
 
     parallax: true,
     parallaxMax: 48,           // px of travel across the section's scroll range,
@@ -2632,14 +2664,14 @@
 
   const SERVICES = {
     follow: 0.6,             // pointer smoothing
-    followEase: 'power3',
+    followEase: E.hover,
     show: 0.45,              // follower scaling in and out
-    showEase: 'power3.out',
+    showEase: E.body,
     coverFrom: 0.18,         // the incoming image starts this small, centred
     coverDuration: 0.7,
-    coverEase: 'power3.out',
+    coverEase: E.body,
     fill: 0.5,               // the colour wipe behind the row
-    fillEase: 'osmo',
+    fillEase: E.open,
     dim: 0.45                // the rows that are not hovered
   };
 
@@ -2661,7 +2693,7 @@
                          // dissolve lands exactly as the section lets go,
                          // so the last row is never seen still.
     duration: 0.9,       // the dissolve, once it is triggered
-    ease: 'power2.inOut'
+    ease: E.travel
   };
 
   function buildServicesStack(root, immediate) {
@@ -2829,7 +2861,7 @@
           scale: 0,
           autoAlpha: 0,
           duration: reducedMotion ? 0 : SERVICES.show,
-          ease: 'power3.inOut',
+          ease: E.hoverOut,
           overwrite: 'auto',
           onComplete: () => {
             followerInner.querySelectorAll('*').forEach((el) => gsap.killTweensOf(el));
@@ -3197,7 +3229,7 @@
     hold: 3500,
     duration: 0.7,
     shift: 24,          // px travelled, out upward and in from below
-    ease: 'power3.out',
+    ease: E.body,
     start: 'top 70%',
     stack: '(max-width: 767px)'   // below this the statements go full width
   };
@@ -4497,7 +4529,7 @@
        — a flick of the wheel is the same flick on any viewport. */
     growAfter: 120,
     growDuration: 1,
-    growEase: 'power2.inOut',
+    growEase: E.travel,
 
     /* Milliseconds a statement holds before the next one can take
        over, however fast the pin is scrolled. */
@@ -4508,7 +4540,7 @@
     from: 0.6,
     duration: 0.9,
     delay: 0.55,
-    ease: 'power2.out',
+    ease: E.small,
 
     /* How much larger than its frame the video is painted, matching
        the resting value in page-transition.css. */
@@ -5430,7 +5462,7 @@
     hideAt: 0.5,          // fraction of the footer revealed → nav leaves
     showAt: 0.35,         // scrolled back above this → nav returns
     duration: 0.45,
-    ease: 'power2.out',
+    ease: E.small,
 
     /* Direction hiding. offset keeps the nav put over the first screen,
        where a small scroll is usually someone settling rather than
@@ -5636,12 +5668,12 @@
 
   const MENU = {
     duration: 0.89,          // the swipe, matching the reference
-    ease: 'menuSwipe',
+    ease: E.menuSheet,
     contentDelay: 0.18,      // content starts while the sheet is still moving
     contentDuration: 0.6,
     contentStagger: 0.05,
     contentShift: 40,        // px the rows rise
-    contentEase: 'power3.out',
+    contentEase: E.body,
     /* The CTA goes last: after the swipe has landed AND after the last
        row has finished rising, whichever of the two ends later. The
        rows rise under the swipe, which is what makes the sheet feel
@@ -5664,8 +5696,6 @@
     labelOpen: 'Lukk',
     labelFade: 0.12       // out and back in, either side of the swap
   };
-
-  CustomEase.create('menuSwipe', '0.05, 0.7, 0.1, 1');
 
   const CLOSED_CLIP = 'inset(0% 0% 100% 0%)';
   const OPEN_CLIP = 'inset(0% 0% 0% 0%)';
@@ -5761,10 +5791,10 @@
         gsap.to(el, {
           opacity: 0,
           duration: MENU.labelFade,
-          ease: 'power1.out',
+          ease: E.label,
           onComplete: () => {
             el.textContent = next;
-            gsap.to(el, { opacity: 1, duration: MENU.labelFade, ease: 'power1.out' });
+            gsap.to(el, { opacity: 1, duration: MENU.labelFade, ease: E.label });
           }
         });
       });
@@ -5919,7 +5949,7 @@
       pending = done;
       tl = gsap.timeline({ onComplete: done });
       tl.to(panel, { clipPath: CLOSED_CLIP, duration: MENU.duration, ease: MENU.ease }, 0);
-      tl.to(content, { opacity: 0, duration: 0.25, ease: 'power2.out' }, 0);
+      tl.to(content, { opacity: 0, duration: 0.25, ease: E.small }, 0);
     }
 
     const controller = new AbortController();
