@@ -1,12 +1,6 @@
-/* ============================================================
-   Artbox — Barba page transitions
-
-   Load after gsap, CustomEase, @barba/core, lenis and swiper, before
-   </body>: it queries the DOM and calls barba.init() as it parses.
-
-   Docs: README — required DOM structure, per-template attributes,
-   and a section per module.
-   ============================================================ */
+/* Artbox — Barba page transitions. Load after gsap, CustomEase,
+   @barba/core, lenis and swiper, before </body>: it queries the DOM and
+   calls barba.init() as it parses. Docs: README. */
 
 (function () {
   'use strict';
@@ -39,13 +33,7 @@
 
   const has = (s) => !!nextPage.querySelector(s);
 
-  /* ============================================================
-     EASING — EASE holds the curves, E maps a kind of motion to one.
-     Modules name a role only.  (docs: README ## Easing)
-
-     Scrubbed tweens keep ease:'none' at the call site: scroll
-     position is their timing, and easing it twice reads as lag.
-     ============================================================ */
+  /* ===== EASING — curves, then a role per kind of motion — README ## Easing ===== */
 
   const durationDefault = 0.6;
 
@@ -73,6 +61,8 @@
     menuSheet: EASE.menu
   };
 
+  // Scrubbed tweens keep ease:'none' at the call site: scroll position
+  // is their timing, and easing it twice reads as lag.
   gsap.defaults({ ease: EASE.brand, duration: durationDefault });
 
   const FADE = {
@@ -82,11 +72,10 @@
   };
 
 
-  /* ============================================================
-     MODULE REGISTRY — keyed by container: sync:true means both pages
-     are mounted at once, so one shared cleanup list tears down the
-     wrong page.  (docs: README ## Modules)
-     ============================================================ */
+  /* ===== MODULE REGISTRY — README ## Modules ===== */
+
+  // Keyed by container: sync:true means both pages are mounted at once,
+  // so one shared cleanup list tears down the wrong page.
 
   const Modules = (function () {
     const registry = [];
@@ -126,12 +115,11 @@
   })();
 
 
-  /* ============================================================
-     INTRO QUEUE — mount happens at beforeEnter, where the container is
-     still a fixed 100vh rectangle sliding in: an intro started there
-     plays behind the transition. Queued timelines run once the page is
-     laid out for real (afterEnter, and once() on first load).
-     ============================================================ */
+  /* ===== INTRO QUEUE — README ### Intro timings ===== */
+
+  // Mount is at beforeEnter, where the container is still a fixed 100vh
+  // rectangle: an intro started there plays behind the transition.
+  // Queued timelines run once the page is laid out for real.
 
   const Intro = (function () {
     const queued = new Map();
@@ -155,12 +143,11 @@
   })();
 
 
-  /* ============================================================
-     ATTRIBUTE-DRIVEN LAYOUT
-     Was three inline scripts inside sections. Script tags inside
-     the swapped container never execute, so they had to move here.
-     Delete those embeds in the Designer or they run twice on load.
-     ============================================================ */
+  /* ===== ATTRIBUTE-DRIVEN LAYOUT ===== */
+
+  // Was three inline scripts in sections: a script tag inside the swapped
+  // container never executes. Delete those embeds in the Designer, or they
+  // run a second time on first load.
 
   Modules.add('caseRowGrid', function (root) {
     root.querySelectorAll('.c_cases_row_grid_item').forEach((el) => {
@@ -230,11 +217,7 @@
     });
   });
 
-  /* ============================================================
-     SMOOTHLY — .work_smoothly_wrap
-     Opt-in autoplay: stepping or drift, paused whenever nobody is
-     watching.  (docs: README ### smooothy)
-     ============================================================ */
+  /* ===== SMOOTHLY — .work_smoothly_wrap — README ### smooothy ===== */
 
  Modules.add('smooothy', function (root) {
   const els = root.querySelectorAll('.work_smoothly_wrap');
@@ -388,15 +371,7 @@
   };
 });
 
-  /* ============================================================
-     TEXT REVEAL — [data-text-anim]
-
-     Every attribute, knob and quirk: README ### textAnim.
-
-     Split and hidden start state at mount; the ScrollTriggers come from
-     the Intro queue, since a trigger measured against the transition's
-     100vh rectangle fires at the wrong scroll position.
-     ============================================================ */
+  /* ===== TEXT REVEAL — [data-text-anim] — README ### textAnim ===== */
 
   const TEXT = {
     stagger: 0.15,          // between cards under [data-text-anim-stagger]
@@ -856,8 +831,10 @@
 
     if (!instances.length) return;
 
-    // Triggers wait for a real layout. Reduced motion has already
-    // jumped to the end state and needs none.
+    /* Split and hidden start state happen at mount; the triggers wait
+       here for a real layout, since one measured against the transition's
+       100vh rectangle fires at the wrong scroll position. Reduced motion
+       has already jumped to the end state and needs none. */
     if (!reducedMotion && hasScrollTrigger) {
       Intro.add(root, () => {
         instances.forEach((inst) => {
@@ -897,12 +874,7 @@
   });
 
 
-  /* ============================================================
-     CTA — .cta_wrap
-     Sticks white, the yellow washes up under it, the images rise out
-     of the fold in three speed lanes and leave over the top. It lets
-     go once the last one is gone.  (docs: README ### ctaReveal)
-     ============================================================ */
+  /* ===== CTA — .cta_wrap — README ### ctaReveal ===== */
 
   const CTA = {
     scroll: 4.7,        // screens of section height, sticky screen included
@@ -1122,11 +1094,10 @@
   });
 
 
-  /* ============================================================
-     EYEBROW ICON — a square matching the type beside it. The size class
-     sits on the text, so the wrap cannot do this in em: the text's
-     computed size is read and handed back as a variable.
-     ============================================================ */
+  /* ===== EYEBROW ICON — a square matching the type beside it ===== */
+
+  // The size class sits on the text, so the wrap cannot do this in em:
+  // the text's computed size is read and handed back as a variable.
 
   const EYEBROW = {
     ratio: 0.72,     // of the text's font size
@@ -1181,11 +1152,10 @@
   });
 
 
-  /* ============================================================
-     CORPORATE HERO — mobile images. The heading's inline images are
-     hidden below 767; these take their place, fading in on a stagger
-     (keyframes in the CSS) and drifting against the scroll.
-     ============================================================ */
+  /* ===== CORPORATE HERO — mobile images ===== */
+
+  // The heading's inline images are hidden below 767; these take their
+  // place, fading in on a stagger (keyframes in the CSS) and drifting.
 
   const CORP_HERO = {
     breakpoint: '(max-width: 767px)',
@@ -1230,14 +1200,7 @@
   });
 
 
-  /* ============================================================
-     SCROLL PARALLAX — [data-parallax]
-     Column drift, scrubbed against the group crossing the screen.
-     Every attribute: README ### parallax.
-
-     The transform stays on the marked wrapper — put a hover or reveal
-     on the element inside it, never both on one.
-     ============================================================ */
+  /* ===== SCROLL PARALLAX — [data-parallax] — README ### parallax ===== */
 
   const PARALLAX = {
     distance: 120,      // px of travel at strength 1, at the reference viewport
@@ -1384,14 +1347,11 @@
   });
 
 
-  /* ============================================================
-     STICKY CARD STACK — [data-sticky-stack]
-     Attributes and the matching CSS: README ### stickyStack.
+  /* ===== STICKY CARD STACK — [data-sticky-stack] — README ### stickyStack ===== */
 
-     The pinning is CSS; this module owns stacking order and the lift
-     of the covered card, neither of which CSS can do. Desktop only —
-     below 768 the cards are static and stacking hides content.
-     ============================================================ */
+  // The pinning is CSS. This owns the stacking order and the lift of the
+  // covered card, neither of which CSS can do, and only on desktop —
+  // below the breakpoint the cards are static and stacking hides content.
 
   const STICKY = {
     lift: 80,
@@ -1470,13 +1430,10 @@
   });
 
 
-  /* ============================================================
-     DESIGN STICKY — .design_sticky_track
+  /* ===== DESIGN STICKY — .design_sticky_track — README ### designSticky ===== */
 
-     Two sticky cards and the work section that climbs over them.
-     Sticky is the section's own CSS; this adds the hold before each
-     card is reached, and the black under the one arriving last.
-     ============================================================ */
+  // Sticky and the hold between cards are CSS; this is the scrim that
+  // darkens a card as the work section climbs over it.
 
   const DESIGN_STICKY = {
     scrim: 0.6,
@@ -1529,16 +1486,7 @@
   });
 
 
-  /* ============================================================
-     TABS — [data-tabs="wrapper"]
-     Clickable items on one side, cross-fading visuals on the other,
-     optional autoplay.  (docs: README ### tabs)
-
-     The first tab is set rather than animated open, and the autoplay
-     trigger comes from the Intro queue: mount runs against the fixed
-     100vh transition rectangle, where an animated open plays behind
-     the transition and measures height:auto on the wrong box.
-     ============================================================ */
+  /* ===== TABS — [data-tabs="wrapper"] — README ### tabs ===== */
 
   const TABS = {
     duration: 0.65,
@@ -1803,6 +1751,9 @@
         }, { signal: controller.signal });
       });
 
+      // Set, never animated open: at mount the container is still the
+      // transition's 100vh rectangle, where height:auto measures the
+      // wrong box and the open would play behind the transition.
       if (stacked) applyStack();
       else setState(0);
 
@@ -1862,16 +1813,10 @@
     return () => cleanups.forEach((fn) => fn());
   });
 
-  /* ============================================================
-     FAQ / ACCORDION — .faq_item_wrap or [data-faq-item]
-     Attributes and behaviour: README ### faq.
+  /* ===== FAQ / ACCORDION — .faq_item_wrap, [data-faq-item] — README ### faq ===== */
 
-     The Osmo reference does this in CSS with grid-template-rows and
-     needs markup this site does not have, so the same motion is built
-     in GSAP against the classes that already exist. Height 0 <-> auto
-     rather than a max-height guess: measured per open, so a long answer
-     never clips. Every toggle moves the document, hence the refresh.
-     ============================================================ */
+  // Height 0 <-> auto rather than a max-height guess: measured per open,
+  // so a long answer never clips. Every toggle moves the document.
 
   const FAQ = {
     duration: 0.6,
@@ -2017,14 +1962,11 @@
     return () => cleanups.forEach((fn) => fn());
   });
 
-  /* ============================================================
-     HOME HERO — the heading holds still, only the images move.
-     (docs: README ### homeHero)
+  /* ===== HOME HERO — README ### homeHero ===== */
 
-     Two transforms per cell, deliberately on two elements: parallax on
-     .home_img_wrap, the pointer bump on the img inside it, so neither
-     has to preserve the other's matrix.
-     ============================================================ */
+  // The heading holds still; only the images move. Two transforms per
+  // cell, deliberately on two elements — parallax on .home_img_wrap, the
+  // bump on the img inside it — so neither preserves the other's matrix.
 
   const HERO = {
     /* The entrance is a @keyframes in the .home_wrap embed, not a
@@ -2176,17 +2118,7 @@
   });
 
 
-  /* ============================================================
-     SERVICES HOVER — .services_wrap  (docs: README ### servicesHover)
-
-     Each preview image is stacked on the one showing and grown until
-     it covers it, and the covering tween removes what it covered — so
-     a fast run down the list is safe: whichever clone is on top wins.
-
-     The follower belongs to <body>: perspective on .page_wrap makes a
-     containing block, and a fixed follower inside it would stop
-     resolving against the viewport.
-     ============================================================ */
+  /* ===== SERVICES HOVER — .services_wrap — README ### servicesHover ===== */
 
   const SERVICES = {
     follow: 0.6,             // pointer smoothing
@@ -2337,6 +2269,9 @@
       const followerInner = document.createElement('div');
       followerInner.className = 'services_follower__inner';
       follower.appendChild(followerInner);
+      // <body>, never the section: perspective on .page_wrap makes a
+      // containing block, and a fixed follower inside it stops resolving
+      // against the viewport.
       document.body.appendChild(follower);
 
       gsap.set(follower, { xPercent: -50, yPercent: -50, scale: 0, autoAlpha: 0, force3D: true });
@@ -2587,15 +2522,10 @@
   });
 
 
-  /* ============================================================
-     SINGLE-SELECT FILTER CHECKBOXES — .insights_filter_check
-     Webflow checkboxes behaving like radios, since radios cannot be
-     unchecked back to an "all" state.  (docs: README ### filterSingle)
+  /* ===== SINGLE-SELECT FILTER CHECKBOXES — README ### filterSingle ===== */
 
-     Two traps: Webflow's w--redirected-checked tick only toggles on real
-     user events, and Finsweet reads its filters off change events, so a
-     box cleared behind its back stays in the query.
-     ============================================================ */
+  // Webflow checkboxes behaving like radios, since a radio cannot be
+  // unchecked back to the "all" state.
 
   Modules.add('filterSingle', function (root) {
     const nodes = Array.from(new Set([
@@ -2681,15 +2611,7 @@
   });
 
 
-  /* ============================================================
-     TEXT SWAP — [data-swap]
-     One statement at a time in the same spot, the outgoing one leaving
-     upward.  (docs: README ### textSwap)
-
-     Laid over each other in one grid cell rather than absolutely:
-     absolute children collapse the wrapper and the section loses its
-     height, while in one cell the tallest still sets the box.
-     ============================================================ */
+  /* ===== TEXT SWAP — [data-swap] — README ### textSwap ===== */
 
   const SWAP = {
     hold: 3500,
@@ -2700,11 +2622,10 @@
     stack: '(max-width: 767px)'   // below this the statements go full width
   };
 
-  /* ============================================================
-     FINSWEET ATTRIBUTES — it scans the DOM once on load, so a swapped-in
-     list is one it has never seen and its filters do nothing. Restarted
-     per container.  (docs: README ### Finsweet Attributes)
-     ============================================================ */
+  /* ===== FINSWEET ATTRIBUTES — README ### Finsweet Attributes ===== */
+
+  // It scans the DOM once on load, so a swapped-in list is one it has
+  // never seen and its filters do nothing. Restarted per container.
 
   Modules.add('finsweet', function (root) {
     if (!root.querySelector || !root.querySelector('[fs-list-element="list"]')) return;
@@ -2751,6 +2672,8 @@
       const waits = wrap.hasAttribute('data-swap-wait') ||
         !!wrap.closest('.home_video_wrap');
 
+      // One grid cell rather than absolute children, which collapse the
+      // wrapper: in one cell the tallest statement still sets the box.
       wrap.classList.add('is-swapping');
 
       /* Stacked where the FIRST item sits, not in cell 1/1: that is a
@@ -2973,12 +2896,11 @@
   });
 
 
-  /* ============================================================
-     LAZY ASSETS — Swiper and Finsweet came from the site-wide embeds,
-     about 90 KiB every page paid for and home uses neither. Fetched
-     here instead, once per asset and only for a container that has the
-     markup; the promise is cached, so a second slider reuses it.
-     ============================================================ */
+  /* ===== LAZY ASSETS ===== */
+
+  // Swiper and Finsweet were site-wide embeds: about 90 KiB every page
+  // paid for, and home uses neither. Fetched once per asset here, only
+  // for a container that has the markup; the promise is cached.
 
   const Assets = (function () {
     const cache = new Map();
@@ -3292,12 +3214,7 @@
   });
 
 
-  /* ============================================================
-     MARQUEE
-     The original rAF loop had no exit and the IntersectionObserver
-     was never disconnected, so every page visit would have left a
-     loop animating detached nodes forever.
-     ============================================================ */
+  /* ===== MARQUEE ===== */
 
   Modules.add('marquee', function (root) {
     const marquees = [];
@@ -3563,11 +3480,7 @@
   });
 
 
-  /* ============================================================
-     SHARE — [data-share]
-     LinkedIn, copy, and the OS sheet where there is one. Attributes and
-     keyboard behaviour: README ### share.
-     ============================================================ */
+  /* ===== SHARE — [data-share] — README ### share ===== */
 
   const SHARE = {
     copiedFor: 3000,   // ms the confirmation stays up, alone, before the
@@ -3739,17 +3652,11 @@
   });
 
 
-  /* ============================================================
-     VIDEO POSTER — [data-video="component"]
-     base-lib drops the poster when it decides to play, which is before
-     any frame exists — so the box is empty and the section shows
-     through. Held here and faded on the first PAINTED frame instead; a
-     video that never arrives keeps its poster, which is the right
-     fallback.  (docs: README ### videoPoster)
+  /* ===== VIDEO POSTER — [data-video="component"] — README ### videoPoster ===== */
 
-     Registered ahead of baseLib, so the poster is ours before video-min
-     touches it.
-     ============================================================ */
+  // Held until the first PAINTED frame: base-lib drops the poster when it
+  // decides to play, before any frame exists. Registered ahead of baseLib,
+  // so the poster is ours before video-min touches it.
 
   Modules.add('videoPoster', function (root) {
     const wraps = root.querySelectorAll('[data-video="component"]');
@@ -3808,24 +3715,7 @@
   });
 
 
-  /* ============================================================
-     HERO VIDEO — cell 6 of the hero grid to full screen
-     Docs: README ### heroVideo.
-
-     Triggered rather than scrubbed: a scrubbed growth is only as
-     committed as the hand on the wheel, and stopping mid-scroll left
-     the video stranded at whatever size the scroll had bought. Where it
-     travels to stays scroll-bound.
-
-     Fixed and out of flow for the travel — inside the grid it would be
-     clipped by the section and fighting the hero's parallax for the
-     same matrix. The cell it leaves keeps its aspect ratio so the grid
-     does not collapse around a hole.
-
-     Position is arithmetic off one measurement per refresh: the cell
-     travels linearly with the scroll, so there is nothing to ask the
-     layout engine per frame.
-     ============================================================ */
+  /* ===== HERO VIDEO — the hero's last cell to full screen — README ### heroVideo ===== */
 
   const HERO_VIDEO = {
     pin: 1.5,          // screens of pin once it is full bleed
@@ -4489,11 +4379,11 @@
   });
 
 
-  /* ============================================================
-     THIRD PARTY (base-lib) — form-validation, match-container and
-     video-min bind on DOMContentLoaded, which fires once, so they die
-     after the first swap unless re-initialised per container.
-     ============================================================ */
+  /* ===== THIRD PARTY (base-lib) ===== */
+
+  // form-validation, match-container and video-min bind on
+  // DOMContentLoaded, which fires once: without this they die on the
+  // first swap.
 
   Modules.add('baseLib', function (root) {
     const MYL = window.MYL;
@@ -4504,9 +4394,7 @@
   });
 
 
-  /* ============================================================
-     PERSISTENT: FOOTER REVEAL
-     ============================================================ */
+  /* ===== PERSISTENT: FOOTER REVEAL ===== */
 
   /* The footer is revealed through a margin, so it changes the scrollable
      height that Lenis and ScrollTrigger both cache. Re-measured on the
@@ -4541,11 +4429,10 @@
   })();
 
 
-  /* ============================================================
-     NAV SYNC — the meganav persists, so data-transparent and the
-     active-link state are copied off the incoming page.
-     (docs: README ## Per-template attributes)
-     ============================================================ */
+  /* ===== NAV SYNC — README ## Per-template attributes ===== */
+
+  // The meganav persists, so data-transparent and the active-link state
+  // are copied off the incoming page.
 
   function syncNavFrom(container) {
     const nav = findNav();
@@ -4588,17 +4475,11 @@
   }
 
 
-  /* ============================================================
-     NAV SCROLL STATE — is-scrolled on the persistent nav: transparent
-     at the top of the page, solid past the threshold.
+  /* ===== NAV SCROLL STATE — README ### Rules to delete from the nav's Webflow embed ===== */
 
-     Owned here rather than by the nav's embed, whose guard returns on a
-     mega-panel selector the markup does not use, taking the scroll
-     state, burger, panel and locale with it. Delete that embed's SCROLL
-     WATCHER block — two owners of one class is still wrong.
-
-     .meganav is the published class name; data-nav overrides it.
-     ============================================================ */
+  // is-scrolled on the persistent nav: transparent at the top, solid past
+  // the threshold. Owned here, not by the nav's embed — delete that
+  // embed's SCROLL WATCHER block.
 
   const NAV_SCROLL_AT = 10;
 
@@ -4781,17 +4662,12 @@
     apply();
   }
 
-  /* ============================================================
-     MEGANAV — a full-viewport sheet swiping down from the top edge,
-     its contents rising behind the swipe.  (docs: README ## Meganav)
+  /* ===== MEGANAV — README ## Meganav ===== */
 
-     The panel is absolute and sized in viewport units, not fixed: it
-     lives inside the nav, and the nav's footer-hide transform would
-     otherwise become its containing block. CSS half in the stylesheet.
-
-     Init runs once, not per container: the nav persists, and sync:true
-     would leave a second set of listeners bound per navigation.
-     ============================================================ */
+  // A full-viewport sheet swiping down from the top edge, its contents
+  // rising behind the swipe. Init runs once, never per container: the nav
+  // persists, and sync:true would bind a second set of listeners per
+  // navigation. The sheet's own CSS is in page-transition.css.
 
   const MENU = {
     duration: 0.89,          // the swipe, matching the reference
@@ -5109,9 +4985,7 @@
   }
 
 
-  /* ============================================================
-     WEBFLOW REINIT
-     ============================================================ */
+  /* ===== WEBFLOW REINIT ===== */
 
   function reinitWebflow() {
     if (!window.Webflow) return;
@@ -5126,9 +5000,7 @@
   }
 
 
-  /* ============================================================
-     LENIS
-     ============================================================ */
+  /* ===== LENIS ===== */
 
   function initLenis() {
     if (lenis || !hasLenis) return;
@@ -5142,9 +5014,7 @@
   }
 
 
-  /* ============================================================
-     FUNCTION REGISTRY
-     ============================================================ */
+  /* ===== FUNCTION REGISTRY ===== */
 
   function initOnceFunctions() {
     initLenis();
@@ -5174,12 +5044,11 @@
   }
 
 
-  /* ============================================================
-     PAGE TRANSITIONS — a crossfade: both pages hold the same rectangle
-     for a second, the outgoing one blurring out under the incoming one.
-     The layers below are what lets them overlap at all.
-     (docs: README ## The transition)
-     ============================================================ */
+  /* ===== PAGE TRANSITIONS — README ## The transition ===== */
+
+  // A crossfade: both pages hold the same rectangle for a second, the
+  // outgoing one blurring out under the incoming one. The layers below
+  // are what lets them overlap at all.
 
   function runPageOnceAnimation(next) {
     const tl = gsap.timeline();
@@ -5458,9 +5327,7 @@
   }
 
 
-  /* ============================================================
-     BARBA
-     ============================================================ */
+  /* ===== BARBA ===== */
 
   const root = document.documentElement;
 

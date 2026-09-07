@@ -1270,6 +1270,19 @@ next reader:
   transparent over the sheet
 - `.meganav { z-index: 999999 }` — the root is at 100 and the page layers at 1–2
 
+Also delete the embed's **SCROLL WATCHER** block. `is-scrolled` is set from
+`page-transition.js` now, and two owners of one class is one too many. The
+embed's version is dead anyway: its guard reads
+
+```js
+const item = document.querySelector('[data-nav-item="industries"]');
+if (!nav || !panel || !item) return;
+```
+
+and the markup uses `data-nav-trigger`, so `item` is null and the whole IIFE
+returns before binding anything — scroll state, burger, panel and locale all
+dead together.
+
 Dead with no markup left to match: `.meganav_mobile_dropdown`,
 `.meganav_mobile_icon`, `.meganav_locale_*`, `.meganav_card`,
 `.meganav_link_sub`, `.meganav_link_group`, `.meganav_backdrop`. So is the

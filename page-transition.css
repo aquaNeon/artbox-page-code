@@ -108,18 +108,12 @@ html.is-transitioning {
   }
 }
 
-/* ============================================================
-   MEGANAV  (docs: README ## Meganav)
+/* ===== MEGANAV — README ## Meganav ===== */
 
-   The sheet is absolute and sized in viewport units, not fixed: it
-   lives inside the nav, whose footer-hide transform would otherwise
-   become its containing block. The nav is pinned to the top edge, so
-   it is the same rectangle either way.
-
-   These rules beat the nav's own embed on specificity, not order — an
-   embed renders after this file, so a tie goes to it. The superseded
-   blocks are listed in the README; delete them.
-   ============================================================ */
+/* The sheet is absolute and sized in viewport units, not fixed: it lives
+   inside the nav, whose footer-hide transform would otherwise become its
+   containing block. These rules beat the nav's own embed on specificity,
+   not order — an embed renders after this file. */
 
 .meganav_root .meganav {
   position: fixed;
@@ -339,18 +333,14 @@ html.is-menu-open {
   overflow: hidden;
 }
 
-/* ============================================================
-   UNDERLINE LINKS — [data-underline-link]
-   Docs: README ## Underline links.
+/* ===== UNDERLINE LINKS — [data-underline-link] — README ## Underline links ===== */
 
-   Two lines, not one: the resting line wipes out right while a fresh
-   one wipes in from the left. One line scaling out and back reads as a
-   retreat and a return rather than a replacement.
-
-   Hover comes from the marked element, an ancestor link or [data-hover],
-   or a Webflow overlay anchor covering the component — that last one is
-   a SIBLING of the text, which is why :hover alone cannot do this.
-   ============================================================ */
+/* Two lines, not one: the resting line wipes out right while a fresh one
+   wipes in from the left, which reads as a replacement rather than a
+   retreat and a return. Hover comes from the marked element, an ancestor
+   link or [data-hover], or a Webflow overlay anchor covering the
+   component — that last one is a SIBLING of the text, which is why
+   :hover alone cannot do this. */
 
 /* Doubled attribute: the static border is usually a shorthand on a
    class, which beats a single-attribute rule on a tie. Turned
@@ -471,12 +461,11 @@ html.is-menu-open {
   color: var(--meganav-cta-text, var(--meganav-panel-bg, #191915));
 }
 
-/* ============================================================
-   POST CONTACT — .post_contact_wrap
-   Grid and flex children default to min-width:auto and refuse to shrink
+/* ===== POST CONTACT — .post_contact_wrap ===== */
+
+/* Grid and flex children default to min-width:auto and refuse to shrink
    below their content, so a wide image or an unbreakable string pushes
-   the track past its container.
-   ============================================================ */
+   the track past its container. */
 .post_contact_grid > *,
 .post_contact_inner_wrap,
 .post_contact_content,
@@ -522,17 +511,13 @@ html.is-menu-open {
   overflow-wrap: anywhere;
 }
 
-/* ============================================================
-   SLIDER SECTION — .c_slider_wrap  (docs: README ### slider)
+/* ===== SLIDER SECTION — .c_slider_wrap — README ### slider ===== */
 
-   Lifted out of the section embed, where truncated declarations were
-   making the parser skip whatever followed until it resynced — the
-   mobile inset among them. Recovered variable names carry a fallback,
-   so a wrong guess degrades rather than painting nothing.
-
-   The track is full-bleed and clipped, with the first slide offset into
-   line with the page container by the module.
-   ============================================================ */
+/* Lifted out of the section embed, where truncated declarations made the
+   parser skip whatever followed until it resynced — the mobile inset
+   among them. Recovered variable names carry a fallback. The track is
+   full-bleed and clipped, with the first slide offset into line with the
+   page container by the module. */
 
 .c_slider_wrap {
   /* clip, not hidden, so this does not become the scrollport a sticky
@@ -693,12 +678,11 @@ html.is-menu-open {
   }
 }
 
-/* ============================================================
-   TABS — stacked below 992px  (docs: README ### tabs)
-   The module moves each visual beside its own text and adds .is-stacked;
+/* ===== TABS — stacked below 992px — README ### tabs ===== */
+
+/* The module moves each visual beside its own text and adds .is-stacked;
    these undo the desktop presentation, where the visuals are a pile of
-   absolutely positioned panels.
-   ============================================================ */
+   absolutely positioned panels. */
 
 /* One column: on desktop the wrapper is two, and the stack would sit in
    half the width beside the emptied visual column. */
@@ -738,12 +722,11 @@ html.is-menu-open {
   cursor: auto;
 }
 
-/* ============================================================
-   SERVICES — pinned crossfade below 992px  (docs: README ### servicesHover)
-   The module lifts the rows into .services_stack_viewport and gives the
+/* ===== SERVICES — pinned crossfade below 992px — README ### servicesHover ===== */
+
+/* The module lifts the rows into .services_stack_viewport and gives the
    list the scroll height: the list is the tall track, the viewport the
-   screen that stays put, the rows stacked inside it.
-   ============================================================ */
+   screen that stays put, the rows stacked inside it. */
 
 @media screen and (max-width: 991px) {
   /* Full bleed: the section container would inset a layout meant to run
@@ -919,14 +902,12 @@ html.is-menu-open {
   }
 }
 
-/* ============================================================
-   HERO VIDEO  (docs: README ### heroVideo)
+/* ===== HERO VIDEO — README ### heroVideo ===== */
 
-   is-travelling takes the component out of flow, so its transform is
+/* is-travelling takes the component out of flow, so its transform is
    neither clipped by the hero nor sharing an element with the hero's
    parallax; left/top stay at 0 and the module does the placing.
-   is-settled hands it back to the stage after the pin.
-   ============================================================ */
+   is-settled hands it back to the stage after the pin. */
 
 /* Hidden from first paint: the module's pre-hide is JS, so between the
    paint and the bundle landing the video showed at full opacity.
@@ -978,20 +959,16 @@ html:not(.wf-design-mode) .home_wrap [data-video="component"] {
   transform-origin: center;
 }
 
-/* ============================================================
-   The travelling component is fixed on the body, outside .page_wrap's
+/* The travelling component is fixed on the body, outside .page_wrap's
    stacking context and outside the container Barba swaps — so nothing
-   that covers the page covers it, and nothing that replaces the page
-   replaces it: the video over an open meganav, or hanging above both
-   pages mid-transition.
-
-   In CSS so it holds even where the script throws first, and !important
-   because the opacity to beat is the entrance tween's, written inline.
+   that covers the page covers it: the video over an open meganav, or
+   hanging above both pages mid-transition. In CSS so it holds even where
+   the script throws first, and !important because the opacity to beat is
+   the entrance tween's, written inline.
 
    is-page-leaving rather than html.is-transitioning: that class is on
    through the incoming page's afterEnter too, which is exactly when the
-   incoming home page's own video is entering.
-   ============================================================ */
+   incoming home page's own video is entering. */
 html.is-menu-open [data-video="component"].is-travelling,
 [data-video="component"].is-page-leaving {
   opacity: 0 !important;
@@ -1046,29 +1023,23 @@ html.is-menu-open [data-video="component"].is-travelling,
 }
 
 
-/* ============================================================
-   HERO ENTRANCE ORDER
+/* ===== HERO ENTRANCE ORDER ===== */
 
-   The entrance itself is a @keyframes in the .home_wrap embed; only
-   the delays are taken over here, so the sequence lives next to the
-   video's — the one cell GSAP drives, which cannot read a number out
-   of the Designer.
+/* The entrance itself is a @keyframes in the .home_wrap embed; only the
+   delays are taken over here, so the sequence lives next to the video's —
+   the one cell GSAP drives, which cannot read a number out of the
+   Designer.
 
    Uniform spacing, scattered order:  1->2  2->4  3->0  4->3  5->1  6->5
-   Every cell is one step after the last, but the steps do not walk the
-   grid in DOM order, so the six read as arriving rather than counting.
+   so the six read as arriving rather than counting.
 
    The video takes the LAST slot by necessity: its fade is a GSAP tween
    off the intro queue, so its delay starts from a later zero by however
-   long the boot took. That drift only pushes it later, and from any
-   other slot it walks into the beat behind it.
+   long the boot took, and that drift only ever pushes it later.
 
-   The leading `html` wins the tie against the section's own embed,
-   which renders after this file. `nth-child(N of .home_img_wrap)`
-   counts cells rather than siblings, so a heading in the grid cannot
-   shift the order by one; a browser without it falls back to the
-   embed's own delays.
-   ============================================================ */
+   The leading `html` wins the tie against the section's own embed, and
+   `nth-child(N of .home_img_wrap)` counts cells rather than siblings, so
+   a heading in the grid cannot shift the order by one. */
 
 .home_wrap {
   --hero-in-lead: 0.15s;   /* before the first cell moves */
@@ -1103,12 +1074,11 @@ html .home_wrap .home_img_wrap:nth-child(n+7 of .home_img_wrap) img {
   animation-delay: calc(var(--hero-in-lead) + var(--hero-in-video-slot) * var(--hero-in-step));
 }
 
-/* ============================================================
-   CTA  (docs: README ### ctaReveal)
-   The section's embed sets height: 200vh !important; the pin length
+/* ===== CTA — README ### ctaReveal ===== */
+
+/* The section's embed sets height: 200vh !important; the pin length
    belongs with the motion it paces, so it comes from --cta-scroll.
-   !important answers the embed's, and the leading html wins the tie.
-   ============================================================ */
+   !important answers the embed's, and the leading html wins the tie. */
 
 html .cta_wrap {
   height: var(--cta-scroll, 200vh) !important;
