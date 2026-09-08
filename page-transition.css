@@ -610,6 +610,25 @@ html.is-menu-open {
   object-fit: cover;
 }
 
+/* The card art must NOT be its own compositing layer. Promoted — by
+   will-change: transform, or backface-visibility: hidden — it is ordered
+   by the compositor rather than by the card's stacking context, and the
+   colour panel that hides it is an ordinary painted element. Swiper moves
+   the track with translate3d, WebKit pulls the subtree into a 3D
+   rendering context, and every promoted image is drawn over its own
+   panel: every card in the slider shows its photo the moment you press
+   next. Chrome resolves the same tree the other way, so it only ever
+   appears in Safari.
+
+   Higher specificity than the section embed's own rule, so it wins from
+   here without !important and without the embed having to be edited.
+   The 1.004 overscale on the image stays where it is — that is what
+   answers the fractional-scale seam these were reaching for. */
+.c_slider_swiper .card_hover_img_wrap img {
+  will-change: auto;
+  backface-visibility: visible;
+}
+
 /* The card already animates its colour, so this follows it with the
    alpha baked in rather than running a timer of its own. */
 .c_slider_swiper .card_hover_wrap .card_hover_details_name,
