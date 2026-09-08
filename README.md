@@ -1299,11 +1299,26 @@ links — hidden by this file until it is deleted in the Designer.
 
 ## Footer and the transition
 
-The footer is `position: fixed` behind the page and revealed by the page
-sliding up off it, so it is not part of the Barba container and the
+On desktop the footer is `position: fixed` behind the page and revealed by
+the page sliding up off it, so it is not part of the Barba container and the
 transition used to hide it outright — click a link in the footer and the
 thing you were looking at vanished a frame before the page it belongs to
 started moving.
+
+**Desktop only, `min-width: 992px`.** Below that the footer is in flow and
+scrolls with the page, so there is nothing to reveal it through. The pin
+lives in a media query in `page-transition.css`, and `FooterReveal` writes
+the reserved space (`margin-bottom` on `.page_wrap`, the footer's own
+height) inside a `gsap.matchMedia` context on the same breakpoint. Crossing
+back down tears that context down, which clears the margin to `''` — not
+`0px`, so a margin set in the Designer still applies — and disconnects the
+`ResizeObserver` that tracked the footer's height. `footerRevealed()`
+returns `0` below the breakpoint too, so the nav-hide reads the scroll
+direction alone rather than a reveal that is not happening.
+
+Both halves read the same number: `FOOTER_PIN` in the JS and the media query
+in the CSS. Change one and change the other, or the file goes back to
+reserving space for a footer that no longer moves.
 
 If any of the footer is on screen when a navigation starts, the leave step
 now moves the real element into the outgoing layer, pinned at the viewport

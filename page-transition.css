@@ -12,10 +12,17 @@
   z-index: 1;
 }
 
-.footer_wrap {
-  position: fixed;
-  inset: auto 0 0 0;
-  z-index: 0;
+/* Pinned on desktop only, the same breakpoint FOOTER_PIN uses in the JS:
+   below it the footer is in flow and scrolls with the page, and the
+   reserved space that reveals it is not written. Unscoped, this rule beat
+   the Designer's own breakpoint — this file loads after Webflow's — and
+   the two halves disagreed about whether the footer moves. */
+@media (min-width: 992px) {
+  .footer_wrap {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 0;
+  }
 }
 
 /* Both containers go fixed mid-transition, collapsing the reveal gap, so

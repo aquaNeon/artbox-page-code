@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-04-bw';
+  const BUILD = '2026-09-08-footer';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -4409,23 +4409,55 @@
     });
   }
 
+  /* Desktop only, matching the Designer: below this the footer is in flow
+     and scrolls with the page, so there is nothing to reveal it through —
+     the reserved space would just be a footer's height of nothing under
+     the footer. */
+  const FOOTER_PIN = '(min-width: 992px)';
+
   const FooterReveal = (function () {
     const footer = document.querySelector('.footer_wrap');
     const page = document.querySelector('.page_wrap');
-    if (!footer || !page) return { sync() {}, collapse() {} };
+    if (!footer || !page) return { sync() {}, collapse() {}, pinned: () => false };
 
-    const sync = () => {
-      page.style.marginBottom = `${footer.offsetHeight}px`;
+    let pinned = false;
+
+    /* '' rather than '0px' when there is nothing to reserve: the margin
+       below the breakpoint belongs to the Designer, and zeroing it is
+       still us writing it. Compared against the inline value first, so a
+       no-op does not cost a scroll-height refresh. */
+    const write = (value) => {
+      if (page.style.marginBottom === value) return;
+      page.style.marginBottom = value;
       refreshScrollHeight();
     };
-    const collapse = () => { page.style.marginBottom = '0px'; };
 
-    new ResizeObserver(() => {
-      if (!document.documentElement.classList.contains('is-transitioning')) sync();
-    }).observe(footer);
+    const sync = () => write(pinned ? `${footer.offsetHeight}px` : '');
 
-    sync();
-    return { sync, collapse };
+    // Mid-transition the reserved space has to go, or the outgoing page is
+    // measured against a document taller than what is on screen.
+    const collapse = () => write(pinned ? '0px' : '');
+
+    /* The context is torn down as the viewport crosses the breakpoint, so
+       resizing down from desktop clears the margin rather than leaving
+       yesterday's number on the element. */
+    gsap.matchMedia().add(FOOTER_PIN, () => {
+      pinned = true;
+      sync();
+
+      const ro = new ResizeObserver(() => {
+        if (!document.documentElement.classList.contains('is-transitioning')) sync();
+      });
+      ro.observe(footer);
+
+      return () => {
+        pinned = false;
+        ro.disconnect();
+        sync();
+      };
+    });
+
+    return { sync, collapse, pinned: () => pinned };
   })();
 
 
@@ -4483,10 +4515,10 @@
 
   const NAV_SCROLL_AT = 10;
 
-  /* The footer is fixed behind the page, so how much shows is the
-     distance left to the bottom. Past enough of it the nav leaves, being
-     the last thing overlapping a full-bleed panel. Two thresholds, since
-     one line flickers wherever an inertia scroll rests on it. */
+  /* The footer is fixed behind the page on desktop, so how much shows is
+     the distance left to the bottom. Past enough of it the nav leaves,
+     being the last thing overlapping a full-bleed panel. Two thresholds,
+     since one line flickers wherever an inertia scroll rests on it. */
   const NAV_HIDE = {
     hideAt: 0.5,          // fraction of the footer revealed → nav leaves
     showAt: 0.35,         // scrolled back above this → nav returns
@@ -4506,6 +4538,9 @@
   let resetNav = () => {};
 
   function footerRevealed() {
+    // In flow below the breakpoint: nothing is being revealed, so the nav
+    // is left to the scroll direction alone.
+    if (!FooterReveal.pinned()) return 0;
     const footer = document.querySelector('.footer_wrap');
     const height = footer ? footer.offsetHeight : 0;
     if (!height) return 0;
@@ -5037,8 +5072,11 @@
     nextPage = next || document;
     syncNavCurrent();
     updateNavScroll();
-    Intro.play(nextPage);
+    /* Before the intro, not after: the queue creates this page's
+       ScrollTriggers, and the reserved space is part of the document they
+       measure against — collapse() left it at the outgoing page's value. */
     FooterReveal.sync();
+    Intro.play(nextPage);
     if (hasLenis && lenis) lenis.resize();
     if (hasScrollTrigger) ScrollTrigger.refresh();
   }
