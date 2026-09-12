@@ -1,0 +1,188 @@
+<!doctype html>
+<!-- Local fixture for the text reveal. Not part of the site: run
+     `node dev-server.js` and open http://localhost:5173/_fixture-text-anim.html -->
+<html lang="en" data-barba="wrapper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>text-anim fixture</title>
+<link rel="stylesheet" href="/page-transition.css">
+<style>
+  body { margin: 0; font-family: Georgia, serif; background: #f6f5f2; color: #14110f; }
+  .page_wrap { padding: 4rem 6vw 40vh; }
+  section { min-height: 70vh; margin-bottom: 12vh; }
+  h1 { font-size: clamp(2.5rem, 7vw, 5rem); line-height: 1.02; margin: 0 0 1.5rem; max-width: 16ch; }
+  h2 { font-size: clamp(1.8rem, 4vw, 3rem); line-height: 1.1; margin: 0 0 1rem; max-width: 20ch; }
+  p { font-size: 1.15rem; line-height: 1.5; max-width: 46ch; margin: 0 0 1rem; }
+  ul { padding-left: 1.2rem; max-width: 40ch; }
+  li { margin-bottom: .4rem; }
+  .hero-h1__img { display: inline-block; width: 2em; height: 2em; vertical-align: middle; }
+  .hero-h1__img img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 2rem; }
+  .card { border: 1px solid #14110f22; padding: 1.5rem; }
+  .footer_wrap { padding: 4rem 6vw; background: #14110f; color: #f6f5f2; }
+  .marker { position: fixed; top: 80vh; left: 0; right: 0; border-top: 1px dashed #c00; z-index: 9; opacity: .4; }
+
+  /* Copied from the site's global embed: text-box trim via pseudo tables. */
+  [class*="u-text-style-"]:not([class*="-secondary"]) { --trim-top: 0.49em; --trim-bottom: 0.34em; }
+  [class*="u-text-style-"] { display: flow-root; }
+  [class*="u-text-style-"]::before { content: ""; display: table; margin-bottom: calc(-0.5lh + var(--trim-top)); }
+  [class*="u-text-style-"]::after  { content: ""; display: table; margin-bottom: calc(-0.5lh + var(--trim-bottom)); }
+
+  .grid_heading { display: grid; }
+  .grid_balance { display: grid; justify-items: center; text-wrap: balance; max-width: 30ch; }
+  .block_balance { display: block; text-wrap: balance; max-width: 30ch; }
+  /* candidate fix: a split line is a grid item, so make it fill its track */
+  .grid_fixed { display: grid; justify-items: center; text-wrap: balance; max-width: 30ch; }
+  .flex_heading { display: flex; align-items: center; text-wrap: balance; max-width: 30ch; }
+  .eyebrow { display: flex; align-items: center; gap: 8px; }
+  .eyebrow_square { flex: none; width: 10px; height: 10px; background: #14110f; }
+  .flex_column { display: flex; flex-direction: column; align-items: center; text-wrap: balance; max-width: 30ch; }
+  .block_heading { display: block; }
+  .fade_row { display: flex; gap: 2rem; align-items: baseline; }
+</style>
+</head>
+<body>
+<div class="marker"></div>
+
+<main class="page_wrap" data-barba="container" data-barba-namespace="fixture">
+
+  <section data-text-anim>
+    <h1 data-text-anim-heading>A specimen with a photo
+      <span class="hero-h1__img"><img src="https://picsum.photos/seed/artbox/200" alt=""></span>
+      set between the words</h1>
+    <p data-text-anim-body>Type is not a silent thing. Every letter was drawn, cut and cast by a
+      hand that argued with the one before it, and it is the space between the letters that
+      decides whether a page is read or skipped.</p>
+    <p data-text-anim-body>A second paragraph, so the body step carries more than one element.</p>
+  </section>
+
+  <section data-text-anim="0.7" data-text-anim-delay="0.3">
+    <h2 data-text-anim-heading>Slower group, with a delay before it starts</h2>
+    <p data-text-anim-solo data-text-anim-with>A solo step running alongside the heading.</p>
+    <ul data-text-anim-list>
+      <li>Numbered items keep their numbers, split inside themselves</li>
+      <li>The second item wraps if the column is narrow enough</li>
+      <li>Third.</li>
+    </ul>
+  </section>
+
+  <section data-text-anim>
+    <h2 data-text-anim-heading data-text-anim-split="words">Split by words instead of lines</h2>
+    <p data-text-anim-body data-text-anim-split="chars">Chars, for the same paragraph.</p>
+    <p data-text-anim-body data-text-anim-split="none">And one unsplit block rise.</p>
+  </section>
+
+  <!-- Opacity only. The two cells share one move: -with lines the second up
+       with the first, -fade takes the travel and the clip off both. -->
+  <section data-text-anim class="fade_probe">
+    <div class="fade_row">
+      <h2 data-text-anim-solo data-text-anim-fade>Left cell</h2>
+      <h2 data-text-anim-solo data-text-anim-with data-text-anim-fade>Right cell</h2>
+    </div>
+    <p data-text-anim-body>Body under them still rises: fade is per step.</p>
+  </section>
+
+  <!-- The same flag on the group root, so every step in it fades. -->
+  <section data-text-anim data-text-anim-fade class="fade_root_probe">
+    <h2 data-text-anim-heading>Root level fade, where the lines still stagger but none of them move</h2>
+    <p data-text-anim-body data-text-anim-split="none">And an unsplit block fading as one.</p>
+  </section>
+
+  <section class="cards" data-text-anim-stagger="0.12">
+    <div class="card" data-text-anim>
+      <h2 data-text-anim-heading>Card one</h2>
+      <p data-text-anim-body>Cards under a stagger ancestor share one trigger.</p>
+    </div>
+    <div class="card" data-text-anim>
+      <h2 data-text-anim-heading>Card two</h2>
+      <p data-text-anim-body>Each starts a beat after the one before it.</p>
+    </div>
+    <div class="card" data-text-anim>
+      <h2 data-text-anim-heading>Card three</h2>
+      <p data-text-anim-body>Which reads as a wave down the row.</p>
+    </div>
+  </section>
+
+  <!-- Whole section as one continuous reveal: the root carries a role
+       itself, so everything inside it is cut into painted lines. -->
+  <section data-text-anim data-text-anim-body>
+    <h2>A section marked as one piece</h2>
+    <p>Every text block inside it is cut into the lines the browser painted, and
+      they stagger through the section in document order.</p>
+    <ul>
+      <li>The list keeps its markers</li>
+      <li>And its items are lines like everything else</li>
+    </ul>
+    <p><a href="#">A link that is not text-cut into pieces it should not be</a></p>
+  </section>
+
+  <!-- The Webflow shape: the wrapper carries the attribute, an h1 sits inside. -->
+  <section data-text-anim class="contact_wrap">
+    <div data-text-anim-heading="true" class="contact_heading_wrap">
+      <h1 data-number="24" class="g_heading">Nysgjerrig på hvorfor Norges ledende selskaper velger Artbox?</h1>
+    </div>
+  </section>
+
+  <!-- Trim check: same heading, split vs not, both carrying the trim class. -->
+  <section data-text-anim class="trim_probe">
+    <h2 class="u-text-style-h2 trim_split" data-text-anim-heading>Trimmed heading that wraps onto two lines here</h2>
+    <h2 class="u-text-style-h2 trim_control">Trimmed heading that wraps onto two lines here</h2>
+  </section>
+
+  <!-- The Webflow component case: wrapper marked, and the component inside
+       marked too. Plus one switched off with ="false". -->
+  <section data-text-anim class="nested_probe">
+    <div data-text-anim-solo="true" class="outer_wrap">
+      <h2 data-text-anim-heading="true" class="inner_heading">Inner heading, marked by its component</h2>
+      <p data-text-anim-solo="true" class="inner_para">Inner paragraph, marked by its component, inside a wrapper that is marked as well.</p>
+    </div>
+    <p data-text-anim-solo="false" class="switched_off">Switched off in the Designer, so this one should never be touched.</p>
+  </section>
+
+  <!-- display decides whether a descendant is cut into at all. -->
+  <section data-text-anim class="display_probe">
+    <div data-text-anim-solo="true" class="probe_wrap">
+      <!-- The live shape: the component carries its own marker and is a grid,
+           so an ancestor split cannot reach it. -->
+      <!-- switched off in the Designer, and still inside a marked wrapper -->
+      <div class="probe_span"><h2 data-text-anim-heading="false" class="grid_heading">Heading with display grid inside a marked wrapper</h2></div>
+      <h2 class="block_heading">Heading with display block inside the same wrapper</h2>
+      <p class="probe_para">A paragraph in the same wrapper, for comparison.</p>
+    </div>
+  </section>
+
+  <!-- Does a grid heading place its lines as grid items once split? -->
+  <section data-text-anim class="wrap_probe">
+    <h3 data-text-anim-heading="true" class="grid_balance">Kan vi bruke Artbox som designpartner selv om vi allerede har en visuell identitet?</h3>
+    <h3 data-text-anim-heading="true" class="grid_fixed">Kan vi bruke Artbox som designpartner selv om vi allerede har en visuell identitet?</h3>
+    <!-- the live eyebrow shape: flex row, square beside text, marked itself -->
+    <div data-text-anim-solo="true" class="eyebrow">
+      <div data-text-anim-icon class="eyebrow_square"></div>
+      <div class="eyebrow_text">Corporate design</div>
+    </div>
+    <h3 data-text-anim-heading="true" class="flex_heading">Kan vi bruke Artbox som designpartner selv om vi allerede har en visuell identitet?</h3>
+    <h3 data-text-anim-heading="true" class="flex_column">Kan vi bruke Artbox som designpartner selv om vi allerede har en visuell identitet?</h3>
+    <h3 data-text-anim-heading="true" class="block_balance">Kan vi bruke Artbox som designpartner selv om vi allerede har en visuell identitet?</h3>
+  </section>
+
+</main>
+
+<footer class="footer_wrap">
+  <p>footer_wrap — page-transition.js queries this on parse.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/CustomEase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/ScrollTrigger.min.js"></script>
+<script>
+  // ?noio=1 — take the observer away so every group plays at once. A
+  // background tab paints no frames, so observer entries never arrive.
+  if (new URLSearchParams(location.search).get('noio') === '1') delete window.IntersectionObserver;
+</script>
+<script src="/kugiri.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@barba/core@2.10.3/dist/barba.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.17/dist/lenis.min.js"></script>
+<script src="/page-transition.js"></script>
+</body>
+</html>

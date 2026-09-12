@@ -1246,14 +1246,18 @@ html .cta_wrap {
 /* Eyebrow icon: eyebrowIcon sizes the square from the text beside it
    through --icon-size / --icon-gap. The fallbacks cover a dead script. */
 .icon_eyebrow_wrap,
-.design_sticky_eyebrow {
+.design_sticky_eyebrow,
+.stats_eyebrow_wrap,
+.subheading_eyebrow_wrap {
   display: flex;
   align-items: center;
   gap: var(--icon-gap, 0.5em);
 }
 
 .icon_eyebrow_item,
-.design_sticky_blcvk {
+.design_sticky_blcvk,
+.stats_eyebrow_icon,
+.subheading_block {
   flex: none;
   width: var(--icon-size, 0.72em);
   height: var(--icon-size, 0.72em);

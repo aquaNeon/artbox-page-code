@@ -14,7 +14,16 @@ Development, live on every push, no purge step:
 ```
 https://raw.githack.com/aquaNeon/artbox-page-code/main/page-transition.js
 https://raw.githack.com/aquaNeon/artbox-page-code/main/page-transition.css
+https://raw.githack.com/aquaNeon/artbox-page-code/main/kugiri.global.js
 ```
+
+`kugiri.global.js` is the text splitter, vendored: it ships as an ES module and
+`page-transition.js` is a classic script, so the file in this repo is the
+jsDelivr `+esm` build with its one export hung off `window.kugiri`. Its banner
+carries the one-line command that regenerates it for a new version. It is
+vendored rather than imported at runtime because a dynamic `import()` resolves
+after parse, and the headings would flash unsplit before the reveal could hide
+them. It replaces SplitText — remove that tag.
 
 **Do not use jsDelivr `@main` here.** Its branch alias froze several commits
 back and kept serving a stale build through repeated purges that all reported
@@ -69,6 +78,18 @@ and the site just runs without the script.
 is a dead script for every visitor: no transitions, no modules, no error
 anyone can see.
 
+`_fixture-text-anim.html` is a standalone page for the text reveal — every
+role, every split level, a stagger row, an inline heading image — served by the
+same dev server:
+
+```
+http://localhost:5173/_fixture-text-anim.html?textdebug=1
+```
+
+It is plain http end to end, with no Webflow around it, so it is also the one
+way to put this code in front of **Safari**, which blocks a localhost script on
+an https page.
+
 ## Install
 
 Two paste-ins, both under **Webflow → Site Settings → Custom Code**:
@@ -76,7 +97,7 @@ Two paste-ins, both under **Webflow → Site Settings → Custom Code**:
 | File | Goes in |
 | --- | --- |
 | `webflow-head.html` | Head Code — three stylesheets |
-| `webflow-footer.html` | Footer Code — libraries, then `page-transition.js` |
+| `webflow-footer.html` | Footer Code — libraries, `kugiri.global.js`, then `page-transition.js` |
 
 Publish once. After that the CDN carries changes, and you only re-publish
 Webflow if the embeds themselves change.
@@ -220,25 +241,29 @@ loop or an observer must return a teardown, or it will leak on every navigation.
 
 Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
 `cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `tabs`, `faq`, `servicesHover`,
-`filterSingle`,
+`filterSingle`, `eyebrowIcon`,
 `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
 ### textAnim — `[data-text-anim]`
 
-Site-wide text reveal, ported from the ManyChat *creators-for-creators*
-build (`src/modules/text-anim.js`) with the attribute contract unchanged,
-so markup moves between the two sites as-is.
+Site-wide text reveal. [kugiri](https://github.com/edoardolunardi/kugiri) cuts
+the text into units, the Web Animations API moves them. **No gsap in this
+module** — the rest of the site still uses it, the text does not.
 
 | Attribute | Effect |
 | --- | --- |
 | `data-text-anim` | Group root. One trigger, its steps run in DOM order |
-| `data-text-anim-heading` | Split into lines; each line rises out of an overflow mask |
-| `data-text-anim-body` | Neighbouring body elements rise and fade as one block |
+| `data-text-anim-heading` | Split into painted lines; each rises out of its own clip |
+| `data-text-anim-body` | Body copy, same line reveal, gentler timing |
 | `data-text-anim-solo` | Breaks an element out into its own step |
-| `data-text-anim-list` | Repeated list, items wave in as a single step |
+| `data-text-anim-list` | Repeated list, its lines wave in as a single step |
 | `data-text-anim-stagger` | On a shared ancestor: one trigger for every `[data-text-anim]` under it, plus a per-card delay (default `0.15`) |
 | `data-text-anim-with` | On a step: run it alongside the previous step instead of after it |
+| `data-text-anim-fade` | On a step, or on the root for all of them: opacity only, no travel and no clip |
+| `data-text-anim-split` | On a step: `lines` (default), `words`, `chars`, or `none` for an unsplit block rise |
+| `data-text-anim-icon` | On a non-text child of a step (an eyebrow square, a bullet): give it the step's own cue instead of letting it appear whole |
+| `data-text-anim-ignore` | On anything inside a marked element: never cut into, never a unit |
 
 Timing knobs, all optional:
 
@@ -251,69 +276,107 @@ Timing knobs, all optional:
 | step | `data-text-anim-delay="0.3"` | extra gap before that one step |
 | ancestor | `data-text-anim-stagger="0.12"` | spacing between the `[data-text-anim]` groups under it |
 
-`data-text-anim-with` starts a step at the same time as the one before it,
-so two cells sharing a grid row read as one move while staying separate
-elements — which they have to be when each carries its own border. It is an
-absolute position on the timeline, not an overlap: a relative one is measured
-from the timeline's end, and the previous step is still running. A step
-carrying both `-with` and a delay starts that many seconds after the step it
-joins.
+`data-text-anim-with` starts a step at the same time as the one before it, so
+two cells sharing a grid row read as one move while staying separate elements —
+which they have to be when each carries its own border. A step carrying both
+`-with` and a delay starts that many seconds after the step it joins.
+
+`data-text-anim-fade` swaps that step's keyframes for opacity alone. It keeps
+the split, so lines or words still come in one after another on the usual
+stagger — they just do not move — and it drops the mask clip up front, since a
+clip that hides nothing still shears descenders for the length of the fade.
+With `-split="none"` the whole element fades as one block. On the group root it
+covers every step. Orthogonal to `-with`: one sets the keyframes, the other
+sets when the step starts, so two cells can fade in together.
+
+`data-text-anim-icon` is for the square beside an eyebrow and anything else in
+a step that holds no text: kugiri cuts text nodes, so it is never a unit and
+would otherwise appear whole while the text staggers. `data-text-anim-icon="x"` wipes it across from the left edge instead, the move
+the tab progress bar makes; any other value scales both ways. It scales up from
+`iconFrom` on its own timing — separate from the inline-image knobs, since
+`imgFrom: 0` is that one's off switch and `iconFrom: 0` is a real scale — or
+fades where the step fades. It does not rise — the lines rise out
+of a mask, and an element cannot clip its own travel, so a rise would need a
+wrapper to clip.
+
+Neither `-fade` nor `-with` makes a step — they only modify one, so the
+element still needs its role marker. Carrying just those, it is not a
+candidate at all, and a group of nothing else is skipped whole; the console
+names the elements when that happens.
 
 Overlap pulls a step earlier and delay pushes it later; a step carrying both
-resolves to one signed offset. Under a `-stagger` ancestor, card *i* starts at
-`i × stagger + its own delay`. `data-text-anim-delay` on an element that is both
-root and step counts once, as the group delay.
+resolves to one signed offset. The group's own number is a rate, so it scales
+the gaps between steps as well as the steps themselves; the group delay and the
+`-stagger` card offset are dead air in front of all that and stay as written.
+Under a `-stagger` ancestor, card *i* starts at `i × stagger + its own delay`.
 
 Base durations, eases and the optional blur live in the `TEXT` object above the
-module; `?blur=1` / `?blur=0` overrides the blur on a live URL, and
-`?textdebug=1` logs what each group built and when it fired.
+module. Eases are `cubic-bezier()` strings, not gsap names — WAAPI reads CSS
+easing. `?blur=1` / `?blur=0` overrides the blur on a live URL, and
+`?textdebug=1` logs what was split and what fired when.
 
-Pieces are marked explicitly rather than guessed from the tag, because
-Webflow text and link components are div-based and tag detection finds
-nothing on the real markup. A `<br><br>` inside a `-body` element reads as a
-paragraph break and its halves become separate staggered steps; a single
-`<br>` does not.
+Pieces are marked explicitly rather than guessed from the tag, because Webflow
+text and link components are div-based and tag detection finds nothing on the
+real markup.
 
-**Inline images in a heading.** A hero that sets a square photo between
-the words — `<span class="hero-h1__img"><img></span>` inside the `<h1>` —
-gets three things without any extra attribute:
+**Why kugiri and not SplitText.** kugiri reads the lines the browser actually
+painted, with `Range.getClientRects()`, instead of re-measuring words and
+predicting where they break. Three things follow, all of which used to need
+code here:
 
-- The line masks are padded above as well as below. `maskPad` only ever
-  cleared the descenders; an image at `height: 2em` stands proud of the
-  line box at both ends and the mask sliced its top off. Each line now
-  measures how far its tallest child pokes out and pads that much, with an
-  equal negative margin, so the clip box grows and the layout does not
-  move. The start offset grows with the pads, or the image would show
-  above the mask before its line rises.
-- The image scales up from `0.6` as its own line arrives. The **wrapper**
-  scales, not the `img`: the frame is an `aspect-ratio` box with
-  `object-fit: cover` inside, so scaling the picture alone would just show
-  the frame's background around a shrunken photo. Scale never reflows, so
-  the words on either side hold their positions the whole way — measured,
-  not assumed. Knobs: `imgFrom` (`0` turns it off), `imgDuration`,
-  `imgEase`, `imgOffset` after the line, `imgStagger` between images
-  sharing a line.
-- The split runs on the innermost element that holds the text, not on the
-  marked wrapper. Webflow marks the wrapper — a div with the style class
-  and an embedded `<h1>` inside — and SplitText hoists the lines out of
-  that `<h1>` and does not put them back on revert, so the first mount
-  used to leave the page with an empty `<h1>` for good. Splitting the
-  heading itself keeps the lines inside it and makes teardown lossless.
-  It also splits per line rather than treating the whole embed as one.
+- **The mask is a clip, not an overflow.** Each unit is wrapped in
+  `clip-path: inset(0)`, opened past the box by `TEXT.reach` (`0.3em`) so
+  descenders, accents and Å are not shorn at rest. The old build padded every
+  line and cancelled the padding with an equal negative margin; that is gone,
+  along with `maskPad`, `maskPadTop` and the measuring around them. A split
+  heading now measures **exactly** the same height as the unsplit one.
+  A parked unit clears that window by the reach *and* `TEXT.parkCushion`
+  (`0.3em`): the same ink the reach exists for hangs above the unit's own box, so
+  clearing the window alone leaves an Å ring along the mask edge before the
+  line has moved.
+- **Block containers are split inside themselves.** Webflow marks a wrapper
+  div with an `<h1>` embedded in it, and SplitText hoisted the lines out of
+  that `<h1>` and never put them back, emptying the heading for good. kugiri
+  cuts inside the block, so list numbers survive too and teardown is lossless.
+  The `splitTarget` descent that worked around it is gone.
+- **Only text is cut.** An inline image, an icon, a chip or an
+  `[data-text-anim-ignore]` element rides along inside its line untouched, and
+  a block-level one — a media tile, a button row, a table — is left where it is
+  and is no unit at all. The heading images still scale up from `imgFrom` as
+  their own line arrives, since the line mask already carries them.
 
-Split and hidden start state happen at mount; the ScrollTriggers are created
-from the intro queue, since a trigger measured against the fixed 100vh
-transition rectangle either fires at the wrong scroll position or fires
-immediately and plays the reveal behind the transition. Teardown reverts the
-SplitText, so a container is never re-split on top of an old split.
+**Triggering.** One `IntersectionObserver`, fired at `TEXT.start` (`-20%`, which
+is the old `top 80%`). Its root reaches far above the viewport on purpose: an
+observer reports threshold crossings, not positions, so a group that goes from
+below the fold to above it in one move — an anchor link, a restored scroll, a
+flick on a phone, a background tab that painted no frame in between — crosses
+nothing and would stay invisible for good. Reaching upwards makes passing a
+group a crossing too, and geometry says which of the two it was: still coming
+plays, already past is put at rest.
 
-Requires `SplitText` (free since GSAP 3.13, now loaded in the footer embed).
-Without it `-heading` degrades to the same block rise as `-solo`. Lines are
-split once at mount and not re-split on resize, same as the source project.
+**Fonts.** The split waits on `document.fonts.ready`, capped at `TEXT.fontWait`
+seconds. A webfont that swaps after the split re-wraps text that has already
+been cut, and the lines land on top of each other — the failure was Safari's to
+show, since it swaps latest.
 
-The scramble variant from that repo is **not** ported: it needs a
-`[data-text-anim-scramble]{opacity:0!important}` rule in the site head plus
-the scramble util. Ask if you want it.
+**Resize.** A split is a snapshot of one layout; kugiri watches for nothing.
+A width change (height alone moves no wrap) reverts every split and cuts again
+after `TEXT.resplit` seconds of quiet. Groups that already played come back at
+rest rather than replaying under the reader.
+
+Mount hides the marked elements; the intro queue splits them. At mount the
+container is still the transition's fixed 100vh rectangle, and lines measured
+against that wrap at a width the page never has. Teardown cancels the
+animations and reverts every split, so a container is never cut on top of an
+old cut.
+
+Reduced motion skips the module outright: nothing is hidden, nothing is split,
+the text is simply already there.
+
+Without kugiri on the page every role degrades to one block rise, and the
+console says so once. The scramble variant from the ManyChat build is **not**
+ported: it needs a `[data-text-anim-scramble]{opacity:0!important}` rule in the
+site head plus the scramble util. Ask if you want it.
 
 ### Intro timings
 
@@ -1388,7 +1451,7 @@ meaningless. Under `prefers-reduced-motion` the nav still goes, instantly.
 
 - Set `debug: false` in the `barba.init` config, and drop the two
   `[page-transition]` console lines.
-- **Replace both `raw.githack.com/.../main/` URLs with commit-pinned
+- **Replace all three `raw.githack.com/.../main/` URLs with commit-pinned
   `rawcdn.githack.com/.../<full-sha>/` ones.** A mutable branch ref means
   whatever is on `main` executes on the live site, and it cannot be protected
   with SRI because the hash changes on every push. Shipping the dev URL is the
@@ -1397,4 +1460,6 @@ meaningless. Under `prefers-reduced-motion` the nav still goes, instantly.
   they are immutable. Generate with:
   `curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A`
 - Same treatment for the third-party CDN tags (gsap, barba, lenis, swiper,
-  base-lib), which are all unpinned or branch-pinned today.
+  base-lib), which are all unpinned or branch-pinned today. `kugiri.global.js`
+  is vendored in this repo, so it pins with the other two files rather than
+  separately.

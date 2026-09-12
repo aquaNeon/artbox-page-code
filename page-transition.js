@@ -1,18 +1,17 @@
 /* Artbox — Barba page transitions. Load after gsap, CustomEase,
-   @barba/core, lenis and swiper, before </body>: it queries the DOM and
-   calls barba.init() as it parses. Docs: README. */
+   @barba/core, lenis, kugiri and swiper, before </body>: it queries the
+   DOM and calls barba.init() as it parses. Docs: README. */
 
 (function () {
   'use strict';
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-08-cards';
+  const BUILD = '2026-09-10-kugiri-fit';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
   if (window.ScrollTrigger) gsap.registerPlugin(ScrollTrigger);
-  if (window.SplitText) gsap.registerPlugin(SplitText);
   history.scrollRestoration = 'manual';
 
   let lenis = null;
@@ -25,7 +24,6 @@
 
   const hasLenis = typeof window.Lenis !== 'undefined';
   const hasScrollTrigger = typeof window.ScrollTrigger !== 'undefined';
-  const hasSplitText = typeof window.SplitText !== 'undefined';
 
   const rmMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
   let reducedMotion = rmMQ.matches;
@@ -373,43 +371,72 @@
 
   /* ===== TEXT REVEAL — [data-text-anim] — README ### textAnim ===== */
 
+  /* kugiri splits, the Web Animations API animates. No gsap in this
+     module on purpose: every unit's cue is a number worked out before
+     anything moves, which a WAAPI delay states directly, and the reveal
+     then runs off the main thread while gsap is busy with the swap. */
+
   const TEXT = {
     stagger: 0.15,          // between cards under [data-text-anim-stagger]
     overlap: 0.4,           // step overlap when the attribute carries no value
-    start: 'top 80%',
+    start: '-20%',          // observer margin: fires at 80% of the viewport
 
-    // em of descender room below the line box, cancelled by an equal
-    // negative margin so the clip moves and the layout does not.
-    maskPad: 0.34,
+    /* How far a mask's clip opens past the box, kugiri's mask reach.
+       Descenders and Å sit outside a leading set tighter than the glyphs,
+       and a clip cut to the line box alone shears them at rest. */
+    reach: '0.3em',
 
-    maskPadTop: 0.16,       // em, the same allowance for accents and Å
+    /* And how far a parked unit clears the window on top of that. The same
+       ink the reach exists for hangs above a unit's own box, so a unit
+       parked by the reach alone hangs it back into the window — an Å ring
+       showing along the mask's edge before the line has moved. Lower it if
+       the travel reads as too far; 0 puts the ring back. */
+    parkCushion: '0.3em',
 
     headingDuration: 0.75,
     headingStagger: 0.16,
-    headingEase: E.heading,
+    headingEase: 'cubic-bezier(0.16, 1, 0.3, 1)',
+
+    bodyDuration: 0.9,
+    bodyStagger: 0.08,
+    bodyEase: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+
+    listDuration: 0.5,
+    listStagger: 0.06,
+    listEase: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+
+    // Smaller units, more of them: their own spacing, not the role's.
+    wordStagger: 0.03,
+    charStagger: 0.012,
 
     // Inline heading images scale rather than travel — the line mask
     // already carries them up with the type.
     imgFrom: 0.6,           // 0 turns the image scaling off
     imgDuration: 0.9,
-    imgEase: E.small,
+    imgEase: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
     imgOffset: 0.08,        // after its own line starts
     imgStagger: 0.08,       // between images sharing a line
 
-    bodyDuration: 0.9,
-    bodyStagger: 0.08,
-    bodyEase: E.body,
-    bodyFromY: 30,          // yPercent
+    /* [data-text-anim-icon], its own knobs rather than the image ones: a
+       square beside an eyebrow is a smaller thing than a photo in a
+       headline and wants a shorter, harder pop. No off switch here —
+       0 is a scale, not a sentinel, since the attribute is the switch. */
+    iconFrom: 0,            // scale it starts at
+    iconDuration: 0.45,
+    iconEase: 'cubic-bezier(0.34, 1.3, 0.64, 1)',
+    iconOffset: 0,          // relative to its step's start
+    iconStagger: 0.08,      // between icons in one step
 
+    // Unsplit fallback: -split="none", and every role with no kugiri.
+    blockFromY: 30,         // % of its own height
     soloFromY: 14,          // -solo is one line, where 30% is a big move
 
-    listDuration: 0.5,
-    listStagger: 0.06,
-    listEase: E.small,
-
-    blur: false,            // layers onto the existing tweens, not a separate mode
+    blur: false,            // layers onto the existing keyframes, not a mode
     headingBlur: 10,        // px per line
-    bodyBlur: 8             // px
+    bodyBlur: 8,            // px
+
+    fontWait: 1.5,          // s before splitting without the webfont
+    resplit: 0.15           // s a resize drag has to settle
   };
 
   // ?blur=1 / ?blur=0 overrides on a live URL.
@@ -418,126 +445,66 @@
 
   const TEXT_DEBUG = new URLSearchParams(location.search).get('textdebug') === '1';
 
-  let splitTextWarned = false;
-  function warnNoSplitText() {
-    if (splitTextWarned) return;
-    splitTextWarned = true;
+  const hasKugiri = typeof window.kugiri !== 'undefined';
+
+  let kugiriWarned = false;
+  function warnNoKugiri() {
+    if (kugiriWarned) return;
+    kugiriWarned = true;
     console.warn(
-      '[text-anim] SplitText is not loaded, so [data-text-anim-heading] is ' +
-      'rising as one block instead of line by line. Add ' +
-      '<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/SplitText.min.js"><\/script> ' +
-      'to the Webflow footer embed, after gsap and before page-transition.js, and publish.'
+      '[text-anim] kugiri is not loaded, so every marked element is rising as ' +
+      'one block instead of line by line. Add ' +
+      '<script src="https://raw.githack.com/aquaNeon/artbox-page-code/main/kugiri.global.js"><\/script> ' +
+      'to the Webflow footer embed, above page-transition.js, and publish.'
     );
   }
 
-  /* How far the tallest child pokes out of the line box — an inline
-     image at 2em stands well above the type, and the descender mask
-     would slice its top off. Measured before any padding goes on. */
-  function maskBleed(line) {
-    const box = line.getBoundingClientRect();
-    let top = 0;
-    let bottom = 0;
-    line.querySelectorAll('*').forEach((child) => {
-      const r = child.getBoundingClientRect();
-      if (!r.height) return;
-      top = Math.max(top, box.top - r.top);
-      bottom = Math.max(bottom, r.bottom - box.bottom);
-    });
-    return { top: Math.max(0, Math.ceil(top)), bottom: Math.max(0, Math.ceil(bottom)) };
-  }
+  const ROLES = ['heading', 'body', 'solo', 'list'];
+  const ROLE_SELECTOR = ROLES.map((r) => `[data-text-anim-${r}]`).join(', ');
 
-  /* Webflow marks the wrapper, not the heading. Splitting the wrapper
-     hoists the lines out of the inner <h1> and revert never puts them
-     back, emptying the heading for good — so descend to the element
-     that holds the text. Stops at inline, which is not a line box. */
-  function splitTarget(el) {
-    let node = el;
-    for (let depth = 0; depth < 4; depth++) {
-      const kids = Array.from(node.childNodes).filter(
-        (n) => n.nodeType === 1 || (n.nodeType === 3 && n.textContent.trim())
-      );
-      if (kids.length !== 1 || kids[0].nodeType !== 1) break;
-      if (getComputedStyle(kids[0]).display.startsWith('inline')) break;
-      node = kids[0];
+  /* Webflow writes the attribute with a value, and a component switched off
+     in the Designer arrives as "false" rather than as no attribute at all.
+     Presence alone would read that as on. */
+  const markedAs = (el, role) => {
+    const raw = el.getAttribute(`data-text-anim-${role}`);
+    return raw !== null && raw.trim().toLowerCase() !== 'false';
+  };
+
+  const isMarked = (el) => ROLES.some((r) => markedAs(el, r));
+
+  const roleOf = (el) => ROLES.find((r) => markedAs(el, r)) || 'solo';
+
+  function roleTiming(role) {
+    if (role === 'heading') {
+      return {
+        duration: TEXT.headingDuration, stagger: TEXT.headingStagger,
+        ease: TEXT.headingEase, blur: TEXT.headingBlur, fromY: TEXT.blockFromY
+      };
     }
-    return node;
-  }
-
-  function buildLineRise(el) {
-    const split = new SplitText(el, { type: 'lines', linesClass: 'text-anim_line' });
-    const pads = [];
-    const inners = split.lines.map((line) => {
-      const bleed = maskBleed(line);
-      line.style.overflow = 'hidden';
-      line.style.display = 'block';
-      let pad = TEXT.maskPad ? descenderPad(line) : 0;
-      if (bleed.bottom > pad) pad = bleed.bottom;
-      if (pad) {
-        line.style.paddingBottom = `${pad}px`;
-        line.style.marginBottom = `${-pad}px`;
-      }
-      // Same upward: child overhang or the type's allowance, whichever
-      // is larger.
-      let padTop = TEXT.maskPadTop ? glyphPad(line, TEXT.maskPadTop) : 0;
-      if (bleed.top > padTop) padTop = bleed.top;
-      if (padTop) {
-        line.style.paddingTop = `${padTop}px`;
-        line.style.marginTop = `${-padTop}px`;
-      }
-      pads.push(pad + padTop);
-      const inner = document.createElement('span');
-      inner.style.display = 'block';
-      while (line.firstChild) inner.appendChild(line.firstChild);
-      line.appendChild(inner);
-      return inner;
-    });
-    /* overflow clips to the PADDING box, so a waiting line shows through
-       every pad added above. Start derived per line: 100% clears the line
-       box, the ratio clears its own pads, 5% covers rounding. */
-    const from = {
-      yPercent: (i, target) => {
-        const h = target.offsetHeight || 1;
-        return 105 + (pads[i] / h) * 100;
-      }
+    if (role === 'list') {
+      return {
+        duration: TEXT.listDuration, stagger: TEXT.listStagger,
+        ease: TEXT.listEase, blur: TEXT.bodyBlur, fromY: TEXT.blockFromY
+      };
+    }
+    return {
+      duration: TEXT.bodyDuration, stagger: TEXT.bodyStagger,
+      ease: TEXT.bodyEase, blur: TEXT.bodyBlur,
+      fromY: role === 'solo' ? TEXT.soloFromY : TEXT.blockFromY
     };
-    if (BLUR) from.filter = `blur(${TEXT.headingBlur}px)`;
-    gsap.set(inners, from);
-    return { split, inners };
   }
 
-  /* Measured against the type being clipped, not the element doing the
-     clipping: a wrapper around an h2 sits at 16px while the glyphs are
-     60, so an em on the wrapper clips exactly as before. */
-  function glyphPad(el, ratio) {
-    let size = parseFloat(getComputedStyle(el).fontSize) || 16;
-    el.querySelectorAll('*').forEach((child) => {
-      const s = parseFloat(getComputedStyle(child).fontSize);
-      if (s > size) size = s;
-    });
-    return size * ratio;
+  const LEVELS = ['lines', 'words', 'chars', 'none'];
+
+  function splitLevel(el) {
+    if (!hasKugiri) return 'none';
+    const raw = (el.dataset.textAnimSplit || '').trim();
+    return LEVELS.includes(raw) ? raw : 'lines';
   }
 
-  function descenderPad(el) {
-    return glyphPad(el, TEXT.maskPad);
-  }
-
-  /* -solo and -body can be clipped by a Webflow class of their own — a
-     clamp, a fixed height, an overflow on the wrapper. Same pad-and-
-     cancel trick, applied to whatever actually clips, up to the root. */
-  function unclipDescenders(el, stop) {
-    for (let node = el; node && node !== stop && node !== document.body; node = node.parentElement) {
-      if (node.dataset.textAnimUnclipped) continue;
-      const cs = getComputedStyle(node);
-      if (cs.overflow === 'visible' && cs.overflowY === 'visible') continue;
-      node.dataset.textAnimUnclipped = 'true';
-      // Additive: they usually carry Webflow padding already.
-      const pad = parseFloat(cs.paddingBottom) || 0;
-      const margin = parseFloat(cs.marginBottom) || 0;
-      const extra = descenderPad(node);
-      node.style.paddingBottom = `${pad + extra}px`;
-      node.style.marginBottom = `${margin - extra}px`;
-    }
-  }
+  const levelStagger = (level, base) => (
+    level === 'words' ? TEXT.wordStagger : level === 'chars' ? TEXT.charStagger : base
+  );
 
   function stepOverlap(el) {
     const raw = el.dataset.textAnimHeading || el.dataset.textAnimBody
@@ -546,237 +513,397 @@
     return Number.isFinite(val) && val >= 0 ? val : TEXT.overlap;
   }
 
-  // role="listitem" is the CMS output; the attribute covers hand-added
-  // extras; children are the last resort for a Designer-built list.
-  function listItems(el) {
-    const items = el.querySelectorAll('[role="listitem"], [data-text-anim-list-item]');
-    return items.length ? Array.from(items) : Array.from(el.children);
+  // Applied to that step's own durations rather than to its cue, so it
+  // reads the same way as the group root's number.
+  function stepSpeed(el) {
+    const v = parseFloat(el.dataset.textAnimSpeed);
+    return Number.isFinite(v) && v > 0 ? v : 1;
   }
 
-  // A <br><br> reads as a paragraph break: split there so the halves
-  // stagger instead of rising fused.
-  function splitDoubleBreaks(el) {
-    const nodes = Array.from(el.childNodes);
-    const groups = [[]];
+  function stepDelay(el, wrap) {
+    if (el === wrap) return 0; // the root's delay is the group delay
+    const v = parseFloat(el.dataset.textAnimDelay);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  }
 
-    for (let i = 0; i < nodes.length; i++) {
-      const node = nodes[i];
-      const next = nodes[i + 1];
-      if (node.nodeName === 'BR' && next && next.nodeName === 'BR') {
-        groups.push([]);
-        i++; // consume both
-        continue;
-      }
-      groups[groups.length - 1].push(node);
+  /* Opacity only: nothing travels and nothing is clipped. Read off the
+     group root as well as the step, so one attribute fades a whole block,
+     and parsed like the role markers because a Webflow component switched
+     off in the Designer arrives as "false" rather than as no attribute. */
+  function fadeOn(el, wrap) {
+    const on = (node) => {
+      const raw = node.getAttribute('data-text-anim-fade');
+      return raw !== null && raw.trim().toLowerCase() !== 'false';
+    };
+    return on(el) || (el !== wrap && on(wrap));
+  }
+
+  /* The mask window opens past the line box by the reach, so a unit parked
+     at exactly 100% still shows that much of itself — and its tall ink sits
+     above its box, so it needs the cushion on top. Measured per unit: an em
+     is the unit's own font size, not the wrapper's, and a wrapper around an
+     h2 sits at 16px while the glyphs are 60. */
+  function parkOffset(unit) {
+    const fontSize = parseFloat(getComputedStyle(unit).fontSize) || 16;
+    const px = (value) => {
+      const raw = String(value).trim();
+      const n = parseFloat(raw) || 0;
+      return raw.endsWith('em') ? n * fontSize : n;
+    };
+    const clear = px(TEXT.reach) + px(TEXT.parkCushion);
+    return 100 + (clear / (unit.offsetHeight || 1)) * 100 + 2; // 2% covers rounding
+  }
+
+  /* One kugiri call per level, not per element: a call plans all of its
+     targets against one clean layout before it writes any of them, where
+     a loop would force a reflow per heading. */
+  function splitSteps(steps) {
+    const byLevel = new Map();
+    steps.forEach((step) => {
+      if (step.level === 'none') return;
+      const list = byLevel.get(step.level) || [];
+      list.push(step);
+      byLevel.set(step.level, list);
+    });
+
+    byLevel.forEach((list, level) => {
+      const splits = window.kugiri.splitText(list.map((step) => step.el), {
+        type: [level],
+        mask: { [level]: TEXT.reach },
+        // Both belong to another module, which animates them itself.
+        ignore: '[data-swap], [data-text-anim-ignore], [data-text-anim-icon]',
+        classes: {
+          lines: 'text-anim_line',
+          words: 'text-anim_word',
+          chars: 'text-anim_char',
+          mask: 'text-anim_mask'
+        }
+      });
+      list.forEach((step, i) => {
+        step.split = splits[i];
+        step.units = splits[i][level];
+        fitToContainer(step);
+      });
+    });
+  }
+
+  /* A line is an element, so splitting a grid or flex heading turns its
+     lines into items and the container places them: a centred grid centres
+     each line to its own width, a row flex sets them side by side. Both read
+     as the text moving on its own. Sized to fill instead, they sit where the
+     line boxes did. Which property does that depends on the container, which
+     is why this is here and not a stylesheet rule. */
+  function fitToContainer(step) {
+    const el = step.el;
+    const kids = (step.split.masks.length ? step.split.masks : step.units)
+      .filter((node) => node.parentElement === el);
+    if (!kids.length) return;
+
+    const style = getComputedStyle(el);
+    if (style.display.includes('grid')) {
+      kids.forEach((kid) => { kid.style.justifySelf = 'stretch'; });
+      return;
     }
+    if (!style.display.includes('flex')) return;
 
-    const filled = groups.filter((g) => g.length);
-    if (filled.length < 2) return null;
-
-    while (el.firstChild) el.removeChild(el.firstChild);
-
-    return filled.map((group, i) => {
-      const wrapper = document.createElement('span');
-      wrapper.style.display = 'block';
-      if (i > 0) wrapper.style.marginTop = '0.65em'; // replaces the <br><br> gap
-      group.forEach((node) => wrapper.appendChild(node));
-      el.appendChild(wrapper);
-      return wrapper;
-    });
+    if (style.flexDirection.startsWith('row')) {
+      // Lines are rows of their own, not columns beside each other.
+      el.style.flexWrap = 'wrap';
+      step.wrapped = true;
+      kids.forEach((kid) => { kid.style.flexBasis = '100%'; });
+    } else {
+      kids.forEach((kid) => { kid.style.alignSelf = 'stretch'; });
+    }
   }
 
-  /* The wrapper scales, not the img: the frames are aspect-ratio boxes
-     with object-fit:cover, so scaling the picture alone shows the
-     frame's background around a shrunken photo. */
-  function addHeadingImages(tl, inners, start, speed) {
-    if (!TEXT.imgFrom) return;
-    const lineStagger = TEXT.headingStagger / speed;
-    inners.forEach((inner, i) => {
-      const imgs = Array.from(inner.querySelectorAll('img'));
-      if (!imgs.length) return;
-      const targets = imgs.map((img) => (
-        img.parentElement && img.parentElement !== inner ? img.parentElement : img
-      ));
-      gsap.set(targets, { scale: TEXT.imgFrom, transformOrigin: 'center center' });
-      tl.to(targets, {
-        scale: 1,
-        duration: TEXT.imgDuration / speed,
-        ease: TEXT.imgEase,
-        stagger: TEXT.imgStagger / speed
-      }, start + i * lineStagger + TEXT.imgOffset / speed);
-    });
-  }
-
-  function buildTextTimeline(wrap) {
+  function planGroup(wrap) {
     // Nested groups: a marked element belongs to its nearest root only.
-    const own = ['data-text-anim-heading', 'data-text-anim-body',
-                 'data-text-anim-solo', 'data-text-anim-list'];
-    const selfMarked = own.some((attr) => wrap.hasAttribute(attr)) ? [wrap] : [];
-    const marked = [
+    const selfMarked = isMarked(wrap) ? [wrap] : [];
+    const candidates = [
       ...selfMarked,
-      ...Array.from(wrap.querySelectorAll(
-        '[data-text-anim-heading], [data-text-anim-body], [data-text-anim-solo], [data-text-anim-list]'
-      )).filter((el) => el.closest('[data-text-anim]') === wrap)
+      ...Array.from(wrap.querySelectorAll(ROLE_SELECTOR))
+        .filter(isMarked)
+        .filter((el) => el.closest('[data-text-anim]') === wrap)
         // [data-swap] elements belong to that module: both animate the
         // same transform, and the loser is left parked out of place.
         .filter((el) => !el.closest('[data-swap]'))
     ];
-    if (!marked.length) return null;
 
-    const tl = gsap.timeline({ paused: true });
-    const speed = parseFloat(wrap.dataset.textAnim);
-    if (Number.isFinite(speed) && speed > 0) tl.timeScale(speed);
-    // Applied as a delayedCall on play: a paused timeline swallows its
-    // own delay when play() is called on it.
-    const rawDelay = parseFloat(wrap.dataset.textAnimDelay);
-    const delay = Number.isFinite(rawDelay) && rawDelay > 0 ? rawDelay : 0;
-    const splits = [];
-    let bodyBuffer = [];
-    let isFirst = true;
-    // Where the last-added step begins, for -with to line up against.
-    // Read off the timeline, so overlaps and delays are accounted for.
-    let lastStart = 0;
-    const remember = () => {
-      const step = tl.recent();
-      if (step) lastStart = step.startTime();
-    };
-
-    // Applied as duration / speed rather than a nested timeScale, so it
-    // reads the same way as the group root's number.
-    const stepSpeed = (el) => {
-      const v = parseFloat(el.dataset.textAnimSpeed);
-      return Number.isFinite(v) && v > 0 ? v : 1;
-    };
-
-    const stepDelay = (el) => {
-      if (el === wrap) return 0; // the root's delay is the group delay
-      const v = parseFloat(el.dataset.textAnimDelay);
-      return Number.isFinite(v) && v > 0 ? v : 0;
-    };
-
-    /* Overlap pulls earlier, delay pushes later, and a step can carry
-       both: resolved to one signed offset, since two stacked position
-       strings would depend on which was written first. */
-    const position = (el) => {
-      const delay = stepDelay(el);
-      if (isFirst) { isFirst = false; return delay; }
-      /* -with runs alongside the previous step. An absolute time: a
-         relative one measures from the timeline's end, and the previous
-         step is still running. */
-      if (el.hasAttribute('data-text-anim-with')) return lastStart + delay;
-      const offset = delay - stepOverlap(el);
-      return offset >= 0 ? `+=${offset}` : `-=${-offset}`;
-    };
-
-    // Transforms do not apply to display:inline, and a Webflow Link is
-    // inline — it would fade but never move.
-    const ensureTransformable = (el) => {
-      if (getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
-    };
-
-    // Shared by -solo and by the pieces a <br><br> split produced.
-    const addSolo = (el) => {
-      ensureTransformable(el);
-      unclipDescenders(el, wrap);
-      const from = { yPercent: TEXT.soloFromY, opacity: 0 };
-      const to = {
-        yPercent: 0, opacity: 1,
-        duration: TEXT.bodyDuration / stepSpeed(el), ease: TEXT.bodyEase
-      };
-      if (BLUR) { from.filter = `blur(${TEXT.bodyBlur}px)`; to.filter = 'blur(0px)'; }
-      gsap.set(el, from);
-      tl.to(el, to, position(el));
-      remember();
-    };
-
-    const flushBody = () => {
-      if (!bodyBuffer.length) return;
-      bodyBuffer.forEach(ensureTransformable);
-      bodyBuffer.forEach((el) => unclipDescenders(el, wrap));
-      const from = { yPercent: TEXT.bodyFromY, opacity: 0 };
-      const speed = stepSpeed(bodyBuffer[0]);
-      const to = {
-        yPercent: 0, opacity: 1,
-        duration: TEXT.bodyDuration / speed, ease: TEXT.bodyEase,
-        stagger: TEXT.bodyStagger / speed
-      };
-      if (BLUR) { from.filter = `blur(${TEXT.bodyBlur}px)`; to.filter = 'blur(0px)'; }
-      gsap.set(bodyBuffer, from);
-      tl.to(bodyBuffer, to, position(bodyBuffer[0]));
-      remember();
-      bodyBuffer = [];
-    };
-
-    marked.forEach((el) => {
-      if (el.hasAttribute('data-text-anim-body')) {
-        const pieces = splitDoubleBreaks(el);
-        if (pieces) {
-          flushBody();
-          pieces.forEach(addSolo);
-        } else {
-          bodyBuffer.push(el);
+    /* One marker per piece of text. A Webflow component carries its
+       attribute everywhere it is placed, so a marked paragraph lands
+       inside a wrapper that is marked too — and then the outer target has
+       nothing left to cut, since the inner split already took the text.
+       It splits to zero units, falls back to a block rise, and that rise
+       runs against the inner reveal. The outer marker wins. */
+    const set = new Set(candidates);
+    const displaced = new Map(); // outer element -> inner markers it covers
+    const marked = candidates.filter((el) => {
+      for (let node = el.parentElement; node; node = node.parentElement) {
+        if (set.has(node)) {
+          const list = displaced.get(node) || [];
+          list.push(el);
+          displaced.set(node, list);
+          return false;
         }
-        return;
+        if (node === wrap) break;
       }
-      flushBody();
-
-      if (el.hasAttribute('data-text-anim-heading') && hasSplitText) {
-        // From the heading itself: a one-line heading is exactly as tall
-        // as its line box and crops before the parent gets a say.
-        const target = splitTarget(el);
-        unclipDescenders(target, wrap);
-        const { split, inners } = buildLineRise(target);
-        splits.push(split);
-        const speed = stepSpeed(el);
-        const to = {
-          yPercent: 0, duration: TEXT.headingDuration / speed,
-          ease: TEXT.headingEase, stagger: TEXT.headingStagger / speed
-        };
-        if (BLUR) to.filter = 'blur(0px)';
-        tl.to(inners, to, position(el));
-        remember();
-        // lastStart, not tl.to()'s return: that is the timeline, and the
-        // images need the line tween's own start.
-        addHeadingImages(tl, inners, lastStart, speed);
-      } else if (el.hasAttribute('data-text-anim-list')) {
-        const items = listItems(el);
-        if (items.length) {
-          gsap.set(items, { y: 6, opacity: 0 });
-          const speed = stepSpeed(el);
-          tl.to(items, {
-            y: 0, opacity: 1,
-            duration: TEXT.listDuration / speed, ease: TEXT.listEase,
-            stagger: TEXT.listStagger / speed
-          }, position(el));
-          remember();
-        }
-      } else {
-        // -solo, and -heading without SplitText: a block rise beats a
-        // heading that never appears, but it should say so.
-        if (el.hasAttribute('data-text-anim-heading')) warnNoSplitText();
-        addSolo(el);
-      }
+      return true;
     });
-    flushBody();
-
-    if (TEXT_DEBUG) {
-      console.info('[text-anim] group', wrap, {
-        steps: marked.map((el) => {
-          const role = ['heading', 'body', 'solo', 'list']
-            .find((r) => el.hasAttribute('data-text-anim-' + r)) || '?';
-          return role + ':' + (el.className || el.tagName.toLowerCase());
-        }),
-        duration: Number(tl.duration().toFixed(2))
-      });
+    /* -with and -fade modify a step, they do not make one: an element
+       carrying only those is not a candidate, and a group of nothing but
+       those is skipped whole — which looks like the reveal breaking
+       rather than like markup missing its role marker. */
+    const orphans = Array.from(wrap.querySelectorAll('[data-text-anim-with], [data-text-anim-fade]'))
+      // A nested group root carries -fade for its own steps, like this one.
+      .filter((el) => !isMarked(el) && !el.hasAttribute('data-text-anim'));
+    if (orphans.length) {
+      console.warn(
+        '[text-anim] -with / -fade only modify a step, so these elements do ' +
+        'nothing: add a role marker (data-text-anim-heading, -body, -solo or ' +
+        '-list) to each. -fade on the group root is the one exception, and ' +
+        'it applies to the steps under it.',
+        orphans
+      );
     }
 
-    return { tl, splits, delay };
+    if (!marked.length) return null;
+
+    const speed = parseFloat(wrap.dataset.textAnim);
+    const rawDelay = parseFloat(wrap.dataset.textAnimDelay);
+
+    return {
+      wrap,
+      speed: Number.isFinite(speed) && speed > 0 ? speed : 1,
+      delay: Number.isFinite(rawDelay) && rawDelay > 0 ? rawDelay : 0,
+      cardOffset: 0,
+      steps: marked.map((el) => ({
+        el,
+        role: roleOf(el),
+        level: splitLevel(el),
+        split: null,
+        units: [],
+        displaced: displaced.get(el) || []
+      }))
+    };
+  }
+
+  /* Cues for one group, in group-local seconds. Read after the split and
+     before any keyframe: parking a unit needs its height, and measuring
+     them all here keeps the play pass free of layout reads. */
+  function scheduleGroup(group) {
+    let cursor = 0;      // where the last step ends
+    let lastStart = 0;   // where it began, for -with to line up against
+    let first = true;
+
+    group.steps.forEach((step) => {
+      const timing = roleTiming(step.role);
+      const speed = stepSpeed(step.el);
+      const delay = stepDelay(step.el, group.wrap);
+
+      step.ease = timing.ease;
+      step.blur = timing.blur;
+      step.fromY = timing.fromY;
+      step.duration = timing.duration / speed;
+      step.stagger = levelStagger(step.level, timing.stagger) / speed;
+      step.fade = fadeOn(step.el, group.wrap);
+      // Parking is a layout read per unit, and a fade never leaves home.
+      step.park = step.fade ? [] : step.units.map(parkOffset);
+
+      /* Overlap pulls a step earlier, delay pushes it later, and a step
+         can carry both: resolved to one signed offset here, since two
+         stacked cues would depend on which was written first. */
+      if (first) {
+        step.start = delay;
+        first = false;
+      } else if (step.el.hasAttribute('data-text-anim-with')) {
+        // -with runs alongside the step before it, from that step's own
+        // start rather than from the end of everything so far.
+        step.start = lastStart + delay;
+      } else {
+        step.start = Math.max(0, cursor + delay - stepOverlap(step.el));
+      }
+
+      lastStart = step.start;
+      const spread = Math.max(0, step.units.length - 1) * step.stagger;
+      cursor = step.start + spread + step.duration;
+    });
+
+    /* The group's own number is a rate, so it scales the gaps between
+       steps as well as the steps. The group delay and the card offset are
+       dead air before any of that and stay as written. */
+    const factor = 1 / group.speed;
+    group.steps.forEach((step) => {
+      step.start *= factor;
+      step.duration *= factor;
+      step.stagger *= factor;
+    });
+    group.duration = cursor * factor;
+  }
+
+  function unitKeyframes(step, park) {
+    const from = step.fade ? { opacity: 0 } : { transform: `translateY(${park}%)` };
+    const to = step.fade ? { opacity: 1 } : { transform: 'none' };
+    if (BLUR) {
+      from.filter = `blur(${step.blur}px)`;
+      to.filter = 'blur(0px)';
+    }
+    return [from, to];
+  }
+
+  /* The wrapper scales, not the img: the frames are aspect-ratio boxes
+     with object-fit:cover, so scaling the picture alone shows the frame's
+     background around a shrunken photo. */
+  function revealImages(step, base) {
+    if (!TEXT.imgFrom) return [];
+    const anims = [];
+    step.units.forEach((unit, i) => {
+      const imgs = Array.from(unit.querySelectorAll('img'));
+      if (!imgs.length) return;
+      const targets = imgs.map((img) => (
+        img.parentElement && img.parentElement !== unit ? img.parentElement : img
+      ));
+      targets.forEach((target, j) => {
+        target.style.transformOrigin = 'center center';
+        anims.push(target.animate(
+          [{ transform: `scale(${TEXT.imgFrom})` }, { transform: 'none' }],
+          {
+            duration: TEXT.imgDuration * 1000,
+            delay: (base + step.start + i * step.stagger + TEXT.imgOffset + j * TEXT.imgStagger) * 1000,
+            easing: TEXT.imgEase,
+            fill: 'backwards'
+          }
+        ));
+      });
+    });
+    return anims;
+  }
+
+  /* An icon beside the text is not text: kugiri walks past it, so it has
+     no line to ride the way an inline heading image does, and it would
+     otherwise pop in whole at the step's start while the text staggers.
+     It takes the step's own cue — scaling up, or fading where the step
+     fades, so the two land on the same frame rather than near it. */
+  function revealIcons(step, base) {
+    if (!step.units.length) return []; // a block rise already carries it
+
+    return Array.from(step.el.querySelectorAll('[data-text-anim-icon]')).map((icon, j) => {
+      if (step.fade) {
+        return icon.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: step.duration * 1000,
+          delay: (base + step.start + j * step.stagger) * 1000,
+          easing: step.ease,
+          fill: 'backwards'
+        });
+      }
+      /* -icon="x" wipes across from its left edge instead of growing out
+         of its middle — the move the tab progress bar makes. Any other
+         value, "true" from Webflow included, scales both ways. */
+      const wipe = (icon.getAttribute('data-text-anim-icon') || '').trim().toLowerCase() === 'x';
+      icon.style.transformOrigin = wipe ? 'left center' : 'center center';
+      const start = wipe ? `scaleX(${TEXT.iconFrom})` : `scale(${TEXT.iconFrom})`;
+
+      return icon.animate([{ transform: start }, { transform: 'none' }], {
+        duration: TEXT.iconDuration * 1000,
+        delay: (base + step.start + TEXT.iconOffset + j * TEXT.iconStagger) * 1000,
+        easing: TEXT.iconEase,
+        fill: 'backwards'
+      });
+    });
+  }
+
+  /* -split="none", and every role when kugiri never landed: the element
+     rises whole. Transforms do not apply to display:inline, and a Webflow
+     Link is inline — it would fade but never move. */
+  function blockRise(step, base) {
+    const el = step.el;
+    // Only the travel needs a block box. Opacity applies to inline as it is.
+    if (!step.fade && getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
+    const from = step.fade ? { opacity: 0 } : { transform: `translateY(${step.fromY}%)`, opacity: 0 };
+    const to = step.fade ? { opacity: 1 } : { transform: 'none', opacity: 1 };
+    if (BLUR) {
+      from.filter = `blur(${step.blur}px)`;
+      to.filter = 'blur(0px)';
+    }
+    return [el.animate([from, to], {
+      duration: step.duration * 1000,
+      delay: (base + step.start) * 1000,
+      easing: step.ease,
+      fill: 'backwards'
+    })];
+  }
+
+  function playGroup(group) {
+    const base = group.delay + group.cardOffset;
+    const anims = [];
+
+    group.steps.forEach((step) => {
+      // Hidden since mount, so nothing shows before its keyframes exist.
+      step.el.style.visibility = '';
+
+      /* A fade has nothing to hide, and a clip left on for its length
+         still shears the descenders it was padded to clear. */
+      if (step.fade) unclipStep(step);
+
+      if (!step.units.length) {
+        anims.push(...blockRise(step, base));
+        return;
+      }
+
+      step.units.forEach((unit, i) => {
+        anims.push(unit.animate(unitKeyframes(step, step.park[i]), {
+          duration: step.duration * 1000,
+          delay: (base + step.start + i * step.stagger) * 1000,
+          easing: step.ease,
+          // Parked out of sight until its turn, at rest once it is done.
+          fill: 'backwards'
+        }));
+      });
+
+      anims.push(...revealIcons(step, base));
+      if (step.role === 'heading') anims.push(...revealImages(step, base));
+    });
+
+    return anims;
+  }
+
+  // Where a group ends up: visible, unclipped, nothing animating. Also
+  // where one starts when the reveal is not worth playing.
+  function showAtRest(group) {
+    group.steps.forEach((step) => { step.el.style.visibility = ''; });
+    releaseMasks(group);
+  }
+
+  // A clip cuts at rest too — descenders, a focus ring, a hover lift — so
+  // it comes off once the group it belongs to has finished moving.
+  function releaseMasks(group) {
+    group.steps.forEach(unclipStep);
+  }
+
+  function unclipStep(step) {
+    const splits = [step.split, ...(step.extra || [])];
+    splits.forEach((split) => split?.masks.forEach((mask) => {
+      mask.style.clipPath = 'none';
+    }));
+  }
+
+  function fontsReady() {
+    if (!document.fonts?.ready) return Promise.resolve();
+    /* A webfont that swaps after the split re-wraps text already cut, and
+       the lines land on top of each other. The race is for the font that
+       never arrives at all. */
+    return Promise.race([
+      document.fonts.ready,
+      new Promise((resolve) => setTimeout(resolve, TEXT.fontWait * 1000))
+    ]);
   }
 
   Modules.add('textAnim', function (root) {
-    const staggerWraps = root.querySelectorAll('[data-text-anim-stagger]');
-    const allGroups = root.querySelectorAll('[data-text-anim]');
+    const staggerWraps = Array.from(root.querySelectorAll('[data-text-anim-stagger]'));
+    const allGroups = Array.from(root.querySelectorAll('[data-text-anim]'));
     if (!staggerWraps.length && !allGroups.length) return;
+    // Nothing hidden and nothing split: the text is simply already there.
+    if (reducedMotion) return;
+    if (!hasKugiri) warnNoKugiri();
 
     const instances = [];
     const handled = new Set();
@@ -785,90 +912,247 @@
       const groups = Array.from(repeater.querySelectorAll('[data-text-anim]'));
       if (!groups.length) return;
 
-      const delay = parseFloat(repeater.dataset.textAnimStagger) || TEXT.stagger;
-      const splits = [];
-      // delayedCalls rather than nested paused timelines, which do not
-      // reliably play once added to a parent.
-      const kills = [];
-      const calls = [];
+      const stagger = parseFloat(repeater.dataset.textAnimStagger) || TEXT.stagger;
+      const planned = [];
 
-      groups.forEach((group, i) => {
-        handled.add(group);
-        const built = buildTextTimeline(group);
-        if (!built) return;
-        splits.push(...built.splits);
-        kills.push(built.tl);
-        if (reducedMotion) built.tl.progress(1);
-        else calls.push(gsap.delayedCall(i * delay + built.delay, () => built.tl.play()).pause());
+      groups.forEach((wrap, i) => {
+        handled.add(wrap);
+        const group = planGroup(wrap);
+        if (!group) return;
+        group.cardOffset = i * stagger;
+        planned.push(group);
       });
 
-      kills.push(...calls);
-      instances.push({
-        trigger: repeater,
-        play: () => calls.forEach((c) => c.play()),
-        kills,
-        splits
-      });
+      if (planned.length) instances.push({ trigger: repeater, groups: planned });
     });
 
     allGroups.forEach((wrap) => {
       if (handled.has(wrap)) return;
-      const built = buildTextTimeline(wrap);
-      if (!built) return;
-      if (reducedMotion) built.tl.progress(1);
-
-      const kills = [built.tl];
-      let play = () => built.tl.play();
-      if (built.delay) {
-        play = () => {
-          const call = gsap.delayedCall(built.delay, () => built.tl.play());
-          kills.push(call);
-        };
-      }
-
-      instances.push({ trigger: wrap, play, kills, splits: built.splits });
+      const group = planGroup(wrap);
+      if (group) instances.push({ trigger: wrap, groups: [group] });
     });
 
     if (!instances.length) return;
 
-    /* Split and hidden start state happen at mount; the triggers wait
-       here for a real layout, since one measured against the transition's
-       100vh rectangle fires at the wrong scroll position. Reduced motion
-       has already jumped to the end state and needs none. */
-    if (!reducedMotion && hasScrollTrigger) {
-      Intro.add(root, () => {
-        instances.forEach((inst) => {
-          inst.st = ScrollTrigger.create({
-            trigger: inst.trigger,
-            start: TEXT.start,
-            once: true,
-            onEnter: () => {
-              // A group taller than the viewport fires on its top edge, so
-              // its lower steps can finish off-screen. Visible in the log.
-              if (TEXT_DEBUG) {
-                const r = inst.trigger.getBoundingClientRect();
-                console.info('[text-anim] fired', inst.trigger, {
-                  top: Math.round(r.top),
-                  height: Math.round(r.height),
-                  viewport: window.innerHeight,
-                  tallerThanViewport: r.height > window.innerHeight
-                });
-              }
-              inst.play();
-            }
+    const groups = instances.flatMap((inst) => inst.groups);
+    const steps = groups.flatMap((group) => group.steps);
+    const cleanups = [];
+    let observer = null;
+    let resizeTimer = null;
+    let dead = false;
+
+    // Hidden at mount, before anything is measured or split: the reveal
+    // that would hide them is two frames and a webfont away.
+    steps.forEach((step) => { step.el.style.visibility = 'hidden'; });
+
+    /* Split at the trigger, not at intro. A group far down the page can be
+       unlaid-out when the page starts — a section behind an anti-flicker
+       rule, a component variant still display:none — and kugiri reads the
+       lines the browser painted, so it would find nothing and the group
+       would fall back to a block rise. By its own trigger it is a screen
+       away and certainly laid out. Splitting per group also costs nothing
+       for groups nobody scrolls to. */
+    /* kugiri cuts into block containers and walks past everything else:
+       grid, flex and inline-block are one piece and never units. A Webflow
+       component styled as a grid is exactly that, so a marked wrapper
+       around it splits its paragraphs and leaves the heading whole — with
+       or without a marker of its own, since the attribute is not what
+       kugiri reads. Text the wrapper's split could not reach is cut as a
+       target of its own, which is the one case display does not gate, and
+       its lines join the step that was reaching for them. */
+    const ownText = (el) => Array.from(el.childNodes)
+      .some((node) => node.nodeType === 3 && node.textContent.trim());
+
+    const unreached = (root) => {
+      const found = [];
+      const visit = (node) => {
+        Array.from(node.children).forEach((child) => {
+          // kugiri's own output: a mask, and the unit inside it, hold text
+          // that is already split. Descending into them splits it twice.
+          if (child.matches('[data-mask], [data-line], [data-word], [data-char]')) return;
+          if (child.querySelector('[data-line], [data-word], [data-char]')) { visit(child); return; }
+          if (!child.textContent.trim()) return;
+          if (child.matches('[data-swap], [data-text-anim-ignore]')) return;
+          // Descend to whoever actually holds the text, not the box around it.
+          if (ownText(child) || !Array.from(child.children).some((c) => c.textContent.trim())) {
+            found.push(child);
+          } else {
+            visit(child);
+          }
+        });
+      };
+      visit(root);
+      return found;
+    };
+
+    const inDocumentOrder = (a, b) => (
+      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+    );
+
+    const rescueUnreached = (group) => {
+      group.steps.forEach((step) => {
+        if (step.level === 'none') return;
+        const missed = unreached(step.el);
+        if (!missed.length) return;
+
+        const rescued = missed.map((el) => ({ el, level: step.level, split: null, units: [] }));
+        splitSteps(rescued);
+
+        step.extra = rescued.map((one) => one.split).filter(Boolean);
+        step.units = step.units
+          .concat(rescued.flatMap((one) => one.units))
+          .sort(inDocumentOrder);
+      });
+    };
+
+    const buildInstance = (inst) => {
+      if (inst.built) return;
+      inst.built = true;
+      const own = inst.groups.flatMap((group) => group.steps);
+      if (hasKugiri) {
+        splitSteps(own);
+        inst.groups.forEach(rescueUnreached);
+      }
+      inst.groups.forEach(scheduleGroup);
+      if (TEXT_DEBUG) {
+        console.info('[text-anim] built', inst.trigger, {
+          groups: inst.groups.length,
+          steps: own.length,
+          units: own.reduce((n, step) => n + step.units.length, 0),
+          rescued: own.reduce((n, step) => n + (step.extra?.length || 0), 0),
+          unsplit: own.filter((step) => !step.units.length).length,
+          fade: own.filter((step) => step.fade).length
+        });
+      }
+    };
+
+    const play = (inst) => {
+      if (inst.played || dead) return;
+      inst.played = true;
+      buildInstance(inst);
+      inst.anims = inst.groups.flatMap(playGroup);
+
+      if (TEXT_DEBUG) {
+        const r = inst.trigger.getBoundingClientRect();
+        console.info('[text-anim] fired', inst.trigger, {
+          // A group taller than the viewport fires on its top edge, so
+          // its lower steps can finish off-screen.
+          top: Math.round(r.top),
+          height: Math.round(r.height),
+          viewport: window.innerHeight,
+          tallerThanViewport: r.height > window.innerHeight,
+          duration: Number(Math.max(
+            ...inst.groups.map((g) => g.delay + g.cardOffset + g.duration)
+          ).toFixed(2))
+        });
+      }
+
+      Promise.allSettled(inst.anims.map((a) => a.finished)).then(() => {
+        if (dead) return;
+        inst.groups.forEach(releaseMasks);
+      });
+    };
+
+    // Already scrolled past: it has no reveal to play, so it is never split.
+    const settle = (inst) => {
+      if (inst.played || dead) return;
+      inst.played = true;
+      inst.groups.forEach(showAtRest);
+    };
+
+    const observe = () => {
+      if (!('IntersectionObserver' in window)) {
+        // Play everything rather than leave the page blank.
+        instances.forEach(play);
+        return;
+      }
+      /* The root reaches far above the viewport on purpose. An observer
+         reports threshold crossings, not positions, so a group that goes
+         from below the fold to above it in one move — an anchor link, a
+         restored scroll, a swipe on a phone, a tab that was in the
+         background and painted no frame in between — crosses nothing and
+         would stay invisible for good. Reaching upwards makes passing the
+         group a crossing too; which of the two it is, is geometry. */
+      observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const inst = instances.find((i) => i.trigger === entry.target);
+          if (!inst || !entry.isIntersecting) return;
+          observer.unobserve(entry.target);
+          // Wholly above the viewport: there is no reveal left to watch,
+          // so it is put at rest instead of played to an empty screen.
+          if (entry.boundingClientRect.bottom <= 0) settle(inst);
+          else play(inst);
+        });
+      }, { rootMargin: `100000px 0px ${TEXT.start} 0px` });
+      instances.forEach((inst) => observer.observe(inst.trigger));
+    };
+
+    /* A split is a snapshot of one layout: kugiri reads the lines the
+       browser painted and does not watch for the next paint. A width
+       change paints different lines, so the old ones go back and the
+       text is cut again. */
+    const resplit = () => {
+      if (dead || !hasKugiri) return;
+      instances.forEach((inst) => {
+        if (!inst.built) return; // never split, nothing to put back
+        inst.anims?.forEach((a) => a.cancel());
+        inst.groups.forEach((group) => {
+          group.steps.forEach((step) => {
+            // Inside out: a rescued split sits within the outer one's
+            // markup, and reverting the outer first strands it there.
+            step.extra?.forEach((split) => split.revert());
+            step.split?.revert();
+            if (step.wrapped) step.el.style.removeProperty('flex-wrap');
+            step.split = null;
+            step.extra = null;
+            step.units = [];
+            step.wrapped = false;
           });
         });
+        inst.built = false;
+        buildInstance(inst);
+        // Fresh units carry no keyframes, so a group that already played
+        // is at rest as it stands; it only wants its clip off again.
+        if (inst.played) inst.groups.forEach(showAtRest);
       });
-    } else if (!reducedMotion) {
-      // No ScrollTrigger: play everything rather than leave the page blank.
-      Intro.add(root, () => instances.forEach((inst) => inst.play()));
-    }
+    };
+
+    const watchResize = () => {
+      let width = window.innerWidth;
+      const onResize = () => {
+        if (window.innerWidth === width) return; // a taller viewport moves no wrap
+        width = window.innerWidth;
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(resplit, TEXT.resplit * 1000);
+      };
+      window.addEventListener('resize', onResize, { passive: true });
+      cleanups.push(() => window.removeEventListener('resize', onResize));
+    };
+
+    /* Mount hides, the intro queue starts watching: at mount the container
+       is still the transition's fixed 100vh rectangle, and anything
+       measured against it reads a width the page never has. */
+    Intro.add(root, () => {
+      fontsReady().then(() => {
+        if (dead) return;
+        observe();
+        watchResize();
+      });
+    });
 
     return () => {
-      instances.forEach(({ kills, st, splits }) => {
-        kills.forEach((k) => k.kill());
-        st?.kill();
-        splits.forEach((split) => split.revert());
+      dead = true;
+      clearTimeout(resizeTimer);
+      observer?.disconnect();
+      cleanups.forEach((fn) => fn());
+      instances.forEach((inst) => inst.anims?.forEach((a) => a.cancel()));
+      // Not the mount-time list: a build can add steps for markers an outer
+      // one displaced, and those hold splits of their own to put back.
+      groups.flatMap((group) => group.steps).forEach((step) => {
+        step.extra?.forEach((split) => split.revert()); // inside out
+        step.split?.revert();
+        if (step.wrapped) step.el.style.removeProperty('flex-wrap');
+        step.el.style.visibility = '';
       });
     };
   });
@@ -1109,7 +1393,9 @@
       { wrap: '.design_sticky_eyebrow', text: '.design_sticky_eyebrow_text' },
       // The footer link's icon was em-sized against the wrap, which
       // stopped working once the text carried its own size class.
-      { wrap: '.footer_link_wrap', text: '.footer_link_text' }
+      { wrap: '.footer_link_wrap', text: '.footer_link_text' },
+      { wrap: '.stats_eyebrow_wrap', text: '.stats_eyebrow' },
+      { wrap: '.subheading_eyebrow_wrap', text: '.subheading_text_eyebrow' }
     ]
   };
 
@@ -1999,7 +2285,7 @@
 
     /* The entrance is CSS so the paint waits on a stylesheet rather than
        on this bundle — at opacity 0 nothing is painted, and LCP could not
-       fire until gsap, ScrollTrigger and SplitText had all landed. Only
+       fire until gsap and ScrollTrigger had both landed. Only
        the bump and the parallax stay here.
 
        On a swap the container is inserted while it is still the fixed
@@ -2618,6 +2904,14 @@
     duration: 0.7,
     shift: 24,          // px travelled, out upward and in from below
     ease: E.body,
+
+    /* The -solo entrance, played here rather than by textAnim. Its own
+       numbers: textAnim's are cubic-bezier strings for the Web Animations
+       API, which gsap does not read. */
+    soloDuration: 0.9,
+    soloEase: E.body,
+    soloShift: 30,      // yPercent
+
     start: 'top 70%',
     stack: '(max-width: 767px)'   // below this the statements go full width
   };
@@ -2756,15 +3050,15 @@
       const solo = wrap.hasAttribute('data-text-anim-solo') ||
         list.some((el) => el.hasAttribute('data-text-anim-solo'));
 
-      const dur = solo ? TEXT.bodyDuration : SWAP.duration;
-      const ease = solo ? TEXT.bodyEase : SWAP.ease;
+      const dur = solo ? SWAP.soloDuration : SWAP.duration;
+      const ease = solo ? SWAP.soloEase : SWAP.ease;
       // Both units written every time, or a statement that entered under
       // one and leaves under the other starts from the wrong place.
       const hiddenBelow = solo
-        ? { autoAlpha: 0, yPercent: TEXT.bodyFromY, y: 0 }
+        ? { autoAlpha: 0, yPercent: SWAP.soloShift, y: 0 }
         : { autoAlpha: 0, yPercent: 0, y: SWAP.shift };
       const hiddenAbove = solo
-        ? { autoAlpha: 0, yPercent: -TEXT.bodyFromY, y: 0 }
+        ? { autoAlpha: 0, yPercent: -SWAP.soloShift, y: 0 }
         : { autoAlpha: 0, yPercent: 0, y: -SWAP.shift };
       const resting = { autoAlpha: 1, yPercent: 0, y: 0 };
 
