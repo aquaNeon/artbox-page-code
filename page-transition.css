@@ -908,10 +908,14 @@ html.is-menu-open {
   pointer-events: auto;
 }
 
+/* One line at every width: two words that wrap read as a layout accident,
+   and on desktop the swap holds the trigger's cell, which a second line
+   would grow. */
 [data-share-copied] {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  white-space: nowrap;
   transition: opacity 200ms ease, visibility 200ms;
 }
 
@@ -925,6 +929,42 @@ html.is-menu-open {
   [data-share-copied],
   [data-share][data-share-swap] > [data-share-open] {
     transition-duration: 0.01ms;
+  }
+}
+
+/* Tablet and down the menu runs across, not down: stacked, it is a tall
+   panel over a short trigger, and there is width to spare on a phone.
+   Wrapping so a long label cannot push an action off the screen.
+
+   The confirmation takes the same row: it stands in for the menu, so it
+   should read at the same height rather than a line below where the
+   actions just were. Its own text never wraps at any width — see the base
+   rule. */
+@media screen and (max-width: 991px) {
+  [data-share-menu],
+  [data-share-copied] {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--share-menu-gap, 1rem);
+  }
+
+  [data-share-copied] {
+    flex-wrap: nowrap;
+  }
+}
+
+/* Mobile: the menu and the confirmation leave the flow, so a wrapper is
+   only ever as tall as its trigger. Hidden is not weightless —
+   visibility:hidden still reserves every item's height, and a second
+   share block on a phone pays for that twice. */
+@media (max-width: 767px) {
+  [data-share] > [data-share-menu],
+  [data-share] > [data-share-copied] {
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 }
 

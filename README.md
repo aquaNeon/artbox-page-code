@@ -1144,6 +1144,20 @@ it, and a focus ring on something invisible is worse than none.
 Knobs in `SHARE`: `copiedFor` (ms the confirmation holds, default 3000) and
 `window` (the popup features string).
 
+At 991px and down the menu lays out as a wrapping row rather than a
+column — a stacked panel is tall over a short trigger, and a phone has the
+width to spare. Gap from `--share-menu-gap`, default `1rem`. The
+confirmation gets the same row, so "Lenke kopiert" reads where the actions
+were rather than a line under them. It carries `white-space: nowrap` at
+every width, desktop included — the swapped confirmation sits in the
+trigger's grid cell, and a second line would grow it.
+
+Under 768px the menu and the confirmation are taken out of flow, so a
+wrapper is only as tall as its trigger — a hidden panel still reserves its
+full height otherwise, which on a phone is a menu-sized hole in the page.
+Out of flow they also shrink to their content, so a menu that was full
+width in flow needs a width of its own there.
+
 ### videoPoster — `[data-video="component"]`
 
 Holds the poster over a base-lib video until the first frame is actually
