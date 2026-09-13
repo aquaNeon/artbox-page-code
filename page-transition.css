@@ -973,9 +973,16 @@ html.is-menu-open {
        variable — the same number the negative margin above uses, and it
        already includes the edge the heading holds at the top. */
     padding-top: var(--services-stack-heading, 0px);
-    /* The bleed hangs below the fold, so the text centres against the
-       screen rather than against the taller box. */
-    padding-bottom: calc(var(--services-stack-edge, 1.5rem) + var(--services-stack-bleed, 10vh));
+    /* The bleed hangs below the fold, so some of it is taken back as
+       padding or the text centres against a box taller than the screen.
+       Taking all of it back centres against the visible area exactly,
+       which reads high — the eye is centring against the image, and the
+       image runs past the fold. Half is the compromise; the knob is
+       there for the other two answers. */
+    padding-bottom: calc(
+      var(--services-stack-edge, 1.5rem)
+      + var(--services-stack-bleed, 10vh) * var(--services-stack-bleed-pull, 0.5)
+    );
     /* Every row paints the full screen, so nothing shows through the one
        fading in over it. */
     background-color: var(--services-stack-bg, var(--_theme---background--background-primary, #191915));
