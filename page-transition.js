@@ -2206,6 +2206,17 @@
           return;
         }
 
+        /* Re-read on the way open rather than trusting the mount: the
+           padding is a fluid variable, so the number it resolved to at
+           load is not the number it holds at this width. The inline zero
+           is lifted, measured, and put back before the tween starts. */
+        if (open) {
+          gsap.set(rec.panel, { clearProps: 'paddingTop,paddingBottom' });
+          const live = getComputedStyle(rec.panel);
+          rec.pad = { top: live.paddingTop, bottom: live.paddingBottom };
+          gsap.set(rec.panel, { paddingTop: 0, paddingBottom: 0 });
+        }
+
         rec.tl = gsap.timeline({
           defaults: { duration: FAQ.duration, ease: FAQ.ease },
           onComplete: () => {
