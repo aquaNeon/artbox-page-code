@@ -585,6 +585,12 @@ Accordion. Clicking a question animates its answer from height `0` to `auto`,
 rises and fades the answer text in, and rotates the plus icon 45° into a
 cross. One answer open at a time by default.
 
+The panel's own padding is animated with the height. `height: 0` empties the
+content box and nothing else, so a panel with padding stayed as tall as that
+padding while closed. The authored values are read at mount and cleared again
+once the panel is open, so an open answer keeps the Designer's units rather
+than the pixels they measured to at mount.
+
 Driven off the classes the section already has, so there is nothing to add in
 the Designer:
 

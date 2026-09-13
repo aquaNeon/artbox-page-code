@@ -2154,7 +2154,18 @@
         toggle.setAttribute('aria-controls', panel.id);
         toggle.style.cursor = 'pointer';
 
-        records.push({ item, toggle, panel, icon, inner, open, tl: null });
+        /* height:0 only empties the content box, so a panel with padding
+           stays as tall as its padding — the closed answers were holding
+           31px each. The authored values are read once and animated with
+           the height, then cleared on open so the Designer's units, not
+           yesterday's pixels, are what an open panel keeps. */
+        const panelStyle = getComputedStyle(panel);
+        const pad = {
+          top: panelStyle.paddingTop,
+          bottom: panelStyle.paddingBottom
+        };
+
+        records.push({ item, toggle, panel, icon, inner, open, pad, tl: null });
       });
 
       if (!records.length) return;
@@ -2172,7 +2183,13 @@
         rec.tl?.kill();
         rec.tl = null;
         paint(rec);
-        gsap.set(rec.panel, { overflow: 'hidden', height: rec.open ? 'auto' : 0 });
+        gsap.set(rec.panel, {
+          overflow: 'hidden',
+          height: rec.open ? 'auto' : 0,
+          paddingTop: rec.open ? rec.pad.top : 0,
+          paddingBottom: rec.open ? rec.pad.bottom : 0
+        });
+        if (rec.open) gsap.set(rec.panel, { clearProps: 'paddingTop,paddingBottom' });
         if (rec.inner) gsap.set(rec.inner, { autoAlpha: rec.open ? 1 : 0, y: rec.open ? 0 : FAQ.textShift });
         if (rec.icon) gsap.set(rec.icon, { rotate: rec.open ? FAQ.iconRotate : 0 });
       }
@@ -2194,12 +2211,19 @@
           onComplete: () => {
             // auto, not the measured px, or a resize freezes the open
             // answer at yesterday's height.
-            if (open) gsap.set(rec.panel, { height: 'auto' });
+            if (open) {
+              gsap.set(rec.panel, { height: 'auto' });
+              gsap.set(rec.panel, { clearProps: 'paddingTop,paddingBottom' });
+            }
             refreshScrollHeight();
           }
         });
 
-        rec.tl.to(rec.panel, { height: open ? 'auto' : 0 }, 0);
+        rec.tl.to(rec.panel, {
+          height: open ? 'auto' : 0,
+          paddingTop: open ? rec.pad.top : 0,
+          paddingBottom: open ? rec.pad.bottom : 0
+        }, 0);
         if (rec.inner) {
           rec.tl.to(rec.inner, {
             autoAlpha: open ? 1 : 0,
