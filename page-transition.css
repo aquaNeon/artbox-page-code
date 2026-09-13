@@ -468,6 +468,42 @@ html.is-menu-open {
   color: var(--meganav-cta-text, var(--meganav-panel-bg, #191915));
 }
 
+/* ===== ARTICLE SPACING — case and insight templates, tablet and down ===== */
+
+/* Lifted out of the per-section embeds, where the same block was pasted
+   into every template that needed it. The desktop rhythm is authored in
+   the Designer's spacer variants; below 992px those are one number, and
+   the columns that have stopped being columns are another.
+
+   The hero keeps its own spacers: it is the one place the large desktop
+   gap still reads on a phone, and collapsing it puts the eyebrow, the
+   title and the lead in a heap. */
+@media screen and (max-width: 991px) {
+  :is(
+    .c_cases_row_wrap,
+    .insights_wrap,
+    .subheading_wrap,
+    .insight_main_wrap,
+    .c_vis_wrap,
+    .post_contact_wrap,
+    .c_heading_wrap
+  ) .g_section_space {
+    height: var(--section-gap-mobile, 2rem);
+  }
+
+  /* Stacked, the column gap is spending width nothing is using and the
+     row gap carries the whole rhythm. */
+  .c_cases_row_grid {
+    gap: var(--section-row-gap-mobile, 4rem);
+  }
+
+  .c_collection_list,
+  .insight_main_grid,
+  .post_contact_grid {
+    row-gap: var(--section-row-gap-mobile, 4rem);
+  }
+}
+
 /* ===== POST CONTACT — .post_contact_wrap ===== */
 
 /* Grid and flex children default to min-width:auto and refuse to shrink

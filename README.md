@@ -1211,6 +1211,27 @@ correct fallback.
 Registered ahead of `baseLib`, so the poster is under this module's control
 before video-min touches it.
 
+## Article spacing — case and insight templates
+
+CSS only, no attributes. Below 992px the Designer's spacer variants are all
+one height and the stacked grids one row gap, so the article templates keep
+the same rhythm on a phone:
+
+| Knob | Default | What it sets |
+| --- | --- | --- |
+| `--section-gap-mobile` | `2rem` | Every `.g_section_space` in the sections listed below |
+| `--section-row-gap-mobile` | `4rem` | Row gap of `.c_cases_row_grid`, `.c_collection_list`, `.insight_main_grid`, `.post_contact_grid` |
+
+The spacers are collapsed inside `.c_cases_row_wrap`, `.insights_wrap`,
+`.subheading_wrap`, `.insight_main_wrap`, `.c_vis_wrap`,
+`.post_contact_wrap` and `.c_heading_wrap` — the article body and what
+follows it, not the hero. The hero is the one place the large desktop gap
+still reads on a phone; collapsed, its eyebrow, title and lead land in a
+heap.
+
+Set either knob on the section in the Designer to override one template
+without touching the rest.
+
 ## Underline links — `[data-underline-link]`
 
 Hovering wipes the resting line out to the right while a fresh one wipes in
