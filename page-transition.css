@@ -483,10 +483,9 @@ html.is-menu-open {
    the container or a single spacer and everything inside keeps whatever
    the Designer says, at every width.
 
-   A spacer that opens its parent is left alone too. That one is the
-   section's own approach, authored against whatever comes before it; the
-   ones worth collapsing are the internal and trailing spacers, which meet
-   the next section's approach and double up. */
+   Every spacer in those sections takes the number, wherever it sits: no
+   first-child or last-child special cases, since data-space-keep is the
+   way out and positional rules only made the result harder to predict. */
 @media screen and (max-width: 991px) {
   /* Article templates only. Several of these sections are on the home
      page too, where the Designer's own rhythm is what is wanted — the
@@ -500,7 +499,7 @@ html.is-menu-open {
     .c_vis_wrap,
     .post_contact_wrap,
     .c_heading_wrap
-  ) .g_section_space:not(:first-child):not([data-space-keep], [data-space-keep] *) {
+  ) .g_section_space:not([data-space-keep], [data-space-keep] *) {
     height: var(--section-gap-mobile, 2rem);
   }
 
@@ -524,15 +523,6 @@ html.is-menu-open {
   .insight_main_share_wrap:not([data-space-keep], [data-space-keep] *) {
     margin-top: 0;
     margin-bottom: 0;
-  }
-
-  /* Three spacers meet where the subheading ends and the article begins:
-     the last in the container, the last in the section, and the first of
-     the section after. One of them is the gap; the other two are the
-     Designer's desktop rhythm doubling up. The survivor is the leading
-     one of the next section, so a section still owns its own approach. */
-  :is(.subheading_wrap, .subheading_contain) > .g_section_space:last-child:not([data-space-keep], [data-space-keep] *) {
-    height: 0;
   }
 
   /* One share block at a time. The template carries two — the one in the

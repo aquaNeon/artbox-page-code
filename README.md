@@ -1242,11 +1242,6 @@ Put `data-space-keep` on a section and every spacer and grid gap inside it
 keeps whatever the Designer says; put it on a single `.g_section_space` to
 spare just that one.
 
-A spacer that is the first child of its parent is left at its Designer
-value: that one is the section's own approach, and collapsing it took the
-top space off sections that never asked. Only the internal and trailing
-spacers collapse.
-
 The rule is scoped away from the home page by barba namespace
 (`[data-barba-namespace]:not([data-barba-namespace="home"])`): several of
 these sections appear there too, where the Designer's own rhythm is what is
@@ -1262,11 +1257,7 @@ heap.
 Set either knob on the section in the Designer to override one template
 without touching the rest.
 
-Two more things the insight template needs below 992px. The spacers pile up
-three deep where the subheading ends and the article begins — the last in
-the container, the last in the section, the first of the next — so the two
-trailing ones are zeroed and the leading one of the next section survives,
-which keeps a section owning its own approach. And the template carries two
+One more thing the insight template needs below 992px: it carries two
 share blocks, the one in the grid above the article and `.is-mobiie` below
 it: they take turns at 992px rather than both showing on a phone.
 
