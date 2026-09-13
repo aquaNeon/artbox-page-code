@@ -195,8 +195,19 @@ html.is-transitioning {
    display:flex here brought the desktop one back alongside it. The
    columns keep their own alignment for the same reason — stretching them
    moved text that was meant to sit at the top. */
+/* The sheet is the flex container and the inner is its one child, so
+   flex fills it exactly. min-height:100% did the same job badly: a
+   percentage is of the sheet, the margin above is added on top of it, and
+   the sum was 43px taller than the screen — a scrollbar for content that
+   fits. min-height:0 lets it shrink back to what is actually there. */
+.meganav_root .meganav_panel {
+  display: flex;
+  flex-direction: column;
+}
+
 .meganav_root .meganav_panel_inner {
-  min-height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 @media screen and (min-width: 992px) {
