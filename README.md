@@ -681,6 +681,36 @@ Scrolling back fires `onLeaveBack`, not `onEnterBack`: the trigger element is
 the whole track, so the boundary is crossed by leaving through its start
 rather than re-entering from beyond its end.
 
+The section heading rides over the stack rather than standing above it:
+`.services_contain` is made sticky — not `.services_heading_wrap`, whose
+parent is no taller than the heading itself, and a sticky child only holds
+while its own parent is passing. The container's parent is the section, so
+the heading arrives with the first row and lets go with the last. It sits
+above the viewport in paint order and is pointer-transparent, and takes
+`--services-stack-heading-color`, white by default, since it reads against
+the rows rather than the section.
+
+The module measures the container into `--services-stack-heading`, and the
+CSS spends that number twice: as a negative `margin-bottom`, so the heading
+holds no room in the flow and the stack begins at the top of the section —
+otherwise the heading is a block of its own above the first image, sliding
+down onto it — and as the rows' top padding, so their text centres in the
+screen left under it, plus `--services-stack-edge` (1.5rem) off the bottom.
+That edge is one number at both ends: it is the container's top padding, so
+the measurement carries it, and the rows take the same off the bottom — the
+heading sits as far from the top of the screen as the last line sits from
+the bottom. Re-measured through a `ResizeObserver`, because the heading is
+two lines on one phone and four on the next. Under 480px the
+heading drops any width cap and takes the screen.
+
+The type lists are rich text, which gives its paragraphs typography of their
+own — the line height of the style on `.services_hover_item_text` never
+reached them, so the rows read tighter on the page than in the Designer.
+`line-height: inherit` on the children hands it back. Tablet and down they
+stack on `--services-types-gap` (8px) and their paragraph margins are
+dropped, so one number sets the spacing; on desktop the margins are the
+Designer's.
+
 A viewport element is created rather than making each row sticky in flow:
 sticky rows stack, with the next sliding up over the last, and this is meant
 to be a dissolve with nothing in motion. Every row paints an opaque
@@ -1143,6 +1173,20 @@ it, and a focus ring on something invisible is worse than none.
 
 Knobs in `SHARE`: `copiedFor` (ms the confirmation holds, default 3000) and
 `window` (the popup features string).
+
+At 991px and down the menu lays out as a wrapping row rather than a
+column — a stacked panel is tall over a short trigger, and a phone has the
+width to spare. Gap from `--share-menu-gap`, default `1rem`. The
+confirmation gets the same row, so "Lenke kopiert" reads where the actions
+were rather than a line under them. It carries `white-space: nowrap` at
+every width, desktop included — the swapped confirmation sits in the
+trigger's grid cell, and a second line would grow it.
+
+Under 768px the menu and the confirmation are taken out of flow, so a
+wrapper is only as tall as its trigger — a hidden panel still reserves its
+full height otherwise, which on a phone is a menu-sized hole in the page.
+Out of flow they also shrink to their content, so a menu that was full
+width in flow needs a width of its own there.
 
 ### videoPoster — `[data-video="component"]`
 

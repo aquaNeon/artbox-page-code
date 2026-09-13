@@ -2445,6 +2445,30 @@
       const items = list ? Array.from(list.querySelectorAll('.services_hover_item')) : [];
       if (!list || items.length < 2) return;
 
+      /* The heading sticks over the rows. Its container is measured, not
+         the wrap: the CSS spends the number twice — once as a negative
+         margin that takes the heading out of the flow, once as the top
+         padding the rows centre inside — and both want the box that is
+         actually stuck, padding and all. Measured rather than guessed,
+         since it is two lines on one phone and four on the next, and it
+         reflows when the device turns. */
+      const heading = section.querySelector('.services_contain');
+      if (heading) {
+        const measure = () => {
+          const h = Math.round(heading.getBoundingClientRect().height);
+          section.style.setProperty('--services-stack-heading', `${h}px`);
+        };
+        measure();
+        const observer = typeof ResizeObserver === 'function'
+          ? new ResizeObserver(measure)
+          : null;
+        observer?.observe(heading);
+        cleanups.push(() => {
+          observer?.disconnect();
+          section.style.removeProperty('--services-stack-heading');
+        });
+      }
+
       const viewport = document.createElement('div');
       viewport.className = 'services_stack_viewport';
       list.appendChild(viewport);
