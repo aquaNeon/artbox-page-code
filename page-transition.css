@@ -950,11 +950,15 @@ html.is-menu-open {
     top: 0;
     /* dvh, not svh: svh is the viewport with the browser chrome showing,
        so the moment iOS retracts its toolbar the row is shorter than the
-       screen and the page shows through underneath. dvh follows the
-       chrome, which costs a relayout as it moves and buys no white gap.
-       vh first for anything without dvh. */
-    height: 100vh;
-    height: 100dvh;
+       screen. vh first for anything without dvh.
+
+       The bleed is the rest of the answer: dvh only lands on its new
+       number once the browser has finished animating its toolbar, so for
+       those frames the box is genuinely short. Running the rows past the
+       bottom of the screen means the strip that appears is more image,
+       and nobody sees it happen. */
+    height: calc(100vh + var(--services-stack-bleed, 10vh));
+    height: calc(100dvh + var(--services-stack-bleed, 10vh));
     overflow: hidden;
   }
 
@@ -969,7 +973,9 @@ html.is-menu-open {
        variable — the same number the negative margin above uses, and it
        already includes the edge the heading holds at the top. */
     padding-top: var(--services-stack-heading, 0px);
-    padding-bottom: var(--services-stack-edge, 1.5rem);
+    /* The bleed hangs below the fold, so the text centres against the
+       screen rather than against the taller box. */
+    padding-bottom: calc(var(--services-stack-edge, 1.5rem) + var(--services-stack-bleed, 10vh));
     /* Every row paints the full screen, so nothing shows through the one
        fading in over it. */
     background-color: var(--services-stack-bg, var(--_theme---background--background-primary, #191915));
