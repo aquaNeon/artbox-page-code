@@ -479,7 +479,11 @@ html.is-menu-open {
    gap still reads on a phone, and collapsing it puts the eyebrow, the
    title and the lead in a heap. */
 @media screen and (max-width: 991px) {
-  :is(
+  /* Article templates only. Several of these sections are on the home
+     page too, where the Designer's own rhythm is what is wanted — the
+     barba namespace is the one thing that already tells the templates
+     apart, so it is what the rule hangs off. */
+  [data-barba-namespace]:not([data-barba-namespace="home"]) :is(
     .c_cases_row_wrap,
     .insights_wrap,
     .subheading_wrap,

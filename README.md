@@ -1234,6 +1234,11 @@ the same rhythm on a phone:
 | `--section-row-gap-mobile` | `4rem` | Row gap of `.c_cases_row_grid`, `.c_collection_list`, `.post_contact_grid` |
 | `--insight-share-gap-mobile` | `2rem` | Row gap of `.insight_main_grid` — the share block to the article, closer kin than the cards are to each other. The share wrapper's Designer margin is dropped with it, or the two stack |
 
+The rule is scoped away from the home page by barba namespace
+(`[data-barba-namespace]:not([data-barba-namespace="home"])`): several of
+these sections appear there too, where the Designer's own rhythm is what is
+wanted. Add another namespace to the `:not()` to spare another template.
+
 The spacers are collapsed inside `.c_cases_row_wrap`, `.insights_wrap`,
 `.subheading_wrap`, `.insight_main_wrap`, `.c_vis_wrap`,
 `.post_contact_wrap` and `.c_heading_wrap` — the article body and what
