@@ -1233,6 +1233,14 @@ heap.
 Set either knob on the section in the Designer to override one template
 without touching the rest.
 
+Two more things the insight template needs below 992px. The spacers pile up
+three deep where the subheading ends and the article begins — the last in
+the container, the last in the section, the first of the next — so the two
+trailing ones are zeroed and the leading one of the next section survives,
+which keeps a section owning its own approach. And the template carries two
+share blocks, the one in the grid above the article and `.is-mobiie` below
+it: they take turns at 992px rather than both showing on a phone.
+
 ## Underline links — `[data-underline-link]`
 
 Hovering wipes the resting line out to the right while a fresh one wipes in

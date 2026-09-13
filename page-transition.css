@@ -513,6 +513,29 @@ html.is-menu-open {
     margin-top: 0;
     margin-bottom: 0;
   }
+
+  /* Three spacers meet where the subheading ends and the article begins:
+     the last in the container, the last in the section, and the first of
+     the section after. One of them is the gap; the other two are the
+     Designer's desktop rhythm doubling up. The survivor is the leading
+     one of the next section, so a section still owns its own approach. */
+  .subheading_wrap > .g_section_space:last-child,
+  .subheading_contain > .g_section_space:last-child {
+    height: 0;
+  }
+
+  /* One share block at a time. The template carries two — the one in the
+     grid above the article and .is-mobiie below it — and on a phone both
+     were showing, the top one paying for a grid row it did not need. */
+  .insight_main_share_wrap:not(.is-mobiie) {
+    display: none;
+  }
+}
+
+@media screen and (min-width: 992px) {
+  .insight_main_share_wrap.is-mobiie {
+    display: none;
+  }
 }
 
 /* ===== POST CONTACT — .post_contact_wrap ===== */
