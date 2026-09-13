@@ -2535,7 +2535,9 @@
       // a step per gap, plus the hold, plus its own screen.
       const screens = (items.length - 1) * SERVICES_STACK.screens
         + SERVICES_STACK.hold + 1;
-      list.style.height = `${screens * 100}svh`;
+      // dvh to match the viewport: a track measured in svh is shorter than
+      // the screens it is holding, and the last row loses its hold early.
+      list.style.height = `${screens * 100}dvh`;
 
       // The rest wait at zero rather than hidden, so their images are
       // decoded before they are needed.

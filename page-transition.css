@@ -948,7 +948,13 @@ html.is-menu-open {
   .services_stack_viewport {
     position: sticky;
     top: 0;
-    height: 100svh;
+    /* dvh, not svh: svh is the viewport with the browser chrome showing,
+       so the moment iOS retracts its toolbar the row is shorter than the
+       screen and the page shows through underneath. dvh follows the
+       chrome, which costs a relayout as it moves and buys no white gap.
+       vh first for anything without dvh. */
+    height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 
