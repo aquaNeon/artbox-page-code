@@ -1220,7 +1220,8 @@ the same rhythm on a phone:
 | Knob | Default | What it sets |
 | --- | --- | --- |
 | `--section-gap-mobile` | `2rem` | Every `.g_section_space` in the sections listed below |
-| `--section-row-gap-mobile` | `4rem` | Row gap of `.c_cases_row_grid`, `.c_collection_list`, `.insight_main_grid`, `.post_contact_grid` |
+| `--section-row-gap-mobile` | `4rem` | Row gap of `.c_cases_row_grid`, `.c_collection_list`, `.post_contact_grid` |
+| `--insight-share-gap-mobile` | `2rem` | Row gap of `.insight_main_grid` — the share block to the article, closer kin than the cards are to each other. The share wrapper's Designer margin is dropped with it, or the two stack |
 
 The spacers are collapsed inside `.c_cases_row_wrap`, `.insights_wrap`,
 `.subheading_wrap`, `.insight_main_wrap`, `.c_vis_wrap`,

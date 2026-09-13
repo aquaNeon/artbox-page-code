@@ -498,9 +498,20 @@ html.is-menu-open {
   }
 
   .c_collection_list,
-  .insight_main_grid,
   .post_contact_grid {
     row-gap: var(--section-row-gap-mobile, 4rem);
+  }
+
+  /* The share block is closer kin to the article than the cards are to
+     each other, so it gets its own smaller number — and its Designer
+     margin goes, or the two stack into a hole twice the size. */
+  .insight_main_grid {
+    row-gap: var(--insight-share-gap-mobile, 2rem);
+  }
+
+  .insight_main_share_wrap {
+    margin-top: 0;
+    margin-bottom: 0;
   }
 }
 
