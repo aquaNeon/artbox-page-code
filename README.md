@@ -1234,6 +1234,11 @@ the same rhythm on a phone:
 | `--section-row-gap-mobile` | `4rem` | Row gap of `.c_cases_row_grid`, `.c_collection_list`, `.post_contact_grid` |
 | `--insight-share-gap-mobile` | `2rem` | Row gap of `.insight_main_grid` — the share block to the article, closer kin than the cards are to each other. The share wrapper's Designer margin is dropped with it, or the two stack |
 
+A spacer that is the first child of its parent is left at its Designer
+value: that one is the section's own approach, and collapsing it took the
+top space off sections that never asked. Only the internal and trailing
+spacers collapse.
+
 The rule is scoped away from the home page by barba namespace
 (`[data-barba-namespace]:not([data-barba-namespace="home"])`): several of
 these sections appear there too, where the Designer's own rhythm is what is

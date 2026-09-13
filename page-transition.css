@@ -477,7 +477,12 @@ html.is-menu-open {
 
    The hero keeps its own spacers: it is the one place the large desktop
    gap still reads on a phone, and collapsing it puts the eyebrow, the
-   title and the lead in a heap. */
+   title and the lead in a heap.
+
+   A spacer that opens its parent is left alone too. That one is the
+   section's own approach, authored against whatever comes before it; the
+   ones worth collapsing are the internal and trailing spacers, which meet
+   the next section's approach and double up. */
 @media screen and (max-width: 991px) {
   /* Article templates only. Several of these sections are on the home
      page too, where the Designer's own rhythm is what is wanted — the
@@ -491,7 +496,7 @@ html.is-menu-open {
     .c_vis_wrap,
     .post_contact_wrap,
     .c_heading_wrap
-  ) .g_section_space {
+  ) .g_section_space:not(:first-child) {
     height: var(--section-gap-mobile, 2rem);
   }
 
