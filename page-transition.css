@@ -105,6 +105,42 @@ html.is-transitioning {
   color: var(--filter-idle-text);
 }
 
+/* Hover brings an idle chip up to full strength — the checked state it
+   would take if pressed, minus the tick. Pointer devices only: on a
+   touchscreen the hover state sticks after the tap and reads as a second
+   kind of selected. */
+.filter-single .insights_filter_check,
+.filter-single .w-checkbox-input,
+.filter-single .w-form-label,
+.filter-single [data-filter-label] {
+  transition: border-color 200ms ease, color 200ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .filter-single:not(.is-checked):hover .w-form-label,
+  .filter-single:not(.is-checked):hover [data-filter-label] {
+    color: var(--filter-hover-text, var(--_theme---typography--text-primary, #191915));
+  }
+
+  /* The box is drawn in currentColor by the section embed, so handing the
+     border back to it is enough — one colour to change, not two. The idle
+     rule pins border-color, so it has to be undone by name. */
+  .filter-single:not(.is-checked):hover .insights_filter_check,
+  .filter-single:not(.is-checked):hover .w-checkbox-input {
+    border-color: currentColor;
+    color: var(--filter-hover-text, var(--_theme---typography--text-primary, #191915));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-single .insights_filter_check,
+  .filter-single .w-checkbox-input,
+  .filter-single .w-form-label,
+  .filter-single [data-filter-label] {
+    transition-duration: 0.01ms;
+  }
+}
+
 /* Trims the label's line box to the letters, so the tick centres against
    the type rather than the leading. Progressive: without text-box the row
    is exactly as it was, and alignment stays in the Designer. */
