@@ -479,6 +479,10 @@ html.is-menu-open {
    gap still reads on a phone, and collapsing it puts the eyebrow, the
    title and the lead in a heap.
 
+   data-space-keep opts a section out of all of it — put it on the section,
+   the container or a single spacer and everything inside keeps whatever
+   the Designer says, at every width.
+
    A spacer that opens its parent is left alone too. That one is the
    section's own approach, authored against whatever comes before it; the
    ones worth collapsing are the internal and trailing spacers, which meet
@@ -496,29 +500,28 @@ html.is-menu-open {
     .c_vis_wrap,
     .post_contact_wrap,
     .c_heading_wrap
-  ) .g_section_space:not(:first-child) {
+  ) .g_section_space:not(:first-child):not([data-space-keep], [data-space-keep] *) {
     height: var(--section-gap-mobile, 2rem);
   }
 
   /* Stacked, the column gap is spending width nothing is using and the
      row gap carries the whole rhythm. */
-  .c_cases_row_grid {
+  .c_cases_row_grid:not([data-space-keep], [data-space-keep] *) {
     gap: var(--section-row-gap-mobile, 4rem);
   }
 
-  .c_collection_list,
-  .post_contact_grid {
+  :is(.c_collection_list, .post_contact_grid):not([data-space-keep], [data-space-keep] *) {
     row-gap: var(--section-row-gap-mobile, 4rem);
   }
 
   /* The share block is closer kin to the article than the cards are to
      each other, so it gets its own smaller number — and its Designer
      margin goes, or the two stack into a hole twice the size. */
-  .insight_main_grid {
+  .insight_main_grid:not([data-space-keep], [data-space-keep] *) {
     row-gap: var(--insight-share-gap-mobile, 2rem);
   }
 
-  .insight_main_share_wrap {
+  .insight_main_share_wrap:not([data-space-keep], [data-space-keep] *) {
     margin-top: 0;
     margin-bottom: 0;
   }
@@ -528,8 +531,7 @@ html.is-menu-open {
      the section after. One of them is the gap; the other two are the
      Designer's desktop rhythm doubling up. The survivor is the leading
      one of the next section, so a section still owns its own approach. */
-  .subheading_wrap > .g_section_space:last-child,
-  .subheading_contain > .g_section_space:last-child {
+  :is(.subheading_wrap, .subheading_contain) > .g_section_space:last-child:not([data-space-keep], [data-space-keep] *) {
     height: 0;
   }
 

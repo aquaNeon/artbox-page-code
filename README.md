@@ -1234,6 +1234,14 @@ the same rhythm on a phone:
 | `--section-row-gap-mobile` | `4rem` | Row gap of `.c_cases_row_grid`, `.c_collection_list`, `.post_contact_grid` |
 | `--insight-share-gap-mobile` | `2rem` | Row gap of `.insight_main_grid` — the share block to the article, closer kin than the cards are to each other. The share wrapper's Designer margin is dropped with it, or the two stack |
 
+| Attribute | Where | Meaning |
+| --- | --- | --- |
+| `data-space-keep` | a section, a container, or one spacer | Nothing in it is touched — the Designer's spacing stands at every width |
+
+Put `data-space-keep` on a section and every spacer and grid gap inside it
+keeps whatever the Designer says; put it on a single `.g_section_space` to
+spare just that one.
+
 A spacer that is the first child of its parent is left at its Designer
 value: that one is the section's own approach, and collapsing it took the
 top space off sections that never asked. Only the internal and trailing
