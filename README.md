@@ -993,6 +993,44 @@ gsap — the two engines cannot share one value, so they are cut from one.
 `textAnim` runs the same curve at its own 0.4s, since a line rising inside a
 mask is a shorter move than a whole statement crossing the screen.
 
+### maskReveal — `[data-mask]`
+
+A wipe down the picture as it arrives. Put `data-mask` on any `img` or `video`
+and it is clipped to nothing at the top edge, opening to the full box on
+**inoutMask** — inOutQuart, 1.2s — when its trigger crosses `top 85%`.
+
+| Attribute | On | Meaning |
+| --- | --- | --- |
+| `data-mask` | the image or video | Marks it. A value sets the edge the wipe starts at: `top` (default), `bottom`, `left`, `right` |
+| `data-mask-group` | a wrapper | Everything marked inside plays as one run off the wrapper's trigger, staggered |
+| `data-mask-stagger` | the group | Seconds between them, default `0.12` |
+| `data-mask-start` | the group | ScrollTrigger start, default `top 85%` |
+| `data-mask-delay` | one element | Extra seconds on top of its place in the run |
+| `data-mask-scale` | one element | Overscale under the clip, default `1.06`. `1` turns it off — use it when the element already carries a parallax or hover transform |
+
+Ungrouped, each marked element is its own trigger.
+
+**clip-path on the element itself**, not a wrapper with `overflow` and a moving
+child. The pictures already sit in wrappers other modules own — the cards, the
+parallax groups — and a second layer inside them is another thing to keep in
+step with a layout that changes per breakpoint. A clip touches nothing else.
+
+**The clip is written from a number every frame**, not tweened as a string.
+gsap interpolates two clip-paths only when they read as the same shape token
+for token, and a border radius breaks that: the browser reports four insets
+back as three whenever two of them agree, so `inset(0% 0% 100% round 24px)` and
+the four-value end state are different shapes to it — the clip holds still and
+snaps at the end. Driving a proxy 0→1 sidesteps the comparison, and it is what
+lets the radius ride along at all. Without the `round`, corners square off for
+the length of the wipe.
+
+The clip is written at mount, before the first paint and before anything is
+measured: the trigger is a frame away at best, and an unclipped first paint is
+the whole picture flashing in ahead of its own reveal.
+
+Fixture: `node dev-server.js`, then
+`http://localhost:5173/_fixture-mask-reveal.html`.
+
 ### heroVideo
 
 The last cell of the hero grid is a video. It leaves the grid, travels to the

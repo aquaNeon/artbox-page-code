@@ -1,0 +1,101 @@
+<!doctype html>
+<!-- Local fixture for the mask reveal. Not part of the site: run
+     `node dev-server.js` and open http://localhost:5173/_fixture-mask-reveal.html -->
+<html lang="en" data-barba="wrapper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mask-reveal fixture</title>
+<link rel="stylesheet" href="/page-transition.css">
+<style>
+  body { margin: 0; font-family: Georgia, serif; background: #f6f5f2; color: #14110f; }
+  .page_wrap { padding: 4rem 6vw 40vh; }
+  section { margin-bottom: 18vh; }
+  h2 { font-size: 1.4rem; margin: 0 0 1rem; }
+  .lede { min-height: 90vh; }
+  .work_contain, .cases_contain {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 2rem;
+  }
+  .work_img_wrap { aspect-ratio: 4 / 5; }
+  .cases_img_wrap { aspect-ratio: 16 / 9; }
+  img, video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #ddd8d0;
+  }
+  .rounded img { border-radius: 24px; }
+  .marker { position: fixed; top: 85vh; left: 0; right: 0; border-top: 1px dashed #c00; z-index: 9; opacity: .4; }
+  .note { font-size: .9rem; opacity: .6; margin: 0 0 1rem; }
+</style>
+</head>
+<body>
+<div class="marker"></div>
+
+<main class="page_wrap" data-barba="container" data-barba-namespace="fixture">
+
+  <section class="lede">
+    <h2>mask reveal</h2>
+    <p class="note">Scroll. The dashed line is the trigger, <code>top 85%</code>.</p>
+  </section>
+
+  <!-- Default: wipe down from the top, one group, staggered. -->
+  <section>
+    <h2>work_contain — [data-mask-group], default top</h2>
+    <div class="work_contain" data-mask-group>
+      <div class="work_img_wrap"><img data-mask src="https://picsum.photos/seed/w1/800/1000" alt=""></div>
+      <div class="work_img_wrap"><img data-mask src="https://picsum.photos/seed/w2/800/1000" alt=""></div>
+      <div class="work_img_wrap"><img data-mask src="https://picsum.photos/seed/w3/800/1000" alt=""></div>
+    </div>
+  </section>
+
+  <!-- Rounded corners: the radius has to ride along with the inset. -->
+  <section>
+    <h2>cases_contain — rounded, slower stagger</h2>
+    <div class="cases_contain rounded" data-mask-group data-mask-stagger="0.24">
+      <div class="cases_img_wrap"><img data-mask src="https://picsum.photos/seed/c1/1200/675" alt=""></div>
+      <div class="cases_img_wrap"><img data-mask src="https://picsum.photos/seed/c2/1200/675" alt=""></div>
+    </div>
+  </section>
+
+  <!-- Per-element direction, and a video. -->
+  <section>
+    <h2>directions — bottom, left, right</h2>
+    <div class="work_contain" data-mask-group>
+      <div class="work_img_wrap"><img data-mask="bottom" src="https://picsum.photos/seed/d1/800/1000" alt=""></div>
+      <div class="work_img_wrap"><img data-mask="left" src="https://picsum.photos/seed/d2/800/1000" alt=""></div>
+      <div class="work_img_wrap"><img data-mask="right" src="https://picsum.photos/seed/d3/800/1000" alt=""></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>video, no scale</h2>
+    <div class="cases_img_wrap">
+      <video data-mask data-mask-scale="1" autoplay muted loop playsinline
+             src="https://cdn.coverr.co/videos/coverr-a-view-of-the-city-from-a-window-4066/1080p.mp4"></video>
+    </div>
+  </section>
+
+  <section>
+    <h2>ungrouped single, own trigger</h2>
+    <div class="cases_img_wrap"><img data-mask src="https://picsum.photos/seed/s1/1200/675" alt=""></div>
+  </section>
+
+</main>
+
+<footer class="footer_wrap">
+  <p>footer_wrap — page-transition.js queries this on parse.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/CustomEase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/ScrollTrigger.min.js"></script>
+<script src="/kugiri.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@barba/core@2.10.3/dist/barba.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.17/dist/lenis.min.js"></script>
+<script src="/page-transition.js"></script>
+</body>
+</html>

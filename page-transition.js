@@ -45,19 +45,30 @@
     menu: 'menuSwipe'
   };
 
-  /* One curve, two speeds, named. Modules ask for the gesture rather than
-     restate its numbers, and the control points live in exactly one place:
-     gsap needs a registered CustomEase, the Web Animations API needs the
-     cubic-bezier string, and both are cut from QUBIC_CURVE. */
-  const QUBIC_CURVE = '0.65, 0.05, 0.36, 1';
-  CustomEase.create('qubic', QUBIC_CURVE);
+  /* Named curves. Modules ask for the gesture rather than restate its
+     numbers, and the control points live in exactly one place: gsap needs
+     a registered CustomEase, the Web Animations API needs a cubic-bezier
+     string, and neither reads the other's. One call cuts both. */
+  function namedEase(name, points) {
+    CustomEase.create(name, points);
+    return {
+      ease: name,                        // gsap
+      css: `cubic-bezier(${points})`     // WAAPI, and any stylesheet
+    };
+  }
 
-  const QUBIC = {
-    css: `cubic-bezier(${QUBIC_CURVE})`,  // WAAPI, and any stylesheet
-    ease: 'qubic',                        // gsap
-    xl: 1.2,                              // qubicXL — the long one
-    l: 0.8                                // qubicL
-  };
+  // qubicL and qubicXL: one curve at two speeds.
+  const QUBIC = Object.assign(namedEase('qubic', '0.65, 0.05, 0.36, 1'), {
+    xl: 1.2,
+    l: 0.8
+  });
+
+  // inoutMask — inOutQuart. Its own curve because a mask wiping over a
+  // picture is a different gesture from type rising into place: it has to
+  // leave and arrive slowly, and hold speed through the middle.
+  const INOUT_MASK = Object.assign(namedEase('inoutMask', '0.77, 0, 0.175, 1'), {
+    duration: 1.2
+  });
 
   const E = {
     heading: 'power4.out',    // lines rising out of a mask
@@ -1656,6 +1667,130 @@
         t.kill();
       });
       clipped.forEach((el) => { el.style.clipPath = ''; });
+    };
+  });
+
+
+  /* ===== MASK REVEAL — [data-mask] — README ### maskReveal ===== */
+
+  /* A wipe down the picture as it arrives: the media is clipped to
+     nothing at the top edge and the clip opens to the full box.
+
+     clip-path rather than a wrapper with overflow and a moving child.
+     The pictures already sit in wrappers that other modules own — the
+     cards, the parallax groups — and a second layer inside them is a
+     second thing to keep in sync with a layout that changes per
+     breakpoint. A clip on the element itself touches nothing else. */
+
+  const MASK = {
+    from: 'top',          // edge the wipe starts at: top, bottom, left, right
+    duration: INOUT_MASK.duration,
+    ease: INOUT_MASK.ease,
+    start: 'top 85%',     // ScrollTrigger start, the same reading as textAnim
+    stagger: 0.12,        // between marked elements sharing a [data-mask-group]
+
+    /* Slightly overscaled under the clip, settling as the wipe lands, so
+       the picture arrives rather than stands waiting behind a moving
+       edge. 1 turns it off — set it there if the element is already
+       carrying a parallax or hover transform of its own. */
+    scaleFrom: 1.06
+  };
+
+  const MASK_EDGES = {
+    top: [0, 0, 100, 0],
+    bottom: [100, 0, 0, 0],
+    left: [0, 100, 0, 0],
+    right: [0, 0, 0, 100]
+  };
+
+  Modules.add('maskReveal', function (root) {
+    const items = Array.from(root.querySelectorAll('[data-mask]'));
+    if (!items.length || !hasScrollTrigger || reducedMotion) return;
+
+    const triggers = [];
+    const touched = [];
+
+    /* The clip is written before anything is measured or scrolled: the
+       trigger is a frame away at best, and an unclipped first paint is
+       the whole picture flashing in ahead of its own reveal. */
+    const plan = items.map((el) => {
+      const key = (el.dataset.mask || '').trim().toLowerCase();
+      const edges = MASK_EDGES[key] || MASK_EDGES[MASK.from];
+
+      /* Corners come from the element itself: inset() clips to a
+         rectangle, so a rounded picture squares off for the length of
+         the wipe unless the radius rides along. */
+      const radius = getComputedStyle(el).borderRadius;
+      const round = radius && radius !== '0px' ? ` round ${radius}` : '';
+
+      /* Written from a number every frame rather than tweened as a
+         string. gsap interpolates two clip-paths only when they read as
+         the same shape token for token, and a radius breaks that: the
+         browser reports the four insets back as three whenever two
+         agree, so `inset(0% 0% 100% round 24px)` and the four-value end
+         state are different shapes to it and the clip simply jumps at
+         the end. A proxy sidesteps the whole comparison. */
+      const clipAt = (p) =>
+        `inset(${edges.map((n) => `${(n * (1 - p)).toFixed(3)}%`).join(' ')}${round})`;
+
+      const scale = parseFloat(el.dataset.maskScale);
+      const scaleFrom = Number.isFinite(scale) ? scale : MASK.scaleFrom;
+
+      el.style.clipPath = clipAt(0);
+      if (scaleFrom !== 1) el.style.transform = `scale(${scaleFrom})`;
+      touched.push(el);
+
+      return { el, clipAt, scaleFrom };
+    });
+
+    /* Marked elements inside one group play as a run rather than each on
+       its own trigger: a grid of stills that crosses the line together
+       otherwise fires as one event and reads as a flicker. */
+    const groups = new Map();
+    plan.forEach((item) => {
+      const group = item.el.closest('[data-mask-group]');
+      const list = groups.get(group || item.el) || [];
+      list.push(item);
+      groups.set(group || item.el, list);
+    });
+
+    groups.forEach((list, trigger) => {
+      const rawStagger = parseFloat(trigger.dataset && trigger.dataset.maskStagger);
+      const stagger = Number.isFinite(rawStagger) ? rawStagger : MASK.stagger;
+
+      const tl = gsap.timeline({
+        paused: true,
+        defaults: { duration: MASK.duration, ease: MASK.ease }
+      });
+
+      list.forEach((item, i) => {
+        const at = i * stagger;
+        const delay = parseFloat(item.el.dataset.maskDelay);
+        const cue = at + (Number.isFinite(delay) ? delay : 0);
+
+        const wipe = { p: 0 };
+        tl.to(wipe, {
+          p: 1,
+          onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
+        }, cue);
+        if (item.scaleFrom !== 1) tl.to(item.el, { scale: 1 }, cue);
+      });
+
+      triggers.push(ScrollTrigger.create({
+        trigger,
+        start: trigger.dataset && trigger.dataset.maskStart || MASK.start,
+        once: true,
+        onEnter: () => tl.play()
+      }));
+    });
+
+    return () => {
+      triggers.forEach((t) => t.kill());
+      touched.forEach((el) => {
+        gsap.killTweensOf(el);
+        el.style.removeProperty('clip-path');
+        el.style.removeProperty('transform');
+      });
     };
   });
 
