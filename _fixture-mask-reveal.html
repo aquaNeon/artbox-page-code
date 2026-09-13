@@ -79,6 +79,27 @@
     </div>
   </section>
 
+  <!-- Marked on the wrapper, not the picture: the clip rides the div,
+       the overscale still finds the img inside. -->
+  <section>
+    <h2>marked on the wrapper</h2>
+    <div class="work_contain" data-mask-group>
+      <div class="work_img_wrap" data-mask><img src="https://picsum.photos/seed/p1/800/1000" alt=""></div>
+      <div class="work_img_wrap" data-mask><img src="https://picsum.photos/seed/p2/800/1000" alt=""></div>
+      <div class="work_img_wrap" data-mask="left"><img src="https://picsum.photos/seed/p3/800/1000" alt=""></div>
+    </div>
+  </section>
+
+  <!-- A wrapper with more than a picture in it: the caption is clipped
+       with everything else, and only the img takes the scale. -->
+  <section>
+    <h2>wrapper holding a caption too</h2>
+    <div class="cases_img_wrap" data-mask style="aspect-ratio:auto">
+      <img src="https://picsum.photos/seed/p4/1200/675" alt="" style="height:auto">
+      <p class="note">caption inside the marked wrapper</p>
+    </div>
+  </section>
+
   <section>
     <h2>ungrouped single, own trigger</h2>
     <div class="cases_img_wrap"><img data-mask src="https://picsum.photos/seed/s1/1200/675" alt=""></div>

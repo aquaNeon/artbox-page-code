@@ -995,23 +995,32 @@ mask is a shorter move than a whole statement crossing the screen.
 
 ### maskReveal — `[data-mask]`
 
-A wipe down the picture as it arrives. Put `data-mask` on any `img` or `video`
-and it is clipped to nothing at the top edge, opening to the full box on
-**inoutMask** — inOutQuart, 1.2s — when its trigger crosses `top 85%`.
+A wipe down the picture as it arrives. Put `data-mask` on an image, a video, or
+the wrapper around one: whatever is marked is clipped to nothing at the top
+edge, opening to the full box on **inoutMask** — inOutQuart, 1.2s — when its
+trigger crosses `top 85%`.
+
+Marking the wrapper is usually the one to reach for, and it is the only one
+that works where a cell holds a video, its poster and an overlay at once — one
+clip covers all three, where marking the `video` leaves the poster unwiped.
 
 | Attribute | On | Meaning |
 | --- | --- | --- |
-| `data-mask` | the image or video | Marks it. A value sets the edge the wipe starts at: `top` (default), `bottom`, `left`, `right` |
+| `data-mask` | the image, video, or its wrapper | Marks it. A value sets the edge the wipe starts at: `top` (default), `bottom`, `left`, `right` |
 | `data-mask-group` | a wrapper | Everything marked inside plays as one run off the wrapper's trigger, staggered |
 | `data-mask-stagger` | the group | Seconds between them, default `0.12` |
 | `data-mask-start` | the group | ScrollTrigger start, default `top 85%` |
 | `data-mask-delay` | one element | Extra seconds on top of its place in the run |
-| `data-mask-scale` | one element | Overscale under the clip, default `1.06`. `1` turns it off — use it when the element already carries a parallax or hover transform |
+| `data-mask-scale` | one element | Overscale under the clip, default `1.06`. `1` turns it off — use it when the picture already carries a parallax or hover transform |
 
 Ungrouped, each marked element is its own trigger.
 
-**clip-path on the element itself**, not a wrapper with `overflow` and a moving
-child. The pictures already sit in wrappers other modules own — the cards, the
+**The clip goes on the marked element; the overscale does not.** Scaling a
+wrapper scales the whole cell, padding and captions with it, so the scale is
+handed to the first `img` or `video` inside — and to the marked element only
+when that is the picture. Nothing to scale, no scale.
+
+**clip-path rather than a wrapper with `overflow` and a moving child.** The pictures already sit in wrappers other modules own — the cards, the
 parallax groups — and a second layer inside them is another thing to keep in
 step with a layout that changes per breakpoint. A clip touches nothing else.
 

@@ -1733,14 +1733,28 @@
       const clipAt = (p) =>
         `inset(${edges.map((n) => `${(n * (1 - p)).toFixed(3)}%`).join(' ')}${round})`;
 
+      /* The clip goes on whatever is marked — a wrapper clips its
+         picture just as well as the picture does, and marking the
+         wrapper is the one attribute the Designer can put on a div that
+         holds a video, a poster and an overlay at once.
+
+         The overscale does not: scaling a wrapper scales the whole
+         cell, padding and captions with it. It goes to the picture
+         inside, and to the marked element only when that IS the
+         picture. Nothing to scale, no scale. */
+      const media = /^(IMG|VIDEO)$/.test(el.tagName)
+        ? el
+        : el.querySelector('img, video');
+
       const scale = parseFloat(el.dataset.maskScale);
-      const scaleFrom = Number.isFinite(scale) ? scale : MASK.scaleFrom;
+      const scaleFrom = media ? (Number.isFinite(scale) ? scale : MASK.scaleFrom) : 1;
 
       el.style.clipPath = clipAt(0);
-      if (scaleFrom !== 1) el.style.transform = `scale(${scaleFrom})`;
+      if (scaleFrom !== 1) media.style.transform = `scale(${scaleFrom})`;
       touched.push(el);
+      if (media && media !== el) touched.push(media);
 
-      return { el, clipAt, scaleFrom };
+      return { el, media, clipAt, scaleFrom };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -1773,7 +1787,7 @@
           p: 1,
           onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
         }, cue);
-        if (item.scaleFrom !== 1) tl.to(item.el, { scale: 1 }, cue);
+        if (item.scaleFrom !== 1) tl.to(item.media, { scale: 1 }, cue);
       });
 
       triggers.push(ScrollTrigger.create({
