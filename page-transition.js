@@ -67,7 +67,7 @@
   // picture is a different gesture from type rising into place: it has to
   // leave and arrive slowly, and hold speed through the middle.
   const INOUT_MASK = Object.assign(namedEase('inoutMask', '0.77, 0, 0.175, 1'), {
-    duration: 1.2
+    duration: 1.5
   });
 
   const E = {
@@ -1689,11 +1689,11 @@
     start: 'top 85%',     // ScrollTrigger start, the same reading as textAnim
     stagger: 0.12,        // between marked elements sharing a [data-mask-group]
 
-    /* Slightly overscaled under the clip, settling as the wipe lands, so
-       the picture arrives rather than stands waiting behind a moving
-       edge. 1 turns it off — set it there if the element is already
-       carrying a parallax or hover transform of its own. */
-    scaleFrom: 1.06
+    /* Off: the wipe is the whole gesture. Set it above 1 per element
+       with data-mask-scale to have the picture settle as the clip lands
+       — and leave it alone wherever the picture already carries a
+       parallax or hover transform, which is the same property. */
+    scaleFrom: 1
   };
 
   const MASK_EDGES = {

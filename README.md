@@ -989,6 +989,7 @@ gsap — the two engines cannot share one value, so they are cut from one.
 | --- | --- | --- |
 | **qubicL** | `QUBIC.l` — 0.8s | the statements over the pinned video, in and out |
 | **qubicXL** | `QUBIC.xl` — 1.2s | nothing yet; ask for it by name |
+| **inoutMask** | `INOUT_MASK.duration` — 1.5s | the mask wipe over pictures, `cubic-bezier(0.77, 0, 0.175, 1)` |
 
 `textAnim` runs the same curve at its own 0.4s, since a line rising inside a
 mask is a shorter move than a whole statement crossing the screen.
@@ -997,7 +998,7 @@ mask is a shorter move than a whole statement crossing the screen.
 
 A wipe down the picture as it arrives. Put `data-mask` on an image, a video, or
 the wrapper around one: whatever is marked is clipped to nothing at the top
-edge, opening to the full box on **inoutMask** — inOutQuart, 1.2s — when its
+edge, opening to the full box on **inoutMask** — inOutQuart, 1.5s — when its
 trigger crosses `top 85%`.
 
 Marking the wrapper is usually the one to reach for, and it is the only one
@@ -1011,14 +1012,14 @@ clip covers all three, where marking the `video` leaves the poster unwiped.
 | `data-mask-stagger` | the group | Seconds between them, default `0.12` |
 | `data-mask-start` | the group | ScrollTrigger start, default `top 85%` |
 | `data-mask-delay` | one element | Extra seconds on top of its place in the run |
-| `data-mask-scale` | one element | Overscale under the clip, default `1.06`. `1` turns it off — use it when the picture already carries a parallax or hover transform |
+| `data-mask-scale` | one element | Overscale settling as the clip lands, default `1` — off. Set it per element (`1.06` is a gentle one), and leave it off wherever the picture already carries a parallax or hover transform, which is the same property |
 
 Ungrouped, each marked element is its own trigger.
 
-**The clip goes on the marked element; the overscale does not.** Scaling a
-wrapper scales the whole cell, padding and captions with it, so the scale is
-handed to the first `img` or `video` inside — and to the marked element only
-when that is the picture. Nothing to scale, no scale.
+**The clip goes on the marked element; the overscale, where asked for, does
+not.** Scaling a wrapper scales the whole cell, padding and captions with it,
+so the scale is handed to the first `img` or `video` inside — and to the marked
+element only when that is the picture. Nothing to scale, no scale.
 
 **clip-path rather than a wrapper with `overflow` and a moving child.** The pictures already sit in wrappers other modules own — the cards, the
 parallax groups — and a second layer inside them is another thing to keep in
