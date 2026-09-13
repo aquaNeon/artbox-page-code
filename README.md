@@ -1222,40 +1222,26 @@ correct fallback.
 Registered ahead of `baseLib`, so the poster is under this module's control
 before video-min touches it.
 
-## Article spacing — case and insight templates
+## Article grids — case and insight templates
 
-CSS only, no attributes. Below 992px the Designer's spacer variants are all
-one height and the stacked grids one row gap, so the article templates keep
-the same rhythm on a phone:
+CSS only, no attributes. Below 992px the stacked grids take one row gap, so
+the article templates keep the same rhythm on a phone:
 
 | Knob | Default | What it sets |
 | --- | --- | --- |
-| `--section-gap-mobile` | `2rem` | Every `.g_section_space` in the sections listed below |
 | `--section-row-gap-mobile` | `4rem` | Row gap of `.c_cases_row_grid`, `.c_collection_list`, `.post_contact_grid` |
 | `--insight-share-gap-mobile` | `2rem` | Row gap of `.insight_main_grid` — the share block to the article, closer kin than the cards are to each other. The share wrapper's Designer margin is dropped with it, or the two stack |
 
 | Attribute | Where | Meaning |
 | --- | --- | --- |
-| `data-space-keep` | a section, a container, or one spacer | Nothing in it is touched — the Designer's spacing stands at every width |
+| `data-space-keep` | a section, a container, or one element | Nothing in it is touched — the Designer's spacing stands at every width |
 
-Put `data-space-keep` on a section and every spacer and grid gap inside it
-keeps whatever the Designer says; put it on a single `.g_section_space` to
-spare just that one.
-
-The rule is scoped away from the home page by barba namespace
-(`[data-barba-namespace]:not([data-barba-namespace="home"])`): several of
-these sections appear there too, where the Designer's own rhythm is what is
-wanted. Add another namespace to the `:not()` to spare another template.
-
-The spacers are collapsed inside `.c_cases_row_wrap`, `.insights_wrap`,
-`.subheading_wrap`, `.insight_main_wrap`, `.c_vis_wrap`,
-`.post_contact_wrap` and `.c_heading_wrap` — the article body and what
-follows it, not the hero. The hero is the one place the large desktop gap
-still reads on a phone; collapsed, its eyebrow, title and lead land in a
-heap.
-
-Set either knob on the section in the Designer to override one template
-without touching the rest.
+Section spacing is deliberately not touched. The Designer's spacer variants
+carry fluid section sizes that already scale with the viewport, and
+collapsing them below 992px fought those values rather than the rhythm —
+`.g_section_space` is left alone at every width. If a template needs
+different section spacing on a phone, it belongs in the Designer, on the
+spacer variant.
 
 One more thing the insight template needs below 992px: it carries two
 share blocks, the one in the grid above the article and `.is-mobiie` below

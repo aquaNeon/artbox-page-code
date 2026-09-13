@@ -468,41 +468,20 @@ html.is-menu-open {
   color: var(--meganav-cta-text, var(--meganav-panel-bg, #191915));
 }
 
-/* ===== ARTICLE SPACING — case and insight templates, tablet and down ===== */
+/* ===== ARTICLE GRIDS — case and insight templates, tablet and down ===== */
 
 /* Lifted out of the per-section embeds, where the same block was pasted
-   into every template that needed it. The desktop rhythm is authored in
-   the Designer's spacer variants; below 992px those are one number, and
-   the columns that have stopped being columns are another.
+   into every template that needed it.
 
-   The hero keeps its own spacers: it is the one place the large desktop
-   gap still reads on a phone, and collapsing it puts the eyebrow, the
-   title and the lead in a heap.
+   Section spacing is not touched here at all. The Designer's spacer
+   variants carry fluid section sizes that already scale, and every
+   attempt to collapse them below 992px fought the values rather than the
+   rhythm. What is left are the grids: a column gap is spending width
+   nothing is using once the columns have stopped being columns.
 
-   data-space-keep opts a section out of all of it — put it on the section,
-   the container or a single spacer and everything inside keeps whatever
-   the Designer says, at every width.
-
-   Every spacer in those sections takes the number, wherever it sits: no
-   first-child or last-child special cases, since data-space-keep is the
-   way out and positional rules only made the result harder to predict. */
+   data-space-keep opts a section out — put it on the section, the
+   container or a single element and nothing inside is touched. */
 @media screen and (max-width: 991px) {
-  /* Article templates only. Several of these sections are on the home
-     page too, where the Designer's own rhythm is what is wanted — the
-     barba namespace is the one thing that already tells the templates
-     apart, so it is what the rule hangs off. */
-  [data-barba-namespace]:not([data-barba-namespace="home"]) :is(
-    .c_cases_row_wrap,
-    .insights_wrap,
-    .subheading_wrap,
-    .insight_main_wrap,
-    .c_vis_wrap,
-    .post_contact_wrap,
-    .c_heading_wrap
-  ) .g_section_space:not([data-space-keep], [data-space-keep] *) {
-    height: var(--section-gap-mobile, 2rem);
-  }
-
   /* Stacked, the column gap is spending width nothing is using and the
      row gap carries the whole rhythm. */
   .c_cases_row_grid:not([data-space-keep], [data-space-keep] *) {
