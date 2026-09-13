@@ -1291,6 +1291,13 @@
     /* The pin is everything past the one screen the frame occupies. */
     const pin = () => window.innerHeight * (CTA.scroll - 1);
 
+    /* The frame, not the window: they are the same number on Android and
+       they are not on iOS, where the toolbar leaves innerHeight and the
+       painted sticky screen disagreeing. The images are clipped to the
+       frame, so a start measured against the window put them inside it —
+       visible at the bottom, parked, until their tween began. */
+    const screenHeight = () => frame.offsetHeight || window.innerHeight;
+
     const ctx = gsap.context(() => {
       gsap.fromTo(tint,
         { opacity: 0 },
@@ -1348,9 +1355,9 @@
         /* Both ends measured against the screen, not the cell: y is
            relative to wherever the grid put the image, and the cells sit
            at different heights. */
-        const from = () => window.innerHeight * CTA.lead - inFrame(el);
+        const from = () => screenHeight() * CTA.lead - inFrame(el);
         const to = () => -(inFrame(el) + el.offsetHeight +
-          window.innerHeight * CTA.exit);
+          screenHeight() * CTA.exit);
 
         gsap.fromTo(el,
           { y: from },
