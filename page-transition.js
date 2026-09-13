@@ -1440,11 +1440,13 @@
 
   /* ===== CORPORATE HERO — mobile images ===== */
 
-  // The heading's inline images are hidden below 767; these take their
+  // The heading's inline images are hidden below 992; these take their
   // place, fading in on a stagger (keyframes in the CSS) and drifting.
+  // Tablet included: an iPad is wide enough to hold the inline images but
+  // not to read them, and the line breaks land in the wrong places.
 
   const CORP_HERO = {
-    breakpoint: '(max-width: 767px)',
+    breakpoint: '(max-width: 991px)',
     parallax: 40,
     depths: [1, 0.55, 0.8]
   };

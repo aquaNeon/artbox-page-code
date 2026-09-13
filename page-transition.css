@@ -1429,7 +1429,14 @@ html .cta_wrap {
   to   { opacity: 1; transform: scale(1); }
 }
 
-@media screen and (max-width: 767px) {
+@media screen and (max-width: 991px) {
+  /* The inline images leave with the desktop heading — lifted out of the
+     section embed so the breakpoint is one number in one place. */
+  .corporate_wrap .hero-h1__img,
+  .corporate_heading.is-hero {
+    display: none;
+  }
+
   html:not(.wf-design-mode) .corporate_images_mobile_img_wrap {
     animation: var(--corp-hero-duration, 0.9s)
       cubic-bezier(0.25, 0.46, 0.45, 0.94)
