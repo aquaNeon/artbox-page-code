@@ -756,11 +756,34 @@ html.is-menu-open {
 
 @media screen and (max-width: 991px) {
   /* Full bleed: the section container would inset a layout meant to run
-     edge to edge. */
+     edge to edge.
+
+     Sticky on the container, not on .services_heading_wrap: sticky only
+     holds while its own parent passes, and the wrap's parent is no taller
+     than the heading. The container's parent is the section, so the
+     heading arrives with the first row and lets go with the last.
+     Pointer-transparent — there is nothing in it to press.
+
+     The negative margin is its own measured height, so it takes no room in
+     the flow: the stack starts at the top of the section and the heading
+     is over the first row from the first pixel, rather than standing above
+     the images and sliding down onto them. */
   .services_wrap .services_contain {
     max-width: none;
     padding-left: var(--services-stack-inline, 0px);
     padding-right: var(--services-stack-inline, 0px);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    pointer-events: none;
+    margin-top: 0;
+    margin-bottom: calc(-1 * var(--services-stack-heading, 0px));
+    color: var(--services-stack-heading-color, #fff);
+    /* One edge, both ends: this is the heading's distance from the top of
+       the screen, and the rows take the same number off the bottom. The
+       measured height carries it, so nothing has to be added twice. */
+    padding-top: var(--services-stack-edge, 1.5rem);
+    padding-bottom: 0;
   }
 
   .services_hover_items.is-stacked {
@@ -780,9 +803,48 @@ html.is-menu-open {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    /* The rows pass under the heading, so the centring is of what is left
+       below it. The module measures the heading container into the
+       variable — the same number the negative margin above uses, and it
+       already includes the edge the heading holds at the top. */
+    padding-top: var(--services-stack-heading, 0px);
+    padding-bottom: var(--services-stack-edge, 1.5rem);
     /* Every row paints the full screen, so nothing shows through the one
        fading in over it. */
     background-color: var(--services-stack-bg, var(--_theme---background--background-primary, #191915));
+  }
+}
+
+/* Mobile portrait: the heading gives up whatever width cap it carries and
+   takes the screen. A Designer width that reads as restraint at 430px is
+   two words a line at 390. */
+@media screen and (max-width: 479px) {
+  .services_wrap .services_heading_wrap,
+  .services_wrap .services_heading_wrap .g_heading {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+/* The type lists are Webflow rich text. Leading is set here rather than
+   inherited from the wrapper: the wrapper carries a heading style, and a
+   heading's leading on a list of body lines is the tight look. */
+.services_hover_item_text > * {
+  line-height: var(--services-types-leading, 1.5);
+}
+
+/* Tablet and down the entries stack on a gap instead, so the margin that
+   set their spacing is the one thing that goes. */
+@media screen and (max-width: 991px) {
+  .services_hover_item_text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--services-types-gap, 8px);
+  }
+
+  .services_hover_item_text > * {
+    margin-top: 0;
+    margin-bottom: 0;
   }
 }
 
