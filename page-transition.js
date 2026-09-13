@@ -3010,14 +3010,64 @@
     Assets.finsweet().then(() => {
       if (dead) return;
 
-      const restart = window.FinsweetAttributes?.modules?.list?.restart;
-      if (typeof restart !== 'function') return;
+      const fs = window.FinsweetAttributes;
+      if (!fs) return;
 
-      try {
-        restart();
-      } catch (err) {
-        console.warn('[finsweet] list restart failed', err);
-      }
+      /* load, never destroy: destroy tears the solution off the elements it
+         holds, and with sync:true both containers are in the document
+         while this mounts — so it reached into the incoming page and took
+         its pagination markup with it, which is why Load more had no
+         button to bind and only a reload brought it back.
+
+         And not until the outgoing container has actually left, or the
+         scan sees two lists and binds the one that is on its way out. */
+      const reload = () => {
+        if (dead) return;
+
+        const api = window.FinsweetAttributes;
+
+        try {
+          if (typeof api?.load === 'function') api.load('list');
+          else if (typeof api?.modules?.list?.restart === 'function') api.modules.list.restart();
+          else console.warn('[finsweet] no way to reload the list solution');
+        } catch (err) {
+          console.warn('[finsweet] list reload failed', err);
+        }
+      };
+
+      const alone = () => document.querySelectorAll('[data-barba="container"]').length <= 1;
+
+      const restart = () => {
+        if (dead) return;
+        if (alone()) { reload(); return; }
+
+        // The transition owns the second container; this waits it out
+        // rather than racing it, and gives up rather than spinning.
+        let tries = 0;
+        const wait = () => {
+          if (dead) return;
+          if (alone() || tries > 120) { reload(); return; }
+          tries += 1;
+          requestAnimationFrame(wait);
+        };
+        wait();
+      };
+
+      /* push, not modules.list.restart: on the first list page of a
+         session the solution is still booting when this runs, and reading
+         its controls synchronously got undefined and gave up quietly —
+         the swapped-in list then had nobody listening, so Load more fell
+         through to Webflow's own pagination anchor and navigated to page
+         two. The callback fires once the solution is ready, and
+         immediately on every later navigation.
+
+         A frame later either way: with sync:true the outgoing container
+         is still in the document while this mounts, and a restart there
+         binds to the list that is leaving. */
+      const queue = () => requestAnimationFrame(() => requestAnimationFrame(restart));
+
+      if (typeof fs.push === 'function') fs.push(['list', queue]);
+      else queue();
     }).catch((err) => console.error('[finsweet] failed to load', err));
 
     return () => { dead = true; };
