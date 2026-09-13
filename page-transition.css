@@ -784,6 +784,23 @@ html.is-menu-open {
   backface-visibility: visible;
 }
 
+/* Hover tint. A pseudo inside the image wrap, not a layer of its own, so
+   it is clipped by the same rounded corners and rides the image's scale.
+   Always on, never animated: the colour panel above it is what reveals
+   the picture, and a tint that fades in on the same timer shows the
+   image bare for the first frames. Tinted underneath, the photo arrives
+   already dark. Pointer-fine only: on touch the panel never lifts. */
+@media (hover: hover) and (pointer: fine) {
+  .card_hover_img_wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: #000;
+    opacity: var(--card-tint, 0.3);
+    pointer-events: none;
+  }
+}
+
 /* The card already animates its colour, so this follows it with the
    alpha baked in rather than running a timer of its own. */
 .c_slider_swiper .card_hover_wrap .card_hover_details_name,
@@ -1324,6 +1341,60 @@ html.is-menu-open [data-video="component"].is-travelling,
   z-index: 2;
 }
 
+/* Scrim under the statements while the pin holds.
+
+   Hung off the TEXT, not the frame: the frame is scaled to cover and
+   its bottom edge is off the bottom of the screen, so a gradient
+   anchored there would reach the statements already half spent. Off the
+   text it lands in the same place whatever the frame is doing.
+
+   It exists only while the statements are inside the component — which
+   is exactly the pin — so it arrives with the stick and leaves with it,
+   and the keyframe covers the pop that the DOM move would otherwise be.
+
+   Runs to black at --hero-video-scrim-rise below its top and simply
+   stays there: the bottom overhang is off-screen, and the component
+   clips whatever is past its own edge. */
+@keyframes hero-video-scrim-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+[data-video="component"] > .home_video_contain::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  /* Past both edges: the statements' box is the design's column, the
+     scrim is the screen. The frame clips it. */
+  left: -50vw;
+  right: -50vw;
+  top: calc(var(--hero-video-scrim-rise, 26rem) * -1);
+  bottom: -100vh;
+  pointer-events: none;
+  /* Five stops on an ease curve, not two: a straight ramp over this
+     much height reads as a grey band with a visible top edge, and the
+     banding is worst exactly where the alpha is lowest. */
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, calc(var(--hero-video-scrim, 0.55) * 0.06)) calc(var(--hero-video-scrim-rise, 26rem) * 0.28),
+    rgba(0, 0, 0, calc(var(--hero-video-scrim, 0.55) * 0.2))  calc(var(--hero-video-scrim-rise, 26rem) * 0.5),
+    rgba(0, 0, 0, calc(var(--hero-video-scrim, 0.55) * 0.45)) calc(var(--hero-video-scrim-rise, 26rem) * 0.72),
+    rgba(0, 0, 0, calc(var(--hero-video-scrim, 0.55) * 0.75)) calc(var(--hero-video-scrim-rise, 26rem) * 0.89),
+    rgba(0, 0, 0, var(--hero-video-scrim, 0.55)) var(--hero-video-scrim-rise, 26rem)
+  );
+  /* Held off the first beat: the statements' own entrance owns that
+     moment, and a scrim arriving under it competes. */
+  animation: hero-video-scrim-in var(--hero-video-scrim-ms, 900ms)
+    cubic-bezier(0.22, 1, 0.36, 1) var(--hero-video-scrim-delay, 120ms) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-video="component"] > .home_video_contain::before {
+    animation: none;
+  }
+}
+
 
 /* ===== HERO ENTRANCE ORDER ===== */
 
@@ -1342,6 +1413,34 @@ html.is-menu-open [data-video="component"].is-travelling,
    The leading `html` wins the tie against the section's own embed, and
    `nth-child(N of .home_img_wrap)` counts cells rather than siblings, so
    a heading in the grid cannot shift the order by one. */
+
+/* The hero grid overlaps its own cells at some widths — the picture
+   cells are placed over the heading's rows, and which of the two paints
+   last was only ever DOM order. Pinned here so the words are never the
+   thing underneath.
+
+   The cells take an explicit 0 rather than the heading alone taking a 1:
+   .home_img_wrap is transformed by the parallax, which makes it a
+   stacking context, and a transformed cell later in the grid outpaints
+   an untransformed heading on its own.
+
+   pointer-events: none, because the heading's box spans cells it does
+   not visually cover, and on top it would eat the hover the image bump
+   binds to. Links inside it are handed back. */
+.home_wrap .home_img_wrap {
+  position: relative;
+  z-index: 0;
+}
+
+.home_wrap h1 {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.home_wrap h1 a {
+  pointer-events: auto;
+}
 
 .home_wrap {
   --hero-in-lead: 0.15s;   /* before the first cell moves */

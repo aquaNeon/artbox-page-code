@@ -922,6 +922,14 @@ statements change without moving.
 `data-text-anim` / `data-text-anim-heading` on it if you want the line rise.
 The images fade/scale in, bump toward the pointer, and parallax *against*
 the scroll direction (negative `y`).
+The grid overlaps its own cells at some widths, so the stacking is pinned in
+`page-transition.css`: `.home_img_wrap` takes an explicit `z-index: 0` and the
+`h1` a `2`. The cells need the 0 — the parallax transform makes each one a
+stacking context, and a transformed cell later in the grid outpaints an
+untransformed heading by itself. The heading is `pointer-events: none` (links
+inside it excepted) so that, on top, its box does not eat the hover the image
+bump binds to.
+
 Tuning lives in the `HERO` object at the top of the module. The two
 transforms sit on different elements on purpose: parallax drives
 `.home_img_wrap`, the pointer bump drives the `img` inside it.
@@ -1021,6 +1029,17 @@ measured against the frame's *resting* box, since a fast scroll can reach the
 pin with the growth still running and a rect read mid-flight is a scaled one.
 The stylesheet's `left: 0; right: 0` spans the frame, which since the frame
 stopped being the viewport would stretch them off both edges of a phone.
+
+A scrim rides in with the pin so the statements stay readable over a bright
+frame: a pseudo on `.home_video_contain`, black at the foot fading out
+`--hero-video-scrim-rise` (26rem) above it on a five-stop ease curve — a
+straight ramp over that height reads as a grey band with a visible top edge. It hangs off the text rather than
+the frame — the frame is scaled to cover and its bottom edge is below the
+screen, so a gradient anchored there would arrive half spent — and it exists
+only while the statements are inside the component, which is exactly the pin.
+`--hero-video-scrim` (0.55) is its strength, `--hero-video-scrim-ms` (900ms) and
+`--hero-video-scrim-delay` (120ms) its fade — held off the first beat so it does
+not compete with the statement's own entrance.
 
 The first statement enters through a `fromTo`, not a `to`. Whoever sends
 `swap:to` owns the entrance, and a `to` from wherever the statement happens to
