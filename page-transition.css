@@ -673,6 +673,26 @@ html.is-menu-open {
   overflow-wrap: anywhere;
 }
 
+/* ===== INFO SECTION — .c_info_wrap ===== */
+
+/* The text style trims the cell's box to the ink — ::before and ::after
+   as zero-height tables pulling -0.21em off the top and -0.36em off the
+   bottom — so the box hugs the caps and the baseline and the text spills
+   past its own wrapper.
+
+   That makes the grid's gap measure ink to ink while every other gap on
+   the page measures box to box, and the same spacing variable then reads
+   0.57em short here and nowhere else: var(--_sizes---space--7-32) drew
+   32px of box gap between the paragraphs everywhere, and ~23 here.
+
+   Cut, so the cell's box is its line box again and the gap is the number
+   the Designer shows. The cells are already display: flow-root, so the
+   pseudos are not holding a margin collapse open either. */
+.c_info_grid_wrap > .c_info_grid_cell::before,
+.c_info_grid_wrap > .c_info_grid_cell::after {
+  display: none;
+}
+
 /* ===== SLIDER SECTION — .c_slider_wrap — README ### slider ===== */
 
 /* Lifted out of the section embed, where truncated declarations made the
