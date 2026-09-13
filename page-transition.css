@@ -188,14 +188,18 @@ html.is-transitioning {
    sentence. Three things have to be true for that: the grid has to be as
    tall as the sheet (it was only as tall as its content, so there was no
    slack anywhere), the column has to stretch into it, and the text block
-   has to take the leftover rather than the button. Desktop only — below
-   992px the panel is a stack, where a floor is just the next thing down. */
-@media screen and (min-width: 992px) {
-  .meganav_root .meganav_panel_inner {
-    min-height: 100%;
-    align-items: stretch;
-  }
+   has to take the leftover rather than the button.
 
+   Desktop only, and display is set nowhere the Designer might be hiding
+   something: the mobile sheet has a CTA of its own further down, and a
+   display:flex here brought the desktop one back alongside it. The
+   columns keep their own alignment for the same reason — stretching them
+   moved text that was meant to sit at the top. */
+.meganav_root .meganav_panel_inner {
+  min-height: 100%;
+}
+
+@media screen and (min-width: 992px) {
   .meganav_root .meganav_feature_wrap {
     align-self: stretch;
     display: flex;
@@ -211,6 +215,30 @@ html.is-transitioning {
   .meganav_root .meganav_feature_btn_wrap {
     margin-top: auto;
     align-self: var(--meganav-cta-align, start);
+  }
+}
+
+/* The sheet has its own CTA below 992px — a different element, and the
+   one actually on screen there. Same floor, reached through the column
+   rather than the feature block. Display is not touched: whatever the
+   Designer hides at a given width stays hidden. */
+@media screen and (max-width: 991px) {
+  .meganav_root .meganav_col {
+    flex: 1 1 auto;
+  }
+
+  .meganav_root .meganav_content {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  /* flex:none first: the wrapper is handed flex-grow, so it swallowed the
+     free space and held the button at the top of a 300px box — and an
+     auto margin with no free space left to take is worth zero. */
+  .meganav_root .meganav_mobile_btn_wrap {
+    flex: 0 0 auto;
+    margin-top: auto;
   }
 }
 
