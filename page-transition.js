@@ -45,6 +45,20 @@
     menu: 'menuSwipe'
   };
 
+  /* One curve, two speeds, named. Modules ask for the gesture rather than
+     restate its numbers, and the control points live in exactly one place:
+     gsap needs a registered CustomEase, the Web Animations API needs the
+     cubic-bezier string, and both are cut from QUBIC_CURVE. */
+  const QUBIC_CURVE = '0.65, 0.05, 0.36, 1';
+  CustomEase.create('qubic', QUBIC_CURVE);
+
+  const QUBIC = {
+    css: `cubic-bezier(${QUBIC_CURVE})`,  // WAAPI, and any stylesheet
+    ease: 'qubic',                        // gsap
+    xl: 1.2,                              // qubicXL — the long one
+    l: 0.8                                // qubicL
+  };
+
   const E = {
     heading: 'power4.out',    // lines rising out of a mask
     body: 'power3.out',       // paragraphs, solo elements, swapped statements
@@ -55,6 +69,7 @@
     hover: 'power3',          // pointer-following
     hoverOut: 'power3.inOut', // the follower scaling away
     label: 'power1.out',      // text swapping under a button
+    qubic: QUBIC.ease,        // the named curve, whatever speed the caller wants
     page: EASE.page,
     menuSheet: EASE.menu
   };
@@ -393,17 +408,20 @@
        the travel reads as too far; 0 puts the ring back. */
     parkCushion: '0.3em',
 
-    headingDuration: 0.75,
+    /* One curve and one duration across the three line roles: a heading
+       and the paragraph under it read as the same gesture, and three
+       near-identical eases only made them drift. */
+    headingDuration: 1.2,
     headingStagger: 0.16,
-    headingEase: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    headingEase: QUBIC.css,
 
-    bodyDuration: 0.9,
+    bodyDuration: 0.4,
     bodyStagger: 0.08,
-    bodyEase: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+    bodyEase: QUBIC.css,
 
-    listDuration: 0.5,
+    listDuration: 0.4,
     listStagger: 0.06,
-    listEase: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    listEase: QUBIC.css,
 
     // Smaller units, more of them: their own spacing, not the role's.
     wordStagger: 0.03,
@@ -2991,15 +3009,16 @@
 
   const SWAP = {
     hold: 3500,
-    duration: 0.7,
+    duration: QUBIC.l,
     shift: 24,          // px travelled, out upward and in from below
-    ease: E.body,
+    ease: E.qubic,
 
-    /* The -solo entrance, played here rather than by textAnim. Its own
-       numbers: textAnim's are cubic-bezier strings for the Web Animations
-       API, which gsap does not read. */
-    soloDuration: 0.9,
-    soloEase: E.body,
+    /* The -solo entrance, played here rather than by textAnim. Same
+       gesture, taken from the preset: textAnim states the curve as a
+       cubic-bezier string for the Web Animations API, which gsap does
+       not read, and E.qubic is that curve registered for gsap. */
+    soloDuration: QUBIC.l,
+    soloEase: E.qubic,
     soloShift: 30,      // yPercent
 
     start: 'top 70%',

@@ -977,6 +977,22 @@ Script tags placed inside the swapped container never execute on a Barba
 navigation. The three former inline section embeds now live here as modules —
 delete them in the Designer or they run twice on first load.
 
+### Named easing — qubic
+
+One curve at two speeds, at the top of `page-transition.js` beside the other
+eases. `QUBIC_CURVE` holds the control points once; `QUBIC.css` is the
+`cubic-bezier()` string the Web Animations API and any stylesheet take, and
+`QUBIC.ease` / `E.qubic` is the same curve registered with `CustomEase` for
+gsap — the two engines cannot share one value, so they are cut from one.
+
+| Preset | Duration | Used by |
+| --- | --- | --- |
+| **qubicL** | `QUBIC.l` — 0.8s | the statements over the pinned video, in and out |
+| **qubicXL** | `QUBIC.xl` — 1.2s | nothing yet; ask for it by name |
+
+`textAnim` runs the same curve at its own 0.4s, since a line rising inside a
+mask is a shorter move than a whole statement crossing the screen.
+
 ### heroVideo
 
 The last cell of the hero grid is a video. It leaves the grid, travels to the
