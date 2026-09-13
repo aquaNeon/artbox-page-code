@@ -2208,13 +2208,33 @@
 
         /* Re-read on the way open rather than trusting the mount: the
            padding is a fluid variable, so the number it resolved to at
-           load is not the number it holds at this width. The inline zero
-           is lifted, measured, and put back before the tween starts. */
+           load is not the number it holds at this width.
+
+           The target height is measured here too, with that padding in
+           place, and tweened as a number. Left as 'auto', gsap measures
+           it while the inline padding is still zero — and under
+           border-box the padding then grows into the height as the panel
+           opens, squeezing the content box until the last line only
+           appears when 'auto' lands at the end. */
+        let target = 0;
         if (open) {
           gsap.set(rec.panel, { clearProps: 'paddingTop,paddingBottom' });
           const live = getComputedStyle(rec.panel);
           rec.pad = { top: live.paddingTop, bottom: live.paddingBottom };
-          gsap.set(rec.panel, { paddingTop: 0, paddingBottom: 0 });
+
+          const was = rec.panel.style.height;
+          gsap.set(rec.panel, { height: 'auto' });
+          const box = getComputedStyle(rec.panel);
+          const outer = rec.panel.offsetHeight;
+          target = box.boxSizing === 'border-box'
+            ? outer
+            : outer
+              - Number.parseFloat(box.paddingTop)
+              - Number.parseFloat(box.paddingBottom)
+              - Number.parseFloat(box.borderTopWidth)
+              - Number.parseFloat(box.borderBottomWidth);
+
+          gsap.set(rec.panel, { height: was || 0, paddingTop: 0, paddingBottom: 0 });
         }
 
         rec.tl = gsap.timeline({
@@ -2231,7 +2251,7 @@
         });
 
         rec.tl.to(rec.panel, {
-          height: open ? 'auto' : 0,
+          height: open ? target : 0,
           paddingTop: open ? rec.pad.top : 0,
           paddingBottom: open ? rec.pad.bottom : 0
         }, 0);
