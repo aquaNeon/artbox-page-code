@@ -63,11 +63,9 @@
     l: 0.8
   });
 
-  // inoutMask — inOutQuart. Its own curve because a mask wiping over a
-  // picture is a different gesture from type rising into place: it has to
-  // leave and arrive slowly, and hold speed through the middle.
-  const INOUT_MASK = Object.assign(namedEase('inoutMask', '0.77, 0, 0.175, 1'), {
-    duration: 0.8
+
+  const INOUT_MASK = Object.assign(namedEase('inoutMask', '0.65,0.05,0.36,1'), {
+    duration: 1.0
   });
 
   const E = {
@@ -1671,7 +1669,7 @@
   });
 
 
-  /* ===== MASK REVEAL — [data-mask] — README ### maskReveal ===== */
+  /* ===== REVEALS — [data-mask], [data-grow] — README ### maskReveal ===== */
 
   /* A wipe down the picture as it arrives: the media is clipped to
      nothing at the top edge and the clip opens to the full box.
@@ -1696,6 +1694,15 @@
     scaleFrom: 1
   };
 
+  /* [data-grow] — the other reveal. The picture widens into its box
+     rather than being uncovered: scaleX alone, from a centre origin, so
+     both edges travel and nothing moves off its own axis. */
+  const GROW = {
+    from: 0.8,            // starting scaleX
+    duration: 1.2,
+    ease: INOUT_MASK.ease
+  };
+
   const MASK_EDGES = {
     top: [0, 0, 100, 0],
     bottom: [100, 0, 0, 0],
@@ -1704,7 +1711,7 @@
   };
 
   Modules.add('maskReveal', function (root) {
-    const items = Array.from(root.querySelectorAll('[data-mask]'));
+    const items = Array.from(root.querySelectorAll('[data-mask], [data-grow]'));
     if (!items.length || !hasScrollTrigger || reducedMotion) return;
 
     const triggers = [];
@@ -1714,6 +1721,8 @@
        trigger is a frame away at best, and an unclipped first paint is
        the whole picture flashing in ahead of its own reveal. */
     const plan = items.map((el) => {
+      const masks = el.hasAttribute('data-mask');
+      const grows = el.hasAttribute('data-grow');
       const key = (el.dataset.mask || '').trim().toLowerCase();
       const edges = MASK_EDGES[key] || MASK_EDGES[MASK.from];
 
@@ -1747,14 +1756,29 @@
         : el.querySelector('img, video');
 
       const scale = parseFloat(el.dataset.maskScale);
-      const scaleFrom = media ? (Number.isFinite(scale) ? scale : MASK.scaleFrom) : 1;
+      const scaleFrom = masks && media
+        ? (Number.isFinite(scale) ? scale : MASK.scaleFrom)
+        : 1;
 
-      el.style.clipPath = clipAt(0);
+      const rawGrow = parseFloat(el.dataset.grow);
+      const growFrom = grows && media
+        ? (Number.isFinite(rawGrow) ? rawGrow : GROW.from)
+        : 1;
+
+      /* Both start states are written before anything is measured or
+         scrolled: the trigger is a frame away at best, and an unclipped,
+         unscaled first paint is the picture flashing in ahead of its own
+         reveal. */
+      if (masks) el.style.clipPath = clipAt(0);
       if (scaleFrom !== 1) media.style.transform = `scale(${scaleFrom})`;
+      if (growFrom !== 1) {
+        media.style.transform = `scaleX(${growFrom})`;
+        media.style.transformOrigin = 'center';
+      }
       touched.push(el);
       if (media && media !== el) touched.push(media);
 
-      return { el, media, clipAt, scaleFrom };
+      return { el, media, masks, clipAt, scaleFrom, growFrom };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -1762,37 +1786,46 @@
        otherwise fires as one event and reads as a flicker. */
     const groups = new Map();
     plan.forEach((item) => {
-      const group = item.el.closest('[data-mask-group]');
+      const group = item.el.closest('[data-mask-group], [data-grow-group]');
       const list = groups.get(group || item.el) || [];
       list.push(item);
       groups.set(group || item.el, list);
     });
 
     groups.forEach((list, trigger) => {
-      const rawStagger = parseFloat(trigger.dataset && trigger.dataset.maskStagger);
+      const data = trigger.dataset || {};
+      const rawStagger = parseFloat(data.maskStagger ?? data.growStagger);
       const stagger = Number.isFinite(rawStagger) ? rawStagger : MASK.stagger;
 
-      const tl = gsap.timeline({
-        paused: true,
-        defaults: { duration: MASK.duration, ease: MASK.ease }
-      });
+      const tl = gsap.timeline({ paused: true });
 
       list.forEach((item, i) => {
         const at = i * stagger;
-        const delay = parseFloat(item.el.dataset.maskDelay);
+        const delay = parseFloat(item.el.dataset.maskDelay ?? item.el.dataset.growDelay);
         const cue = at + (Number.isFinite(delay) ? delay : 0);
 
-        const wipe = { p: 0 };
-        tl.to(wipe, {
-          p: 1,
-          onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
-        }, cue);
-        if (item.scaleFrom !== 1) tl.to(item.media, { scale: 1 }, cue);
+        if (item.masks) {
+          const wipe = { p: 0 };
+          tl.to(wipe, {
+            p: 1,
+            duration: MASK.duration,
+            ease: MASK.ease,
+            onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
+          }, cue);
+        }
+
+        if (item.scaleFrom !== 1) {
+          tl.to(item.media, { scale: 1, duration: MASK.duration, ease: MASK.ease }, cue);
+        }
+
+        if (item.growFrom !== 1) {
+          tl.to(item.media, { scaleX: 1, duration: GROW.duration, ease: GROW.ease }, cue);
+        }
       });
 
       triggers.push(ScrollTrigger.create({
         trigger,
-        start: trigger.dataset && trigger.dataset.maskStart || MASK.start,
+        start: data.maskStart || data.growStart || MASK.start,
         once: true,
         onEnter: () => tl.play()
       }));
@@ -1804,6 +1837,7 @@
         gsap.killTweensOf(el);
         el.style.removeProperty('clip-path');
         el.style.removeProperty('transform');
+        el.style.removeProperty('transform-origin');
       });
     };
   });

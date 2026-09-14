@@ -1024,6 +1024,18 @@ clip covers all three, where marking the `video` leaves the poster unwiped.
 
 Ungrouped, each marked element is its own trigger.
 
+**`[data-grow]`** is the other reveal on the same plumbing: the picture widens
+into its box on `scaleX`, 0.8 to 1 from a centre origin, so both edges travel
+and nothing moves off its own axis. **inoutMask at 1.2s.** A value sets where it
+starts from — `data-grow="0.6"` — and `[data-grow-group]`, `data-grow-stagger`,
+`data-grow-start` and `data-grow-delay` are the group and timing knobs, read the
+same way the mask's are.
+
+The two can sit on one element: the clip uncovers while the picture widens. They
+write different properties — `clip-path` on the marked element, `transform` on
+the picture — so they do not collide. `data-mask-scale` and `data-grow` do
+collide, both being `transform` on the picture; pick one.
+
 **The clip goes on the marked element; the overscale, where asked for, does
 not.** Scaling a wrapper scales the whole cell, padding and captions with it,
 so the scale is handed to the first `img` or `video` inside — and to the marked

@@ -100,6 +100,22 @@
     </div>
   </section>
 
+  <!-- [data-grow]: scaleX out from the centre, no clip. -->
+  <section>
+    <h2>data-grow — scaleX 0.8 to 1</h2>
+    <div class="work_contain" data-grow-group>
+      <div class="work_img_wrap" data-grow><img src="https://picsum.photos/seed/g1/800/1000" alt=""></div>
+      <div class="work_img_wrap" data-grow><img src="https://picsum.photos/seed/g2/800/1000" alt=""></div>
+      <div class="work_img_wrap" data-grow="0.6"><img src="https://picsum.photos/seed/g3/800/1000" alt=""></div>
+    </div>
+  </section>
+
+  <!-- Both at once: the clip uncovers while the picture widens. -->
+  <section>
+    <h2>data-mask + data-grow together</h2>
+    <div class="cases_img_wrap" data-mask data-grow><img src="https://picsum.photos/seed/g4/1200/675" alt=""></div>
+  </section>
+
   <section>
     <h2>ungrouped single, own trigger</h2>
     <div class="cases_img_wrap"><img data-mask src="https://picsum.photos/seed/s1/1200/675" alt=""></div>
