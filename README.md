@@ -917,13 +917,29 @@ naming them.
 Only on a swap: on the first load the solution is still fetching when modules
 mount, so `restart` is not there yet and Attributes is about to initialise
 itself anyway. Calling it then would either throw or re-run an init that had
-not finished.
+not finished. The wait for it is a frame or a timer, whichever comes first — a
+tab that is not being painted serves no animation frames, and a list that
+waited on one stayed unbound until somebody looked at the tab.
+
+`restart`, not `load`. `load(key)` only boots a solution that is not running:
+asked again for one that already is, it resolves to `undefined` without
+looking at the page. A list swapped in by a transition was therefore left
+exactly as it arrived — Load more still the plain pagination anchor
+underneath, which navigates and lands you at the top of page two. Reloading
+the page hid it, because a boot from scratch does read the list.
+`modules.list.restart()` is what rescans. `load` stays as the fallback for the
+first list of a session, where nothing is running yet.
 
 Keep the Attributes `<script>` in the Webflow footer embed, once, site-wide,
-outside the swapped container. The v2 API is `window.FinsweetAttributes` —
-`push([key, cb])` to run code once a solution has loaded, `modules.<key>` for
-its controls (`restart`, `destroy`, `loading`), and `load(key)` to pull one in
-on demand.
+outside the swapped container. This bundle sits earlier in that footer, so the
+tag is not parsed yet when the fetch runs: it waits for the document to be
+read and then for the tag it finds, rather than adding a second copy of a
+script that was on its way. Two copies both carrying `fs-list` both boot the
+list solution, and the second scan leaves Load more bound to nothing.
+
+The v2 API is `window.FinsweetAttributes` — `push([key, cb])` to run code once
+a solution has loaded, `modules.<key>` for its controls (`restart`, `destroy`,
+`loading`), and `load(key)` to pull one in on demand.
 
 Paging controls are excluded from barba. Finsweet pages a list by clicking
 Webflow's own pagination anchor (`?…_page=2`) and reading the response —

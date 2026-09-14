@@ -3962,8 +3962,19 @@
         const api = window.FinsweetAttributes;
 
         try {
-          if (typeof api?.load === 'function') api.load('list');
-          else if (typeof api?.modules?.list?.restart === 'function') api.modules.list.restart();
+          /* restart first, load second, and not the other way round:
+             load('list') only boots a solution that has not booted. Asked
+             again for one that is already running it resolves to
+             undefined without looking at the page, so every list swapped
+             in by a transition was left exactly as it arrived — Load more
+             still the plain pagination anchor underneath, which navigates
+             and lands you at the top of page two. Reloading the page hid
+             it, because a boot from scratch does read the list.
+
+             load stays as the fallback for the first list of a session,
+             where there is genuinely nothing running yet. */
+          if (typeof api?.modules?.list?.restart === 'function') api.modules.list.restart();
+          else if (typeof api?.load === 'function') api.load('list');
           else console.warn('[finsweet] no way to reload the list solution');
         } catch (err) {
           console.warn('[finsweet] list reload failed', err);
@@ -3971,6 +3982,19 @@
       };
 
       const alone = () => document.querySelectorAll('[data-barba="container"]').length <= 1;
+
+      /* A frame, unless frames are not coming. A hidden tab — opened in
+         the background, restored into a window that is not being painted
+         — serves no animation frames at all, and a list that waited on
+         one stayed unbound until the tab was looked at. The timer is the
+         floor, the frame is the common case, and whichever arrives first
+         wins once. */
+      const soon = (fn) => {
+        let run = false;
+        const go = () => { if (run) return; run = true; fn(); };
+        requestAnimationFrame(go);
+        setTimeout(go, 32);
+      };
 
       const restart = () => {
         if (dead) return;
@@ -3983,7 +4007,7 @@
           if (dead) return;
           if (alone() || tries > 120) { reload(); return; }
           tries += 1;
-          requestAnimationFrame(wait);
+          soon(wait);
         };
         wait();
       };
@@ -3999,7 +4023,7 @@
          A frame later either way: with sync:true the outgoing container
          is still in the document while this mounts, and a restart there
          binds to the list that is leaving. */
-      const queue = () => requestAnimationFrame(() => requestAnimationFrame(restart));
+      const queue = () => soon(() => soon(restart));
 
       if (typeof fs.push === 'function') fs.push(['list', queue]);
       else queue();
