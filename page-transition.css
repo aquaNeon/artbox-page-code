@@ -1559,14 +1559,18 @@ html.is-menu-open [data-video="component"].is-travelling,
    the next. So heroVideo marks it on the way out and waits for the fade
    before it moves them.
 
-   animation: none is what lets the fade happen at all: the entrance
-   keyframe fills both ways, and a filled animation outranks any opacity
-   written here. Dropped, the property is transitionable again and the
-   transition runs from the value the animation was holding. */
+   A second animation rather than a transition: the entrance keyframe
+   fills both ways, and dropping it for a plain opacity does not reliably
+   start a transition — the before-change style still carries the filled
+   animation, so it snaps. Replacing one animation with another always
+   runs. */
+@keyframes hero-video-scrim-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
 .home_video_contain.is-scrim-out::before {
-  animation: none;
-  opacity: 0;
-  transition: opacity var(--hero-video-scrim-out, 260ms) ease;
+  animation: hero-video-scrim-out var(--hero-video-scrim-out, 260ms) ease both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1575,7 +1579,8 @@ html.is-menu-open [data-video="component"].is-travelling,
   }
 
   .home_video_contain.is-scrim-out::before {
-    transition: none;
+    animation: none;
+    opacity: 0;
   }
 }
 
