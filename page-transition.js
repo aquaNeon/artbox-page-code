@@ -2492,6 +2492,12 @@
     coverFrom: 0.18,    // the incoming visual starts this small, centred
     coverDuration: 0.7,
     coverEase: E.body,
+
+    /* And an iris with it, so a tab arrives the way everything else on
+       the site does — data-mask="hero", the home hero's cells. A beat
+       longer than the growth, which is what stops the edge landing while
+       the picture is still getting there. */
+    coverClip: 0.9,
     autoplayMs: 5000,
 
     /* The detail's content rises with the height, rather than carrying
@@ -2671,6 +2677,7 @@
           }
           const b = bar(i);
           if (b) gsap.set(b, { scaleX: 0, transformOrigin: 'left center' });
+          visualItems[i].style.removeProperty('clip-path');
           gsap.set(visualItems[i], i === index
             ? { autoAlpha: 1, scale: 1, zIndex: 1 }
             : { autoAlpha: 0, scale: 1, zIndex: 0 });
@@ -2728,6 +2735,30 @@
           visualItems[index],
           { autoAlpha: 1, scale: TABS.coverFrom, zIndex: 1, transformOrigin: 'center center' },
           { scale: 1, duration: TABS.coverDuration, ease: TABS.coverEase },
+          0
+        );
+
+        /* Written from a number rather than tweened as a string: gsap
+           interpolates two clip-paths only when they read as the same
+           shape token for token, and the browser hands four equal insets
+           back as one, so the two ends are different shapes to it and the
+           clip jumps at the end instead of opening. */
+        const iris = { p: 0 };
+        const incoming = visualItems[index];
+        switchTl.fromTo(iris,
+          { p: 0 },
+          {
+            p: 1,
+            duration: TABS.coverClip,
+            ease: TABS.coverEase,
+            onUpdate: () => {
+              const inset = (50 * (1 - iris.p)).toFixed(3);
+              incoming.style.clipPath = `inset(${inset}% ${inset}% ${inset}% ${inset}%)`;
+            },
+            // Handed back once it is open, so nothing carries a clip into
+            // the next swap or into a page transition.
+            onComplete: () => { incoming.style.removeProperty('clip-path'); }
+          },
           0
         );
         const inDetail = detail(index);

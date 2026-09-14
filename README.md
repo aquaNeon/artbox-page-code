@@ -519,9 +519,11 @@ belongs in the Designer.
 
 ### tabs — `[data-tabs="wrapper"]`
 
-The visual does not cross-fade between tabs: the incoming one **grows from the
-middle over the one before it**, which holds still at full strength until it is
-covered — the same move the services rows make, at the same numbers
+The visual does not cross-fade between tabs: the incoming one **opens an iris
+from its middle while growing over the one before it** — the same gesture as
+`data-mask="hero"` and the home hero's cells, on two clocks (`coverClip` 0.9s,
+`coverDuration` 0.7s) so the edge does not land while the picture is still on
+its way. The one before it holds still at full strength until it is covered — the same move the services rows make, at the same numbers
 (`coverFrom` 0.18, `coverDuration` 0.7s). The covered visual is only dropped
 once the new one has landed, so nothing shows past the corners of a picture
 still on its way in.
