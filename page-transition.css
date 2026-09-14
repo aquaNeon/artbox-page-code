@@ -1540,6 +1540,71 @@ html.is-menu-open [data-video="component"].is-travelling,
 }
 
 
+/* ===== HERO ENTRANCE — [data-hero-in] — README ### hero entrance ===== */
+
+/* The home hero's arrival, lifted out of its embed so any hero can wear
+   it: the picture opens from a line at its middle while growing out of
+   nothing. Two animations rather than one, because they run on their own
+   clocks — the clip finishes a beat after the scale, which is what stops
+   the edge arriving with the picture already at full size.
+
+   Put [data-hero-in] on the picture, or on the wrapper around it.
+   [data-hero-in-group] on their parent orders them: each child takes the
+   next slot, lead + i * step, the same shape SEQUENCE uses in the JS.
+
+   html:not(.wf-design-mode) so the Designer canvas is left alone — an
+   element parked at opacity 0 is invisible to design against. */
+
+@keyframes hero-in {
+  from { opacity: 0; clip-path: inset(50% 50% 50% 50%); }
+  to   { opacity: 1; clip-path: inset(0% 0% 0% 0%); }
+}
+
+@keyframes hero-scale {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+
+html:not(.wf-design-mode) [data-hero-in],
+html:not(.wf-design-mode) [data-hero-in] > img,
+html:not(.wf-design-mode) [data-hero-in] > video {
+  transform-origin: center;
+}
+
+html:not(.wf-design-mode) [data-hero-in] {
+  animation:
+    hero-in var(--hero-in-open, 1s) var(--ease-inout-mask)
+      var(--hero-in-delay, var(--hero-in-lead, 0.25s)) both,
+    hero-scale var(--hero-in-grow, 0.8s) var(--ease-inout-mask)
+      var(--hero-in-delay, var(--hero-in-lead, 0.25s)) both;
+}
+
+/* Slots, written out rather than counted: sibling-index() would do this
+   in one line and is too new to rely on. Eight is more pictures than a
+   hero has; a ninth simply shares the eighth's cue. */
+html:not(.wf-design-mode) [data-hero-in-group] > *:nth-child(1) { --hero-in-i: 0; }
+html:not(.wf-design-mode) [data-hero-in-group] > *:nth-child(2) { --hero-in-i: 1; }
+html:not(.wf-design-mode) [data-hero-in-group] > *:nth-child(3) { --hero-in-i: 2; }
+html:not(.wf-design-mode) [data-hero-in-group] > *:nth-child(4) { --hero-in-i: 3; }
+html:not(.wf-design-mode) [data-hero-in-group] > *:nth-child(5) { --hero-in-i: 4; }
+html:not(.wf-design-mode) [data-hero-in-group] > *:nth-child(6) { --hero-in-i: 5; }
+html:not(.wf-design-mode) [data-hero-in-group] > *:nth-child(7) { --hero-in-i: 6; }
+html:not(.wf-design-mode) [data-hero-in-group] > *:nth-child(n+8) { --hero-in-i: 7; }
+
+html:not(.wf-design-mode) [data-hero-in-group] [data-hero-in],
+html:not(.wf-design-mode) [data-hero-in-group] > [data-hero-in] {
+  --hero-in-delay: calc(
+    var(--hero-in-lead, 0.25s) + var(--hero-in-i, 0) * var(--hero-in-step, 0.15s)
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html [data-hero-in] {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* ===== HERO ENTRANCE ORDER ===== */
 
 /* The entrance itself is a @keyframes in the .home_wrap embed; only the
@@ -1733,14 +1798,11 @@ html .cta_wrap {
 /* Corporate hero, mobile images: the home hero's entrance borrowed —
    same 0.6 scale, staggered down the block. The scroll drift is the
    corporateHero module. */
-/* Out of nothing, from the middle, on the home hero's curve and clock.
-   Only below 992: above it these pictures are set inline into the
-   heading, where textAnim scales them with the line they sit on and a
-   second scale here would be fighting it. */
-@keyframes corp-hero-in {
-  from { opacity: 0; transform: scale(0); }
-  to   { opacity: 1; transform: scale(1); }
-}
+/* Below 992 these pictures leave the heading and stack as blocks of
+   their own, and they wear the shared hero entrance — same two keyframes
+   the home hero uses, so there is one definition of what arriving looks
+   like. Above the breakpoint they are inline in the heading instead,
+   where textAnim scales them with the line they ride. */
 
 @media screen and (max-width: 991px) {
   /* The inline images leave with the desktop heading — lifted out of the
@@ -1751,9 +1813,11 @@ html .cta_wrap {
   }
 
   html:not(.wf-design-mode) .corporate_images_mobile_img_wrap {
-    animation: var(--corp-hero-duration, 0.8s)
-      var(--ease-qubic)
-      var(--corp-hero-lead, 0.15s) 1 normal both running corp-hero-in;
+    animation:
+      hero-in var(--hero-in-open, 1s) var(--ease-inout-mask)
+        var(--corp-hero-lead, 0.15s) both,
+      hero-scale var(--corp-hero-duration, 0.8s) var(--ease-inout-mask)
+        var(--corp-hero-lead, 0.15s) both;
     transform-origin: center center;
   }
 

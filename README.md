@@ -1009,12 +1009,48 @@ The home hero's entrance is **not** one of them: curve and duration both stay in
 the section embed, which writes them in an `animation` shorthand, and nothing
 here overrides it. The corporate hero borrows `--ease-qubic` to match it.
 
+### hero entrance — `[data-hero-in]`
+
+The home hero's arrival, lifted out of its embed so any hero can wear it: the
+picture opens from a line at its middle while growing out of nothing.
+
+```html
+<div class="hero_images" data-hero-in-group>
+  <div class="hero_img_wrap" data-hero-in><img …></div>
+  <div class="hero_img_wrap" data-hero-in><img …></div>
+</div>
+```
+
+`[data-hero-in]` on the picture or its wrapper is the entrance;
+`[data-hero-in-group]` on the parent orders them, each child taking the next
+slot — `lead + i * step`, the same shape `SEQUENCE` uses in the JS. UnGrouped,
+every marked element shares the lead.
+
+| Variable | Default | |
+| --- | --- | --- |
+| `--hero-in-lead` | `0.25s` | before the first one moves |
+| `--hero-in-step` | `0.15s` | between one and the next |
+| `--hero-in-open` | `1s` | the clip opening |
+| `--hero-in-grow` | `0.8s` | the scale |
+| `--hero-in-delay` | — | set directly to bypass the slot arithmetic |
+
+**Two animations, not one.** The clip and the scale run on their own clocks —
+the clip finishes a beat after the scale, which is what stops the edge arriving
+with the picture already at full size. Both are on `--ease-inout-mask`.
+
+Slots are written out to eight rather than counted: `sibling-index()` would do it
+in one line and is too new to rely on. A ninth picture shares the eighth's cue.
+
+Scoped `html:not(.wf-design-mode)` so the Designer canvas is left alone — an
+element parked at `opacity: 0` is invisible to design against — and dropped
+whole under `prefers-reduced-motion`.
+
 ### corporateHero — mobile blocks
 
 Below 992 the corporate hero's pictures leave the heading and stack as
-`.corporate_images_mobile_img_wrap` blocks. Those grow out of nothing from the
-middle on the home hero's curve and clock — `scale(0)` to full, 0.8s on
-`--ease-qubic`, staggered by `--corp-hero-step`.
+`.corporate_images_mobile_img_wrap` blocks. Those wear the shared hero entrance
+above — the same two keyframes, so there is one definition of what arriving
+looks like — cued by `--corp-hero-lead` and staggered by `--corp-hero-step`.
 
 Only below 992. Above it the same pictures are set inline into the heading,
 where `textAnim` scales them with the line they sit on (`TEXT.imgFrom`), and a
