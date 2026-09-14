@@ -1694,11 +1694,16 @@
     scaleFrom: 1
   };
 
-  /* [data-grow] — the other reveal. The picture widens into its box
-     rather than being uncovered: scaleX alone, from a centre origin, so
-     both edges travel and nothing moves off its own axis. */
+  /* [data-grow] — the same wipe, opening sideways from the middle and
+     starting part-open rather than shut: the picture is uncovered out to
+     both edges from 80% of its width.
+
+     A clip, not a scaleX. Scaling the picture to 0.8 on one axis squashes
+     it — every face in it narrows for the length of the move and springs
+     back — where a clip only ever shows less of a picture that is already
+     the right shape. */
   const GROW = {
-    from: 0.8,            // starting scaleX
+    from: 0.8,            // width the clip starts at, 0-1
     duration: 1.2,
     ease: INOUT_MASK.ease
   };
@@ -1721,10 +1726,23 @@
        trigger is a frame away at best, and an unclipped first paint is
        the whole picture flashing in ahead of its own reveal. */
     const plan = items.map((el) => {
-      const masks = el.hasAttribute('data-mask');
-      const grows = el.hasAttribute('data-grow');
+      /* Both attributes write the same clip, so grow is a variant of the
+         wipe rather than a second effect: its own edges, its own clock,
+         one clip-path. Marked with both, the wipe wins — the sides would
+         be writing over each other otherwise. */
+      const grows = el.hasAttribute('data-grow') && !el.hasAttribute('data-mask');
       const key = (el.dataset.mask || '').trim().toLowerCase();
-      const edges = MASK_EDGES[key] || MASK_EDGES[MASK.from];
+
+      const rawGrow = parseFloat(el.dataset.grow);
+      const growFrom = Number.isFinite(rawGrow) ? rawGrow : GROW.from;
+      const side = Math.max(0, (1 - growFrom) / 2) * 100;
+
+      const edges = grows
+        ? [0, side, 0, side]
+        : (MASK_EDGES[key] || MASK_EDGES[MASK.from]);
+
+      const duration = grows ? GROW.duration : MASK.duration;
+      const ease = grows ? GROW.ease : MASK.ease;
 
       /* Corners come from the element itself: inset() clips to a
          rectangle, so a rounded picture squares off for the length of
@@ -1756,29 +1774,18 @@
         : el.querySelector('img, video');
 
       const scale = parseFloat(el.dataset.maskScale);
-      const scaleFrom = masks && media
-        ? (Number.isFinite(scale) ? scale : MASK.scaleFrom)
-        : 1;
+      const scaleFrom = media ? (Number.isFinite(scale) ? scale : MASK.scaleFrom) : 1;
 
-      const rawGrow = parseFloat(el.dataset.grow);
-      const growFrom = grows && media
-        ? (Number.isFinite(rawGrow) ? rawGrow : GROW.from)
-        : 1;
-
-      /* Both start states are written before anything is measured or
-         scrolled: the trigger is a frame away at best, and an unclipped,
-         unscaled first paint is the picture flashing in ahead of its own
+      /* The start state is written before anything is measured or
+         scrolled: the trigger is a frame away at best, and an unclipped
+         first paint is the picture flashing in ahead of its own
          reveal. */
-      if (masks) el.style.clipPath = clipAt(0);
+      el.style.clipPath = clipAt(0);
       if (scaleFrom !== 1) media.style.transform = `scale(${scaleFrom})`;
-      if (growFrom !== 1) {
-        media.style.transform = `scaleX(${growFrom})`;
-        media.style.transformOrigin = 'center';
-      }
       touched.push(el);
       if (media && media !== el) touched.push(media);
 
-      return { el, media, masks, clipAt, scaleFrom, growFrom };
+      return { el, media, clipAt, scaleFrom, duration, ease };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -1804,22 +1811,16 @@
         const delay = parseFloat(item.el.dataset.maskDelay ?? item.el.dataset.growDelay);
         const cue = at + (Number.isFinite(delay) ? delay : 0);
 
-        if (item.masks) {
-          const wipe = { p: 0 };
-          tl.to(wipe, {
-            p: 1,
-            duration: MASK.duration,
-            ease: MASK.ease,
-            onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
-          }, cue);
-        }
+        const wipe = { p: 0 };
+        tl.to(wipe, {
+          p: 1,
+          duration: item.duration,
+          ease: item.ease,
+          onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
+        }, cue);
 
         if (item.scaleFrom !== 1) {
-          tl.to(item.media, { scale: 1, duration: MASK.duration, ease: MASK.ease }, cue);
-        }
-
-        if (item.growFrom !== 1) {
-          tl.to(item.media, { scaleX: 1, duration: GROW.duration, ease: GROW.ease }, cue);
+          tl.to(item.media, { scale: 1, duration: item.duration, ease: item.ease }, cue);
         }
       });
 
