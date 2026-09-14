@@ -259,6 +259,13 @@ distance, clock and curve are all in the stylesheet
 (`--btn-chars-rise` 1.3em, `--btn-chars-ms` 600ms, `--btn-chars-ease`), so a
 button the bundle never reaches still reads and still clicks.
 
+**The hover is a class, not a selector.** The site's button covers itself with an
+absolutely positioned link and keeps its label in a sibling, so the label is
+never inside the thing being hovered and no rule starting at `:hover` can reach
+from one to the other. `buttonChars` finds the nearest element holding both and
+puts `.is-chars-hover` on it, on pointer and on focus alike. The plain
+`:hover` selectors stay for markup where the label does sit inside the link.
+
 It marks the **document**, not the mounted container: a mount is scoped to the
 page Barba swapped in, and the nav and footer sit outside it. Only labels inside
 the container are restored on teardown, since the others outlive the swap.

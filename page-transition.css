@@ -764,6 +764,12 @@ html.is-menu-open {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  /* .is-chars-hover is put on by buttonChars, on whichever element holds
+     both the link and the label: the site's button covers itself with an
+     absolutely positioned link and keeps the text in a sibling, so no
+     selector starting at :hover can reach from the one to the other. The
+     plain hovers stay for markup where the label is inside the link. */
+  .is-chars-hover [data-button-animate-chars] > span,
   :is(a, button, .w-button):hover [data-button-animate-chars] > span,
   [data-button-animate-chars]:hover > span {
     transform: translateY(calc(var(--btn-chars-rise, 1.3em) * -1)) rotate(0.001deg);

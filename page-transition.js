@@ -2389,6 +2389,7 @@
     if (!labels.length) return;
 
     const cut = [];
+    const hovers = [];
 
     labels.forEach((label) => {
       // Mounted twice — a Barba swap, a re-entry — the second pass would
@@ -2410,12 +2411,44 @@
          announcing a split label spells it out, so the pieces are hidden
          from the tree and the name is put back on whatever is being
          clicked — unless that already carries one of its own. */
-      const host = label.closest('a, button') || label;
-      if (!host.getAttribute('aria-label')) {
-        host.setAttribute('aria-label', text.trim());
-        host.dataset.charsNamed = 'true';
+      const link = label.closest('a, button');
+      if (link && !link.getAttribute('aria-label')) {
+        link.setAttribute('aria-label', text.trim());
+        link.dataset.charsNamed = 'true';
       }
       label.setAttribute('aria-hidden', 'true');
+
+      /* The pointer never touches the label. The site's button puts an
+         absolutely positioned link over the whole component and keeps the
+         text in a sibling, so the link is what is hovered and the label
+         is not inside it — no selector starting at :hover can reach from
+         one to the other. The nearest thing holding both is what carries
+         the state. */
+      const host = link && link.contains(label)
+        ? link
+        : (() => {
+          let node = label.parentElement;
+          while (node && node !== document.body) {
+            if (node.querySelector('a, button')) return node;
+            node = node.parentElement;
+          }
+          return label;
+        })();
+
+      const enter = () => host.classList.add('is-chars-hover');
+      const leave = () => host.classList.remove('is-chars-hover');
+      host.addEventListener('pointerenter', enter);
+      host.addEventListener('pointerleave', leave);
+      // Keyboard reaches the link, not the box around it.
+      host.addEventListener('focusin', enter);
+      host.addEventListener('focusout', leave);
+      hovers.push(() => {
+        host.removeEventListener('pointerenter', enter);
+        host.removeEventListener('pointerleave', leave);
+        host.removeEventListener('focusin', enter);
+        host.removeEventListener('focusout', leave);
+        host.classList.remove('is-chars-hover');
+      });
 
       const frag = document.createDocumentFragment();
       Array.from(text).forEach((char, i) => {
@@ -2431,15 +2464,16 @@
     });
 
     return () => {
+      hovers.forEach((off) => off());
       cut.forEach(({ label, text }) => {
         label.replaceChildren(document.createTextNode(text));
         label.removeAttribute('aria-hidden');
         delete label.dataset.charsSplit;
 
-        const host = label.closest('a, button') || label;
-        if (host.dataset.charsNamed === 'true') {
-          host.removeAttribute('aria-label');
-          delete host.dataset.charsNamed;
+        const link = label.closest('a, button');
+        if (link && link.dataset.charsNamed === 'true') {
+          link.removeAttribute('aria-label');
+          delete link.dataset.charsNamed;
         }
       });
     };
