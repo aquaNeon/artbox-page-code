@@ -1074,9 +1074,25 @@ the `SEQUENCE` object at the top of `page-transition.js`:
 const SEQUENCE = {
   lead: 0.4,   // after the trigger before the first part moves
   step: 0.4,   // between one part and the next
+  item: 0.6,   // between one item of a [data-seq] list and the next
   slots: { rule: 0, text: 1, link: 1, heading: 2, body: 3 }
 };
 ```
+
+**`[data-seq]` on a list** makes it one cascade instead of a row of separate
+reveals. Each child is a further `item` along, so the parts interleave — rule,
+text, rule, text — rather than every rule going at once and every text after
+them:
+
+```
+rule 0   0.4     text 0   0.8
+rule 1   1.0     text 1   1.4
+rule 2   1.6     text 2   2.0
+```
+
+The list is also what triggers. A per-item trigger would put the fifth item's
+offset after the moment it came into view — five items' worth of waiting for a
+reveal already on screen.
 
 `text` and the three names under it share the same ground: a component whose
 text is one marked wrapper — the tailored list items carry their heading and

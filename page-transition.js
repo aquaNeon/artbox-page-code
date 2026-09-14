@@ -487,6 +487,7 @@
   const SEQUENCE = {
     lead: 0.4,   // after the trigger before the first part moves
     step: 0.4,   // between one part and the next
+    item: 0.6,   // between one item of a [data-seq] list and the next
 
     slots: {
       rule: 0,
@@ -506,7 +507,28 @@
     if (!raw) return null;
     const named = SEQUENCE.slots[raw.toLowerCase()];
     const n = Number.isFinite(named) ? named : parseFloat(raw);
-    return Number.isFinite(n) ? SEQUENCE.lead + n * SEQUENCE.step : null;
+    return Number.isFinite(n) ? SEQUENCE.lead + n * SEQUENCE.step + itemCue(el) : null;
+  }
+
+  /* A list marked [data-seq] runs as one cascade rather than as a row of
+     separate reveals: its items are cued off the list, each a further
+     SEQUENCE.item along, so the parts interleave — first item's rule,
+     first item's text, second item's rule, and so on — instead of every
+     rule going at once and every text after them.
+
+     The list is also what triggers, since a per-item trigger would put
+     the fifth item's offset after the moment it came into view, which is
+     five items' worth of waiting for a reveal already on screen. */
+  function seqList(el) {
+    return el && el.closest ? el.closest('[data-seq]') : null;
+  }
+
+  function itemCue(el) {
+    const list = seqList(el);
+    if (!list) return 0;
+    const items = Array.from(list.children);
+    const i = items.findIndex((item) => item === el || item.contains(el));
+    return i > 0 ? i * SEQUENCE.item : 0;
   }
 
   // ?blur=1 / ?blur=0 overrides on a live URL.
@@ -1961,10 +1983,13 @@
       touched.push(el);
 
       const own = slotCue(el);
-      const delay = Number.isFinite(own) ? own : (slotCue({ dataset: { slot: RULE.slot } }) || 0);
+      const delay = Number.isFinite(own)
+        ? own
+        : SEQUENCE.lead + (SEQUENCE.slots[RULE.slot] || 0) * SEQUENCE.step + itemCue(el);
 
       triggers.push(ScrollTrigger.create({
-        trigger: el,
+        // The list, where there is one: see itemCue.
+        trigger: seqList(el) || el,
         start: el.dataset.ruleStart || RULE.start,
         once: true,
         onEnter: () => {

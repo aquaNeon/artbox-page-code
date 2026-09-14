@@ -31,7 +31,6 @@
   .marker { position: fixed; top: 85vh; left: 0; right: 0; border-top: 1px dashed #c00; z-index: 9; opacity: .4; }
   .note { font-size: .9rem; opacity: .6; margin: 0 0 1rem; }
   .tailored_list_item { border-top: 2px solid #14110f; padding: 1.5rem 0; }
-  .tailored_list_item:last-child { border-top: 0; border-bottom: 2px solid #c00; }
   .tailored_list_item h3 { margin: 0 0 .5rem; font-size: 1.2rem; }
 </style>
 </head>
@@ -122,18 +121,20 @@
   <!-- [data-rule]: the item's own top border, drawn left to right. -->
   <section>
     <h2>data-rule — border drawn left to right</h2>
-    <div class="tailored_list_item" data-rule data-text-anim>
-      <a href="#" data-text-anim-solo data-slot="link">A link, slot 1</a>
-      <h3 data-text-anim-heading data-slot="heading">Verktøy bygget for smidig samarbeid</h3>
-      <p data-text-anim-body data-slot="body">Vi bruker løsninger som gir bedre flyt og oversikt.</p>
-    </div>
-    <div class="tailored_list_item" data-rule>
-      <h3>Second item, same treatment</h3>
-      <p class="note">Each one is its own trigger.</p>
-    </div>
-    <div class="tailored_list_item" data-rule="bottom">
-      <h3>Bottom edge instead</h3>
-      <p class="note">data-rule="bottom"</p>
+    <!-- [data-seq]: the list is the clock. Line, text, line, text. -->
+    <div class="tailored_list" data-seq data-text-anim>
+      <div class="tailored_list_item" data-rule>
+        <h3>Verktøy bygget for smidig samarbeid</h3>
+        <p data-text-anim-solo data-slot="text">Vi bruker løsninger som gir bedre flyt og oversikt.</p>
+      </div>
+      <div class="tailored_list_item" data-rule>
+        <h3>Second item, one item further along</h3>
+        <p data-text-anim-solo data-slot="text">Its rule and its text both wait their turn.</p>
+      </div>
+      <div class="tailored_list_item" data-rule>
+        <h3>Third item</h3>
+        <p data-text-anim-solo data-slot="text">The heading never moves — it carries no marker.</p>
+      </div>
     </div>
   </section>
 
