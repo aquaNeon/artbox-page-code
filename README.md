@@ -1064,6 +1064,27 @@ the whole picture flashing in ahead of its own reveal.
 Fixture: `node dev-server.js`, then
 `http://localhost:5173/_fixture-mask-reveal.html`.
 
+### ruleReveal — `[data-rule]`
+
+The element's own border, drawn on left to right as it comes into view.
+**qubicXL** — the qubic curve at 1.2s.
+
+| Attribute | On | Meaning |
+| --- | --- | --- |
+| `data-rule` | the element carrying the border | Marks it. `data-rule="bottom"` takes the bottom border instead of the top |
+| `data-rule-start` | the same element | ScrollTrigger start, default `top 85%` |
+
+A border cannot be animated across: `border-width` is layout, and growing one
+from nothing shifts everything under it by a pixel a frame. So the border stays
+where the Designer put it and only its colour goes transparent — the box keeps
+its height — while a pseudo of the same weight and colour is drawn over it and
+scaled from the left edge. Weight and colour are read off the element at mount,
+so whatever the component wears at that breakpoint is what gets drawn.
+
+The pseudo is gated on the `.is-rule` class the module adds. A page the script
+never reaches — no ScrollTrigger, reduced motion, a throw above it — keeps its
+real border rather than losing the line.
+
 ### heroVideo
 
 The last cell of the hero grid is a video. It leaves the grid, travels to the

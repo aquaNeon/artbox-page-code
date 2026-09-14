@@ -1703,8 +1703,8 @@
      back — where a clip only ever shows less of a picture that is already
      the right shape. */
   const GROW = {
-    from: 0.8,            // width the clip starts at, 0-1
-    duration: 1.2,
+    from: 0.75,            // width the clip starts at, 0-1
+    duration: 0.4,
     ease: INOUT_MASK.ease
   };
 
@@ -1839,6 +1839,83 @@
         el.style.removeProperty('clip-path');
         el.style.removeProperty('transform');
         el.style.removeProperty('transform-origin');
+      });
+    };
+  });
+
+
+  /* ===== RULE REVEAL — [data-rule] — README ### ruleReveal ===== */
+
+  /* The element's own border, drawn on as it arrives.
+
+     A border cannot be animated across: border-width is layout, and
+     growing one from nothing shifts everything under it by a pixel a
+     frame. So the border stays exactly where the Designer put it, its
+     colour is taken to transparent — the box keeps the same height — and
+     a pseudo of the same weight and colour is drawn over it and scaled
+     from the left edge.
+
+     The colour and the weight are read off the element rather than
+     written here: whatever the component is wearing, at whatever
+     breakpoint, is what gets drawn. */
+
+  const RULE = {
+    duration: QUBIC.xl,
+    ease: QUBIC.ease,
+    start: 'top 85%'
+  };
+
+  Modules.add('ruleReveal', function (root) {
+    const items = Array.from(root.querySelectorAll('[data-rule]'));
+    if (!items.length || !hasScrollTrigger || reducedMotion) return;
+
+    const triggers = [];
+    const touched = [];
+
+    items.forEach((el) => {
+      const edge = (el.dataset.rule || '').trim().toLowerCase() === 'bottom'
+        ? 'bottom'
+        : 'top';
+      const cs = getComputedStyle(el);
+      const width = edge === 'bottom' ? cs.borderBottomWidth : cs.borderTopWidth;
+      const colour = edge === 'bottom' ? cs.borderBottomColor : cs.borderTopColor;
+
+      // Nothing drawn on that edge is nothing to draw on.
+      if (!parseFloat(width)) return;
+
+      el.style.setProperty('--rule-h', width);
+      el.style.setProperty('--rule-color', colour);
+      el.style.setProperty('--rule-scale', '0');
+      el.style.setProperty(`border-${edge}-color`, 'transparent');
+
+      /* The class is what turns the pseudo on, so a page where this never
+         runs — no ScrollTrigger, reduced motion, a throw above here —
+         keeps its real border rather than losing the line entirely. */
+      el.classList.add('is-rule');
+      touched.push(el);
+
+      triggers.push(ScrollTrigger.create({
+        trigger: el,
+        start: el.dataset.ruleStart || RULE.start,
+        once: true,
+        onEnter: () => {
+          gsap.to(el, {
+            '--rule-scale': 1,
+            duration: RULE.duration,
+            ease: RULE.ease
+          });
+        }
+      }));
+    });
+
+    return () => {
+      triggers.forEach((t) => t.kill());
+      touched.forEach((el) => {
+        gsap.killTweensOf(el);
+        el.classList.remove('is-rule');
+        ['--rule-h', '--rule-color', '--rule-scale'].forEach((v) => el.style.removeProperty(v));
+        el.style.removeProperty('border-top-color');
+        el.style.removeProperty('border-bottom-color');
       });
     };
   });

@@ -30,6 +30,9 @@
   .rounded img { border-radius: 24px; }
   .marker { position: fixed; top: 85vh; left: 0; right: 0; border-top: 1px dashed #c00; z-index: 9; opacity: .4; }
   .note { font-size: .9rem; opacity: .6; margin: 0 0 1rem; }
+  .tailored_list_item { border-top: 2px solid #14110f; padding: 1.5rem 0; }
+  .tailored_list_item:last-child { border-top: 0; border-bottom: 2px solid #c00; }
+  .tailored_list_item h3 { margin: 0 0 .5rem; font-size: 1.2rem; }
 </style>
 </head>
 <body>
@@ -114,6 +117,23 @@
   <section>
     <h2>data-mask + data-grow — mask wins</h2>
     <div class="cases_img_wrap" data-mask data-grow><img src="https://picsum.photos/seed/g4/1200/675" alt=""></div>
+  </section>
+
+  <!-- [data-rule]: the item's own top border, drawn left to right. -->
+  <section>
+    <h2>data-rule — border drawn left to right</h2>
+    <div class="tailored_list_item" data-rule>
+      <h3>Verktøy bygget for smidig samarbeid</h3>
+      <p class="note">Vi bruker løsninger som gir bedre flyt og oversikt.</p>
+    </div>
+    <div class="tailored_list_item" data-rule>
+      <h3>Second item, same treatment</h3>
+      <p class="note">Each one is its own trigger.</p>
+    </div>
+    <div class="tailored_list_item" data-rule="bottom">
+      <h3>Bottom edge instead</h3>
+      <p class="note">data-rule="bottom"</p>
+    </div>
   </section>
 
   <section>

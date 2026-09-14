@@ -682,6 +682,36 @@ html.is-menu-open {
   overflow-wrap: anywhere;
 }
 
+/* ===== RULE REVEAL — [data-rule] — README ### ruleReveal ===== */
+
+/* The line the module draws over the element's own border. It only
+   exists once the module has stamped .is-rule, so a page the script
+   never reaches keeps the real border instead of losing the line.
+
+   Pulled up by its own height, since an absolute child resolves against
+   the padding box and the border sits outside that. */
+.is-rule {
+  position: relative;
+}
+
+.is-rule::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--rule-h, 1px) * -1);
+  height: var(--rule-h, 1px);
+  background-color: var(--rule-color, currentColor);
+  transform: scaleX(var(--rule-scale, 1));
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.is-rule[data-rule="bottom"]::before {
+  top: auto;
+  bottom: calc(var(--rule-h, 1px) * -1);
+}
+
 /* ===== INFO SECTION — .c_info_wrap ===== */
 
 /* The text style trims the cell's box to the ink — ::before and ::after
