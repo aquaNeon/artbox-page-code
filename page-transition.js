@@ -4400,11 +4400,55 @@
          own tag — without it nothing initialises at all. */
       finsweet() {
         return once('finsweet', () => {
-          if (window.FinsweetAttributes) return Promise.resolve();
-          return script(
-            'https://cdn.jsdelivr.net/npm/@finsweet/attributes@2/attributes.js',
-            { type: 'module', async: '', 'fs-list': '' }
-          );
+          const URL = 'https://cdn.jsdelivr.net/npm/@finsweet/attributes@2/attributes.js';
+          const tag = () => document.querySelector('script[src*="@finsweet/attributes"]');
+
+          /* A tag on the page but not yet run is not the same as no tag.
+             The global appears only once the module has executed, so
+             checking for it and finding nothing meant adding a second
+             copy of a script that was already on its way. Both carry
+             fs-list, so both boot the list solution, and the second scan
+             left Load more bound to nothing — it fell through to
+             Webflow's own pagination anchor, which navigates and jumps to
+             the top. A reload hid it, since a cached script runs before
+             this does; an incognito window did not.
+
+             A module script fires load after it executes, which is
+             exactly the moment the global exists. */
+          const waitFor = (el) => new Promise((resolve) => {
+            let done = false;
+            const finish = () => { if (!done) { done = true; resolve(); } };
+            el.addEventListener('load', finish, { once: true });
+            // A script that fails is not worth waiting on: the list stays
+            // a plain list, which is what it was before any of this.
+            el.addEventListener('error', finish, { once: true });
+            // It may have run between the check above and this line.
+            if (window.FinsweetAttributes) finish();
+            setTimeout(finish, 8000);
+          });
+
+          const boot = () => {
+            if (window.FinsweetAttributes) return Promise.resolve();
+            const existing = tag();
+            if (existing) return waitFor(existing);
+            /* Both attributes are load-bearing: type=module because the
+               entry is ESM, and fs-list because v2 boots the solutions
+               named on its own tag — without it nothing initialises. */
+            return script(URL, { type: 'module', async: '', 'fs-list': '' });
+          };
+
+          /* And not before the document has been read. This bundle sits
+             earlier in the footer than the site's own attributes tag, so
+             at the moment this runs that tag has not been parsed:
+             looking for it finds nothing, and a copy goes in beside one
+             that was always going to arrive. */
+          if (document.readyState === 'loading' && !tag() && !window.FinsweetAttributes) {
+            return new Promise((resolve) => {
+              document.addEventListener('DOMContentLoaded', () => resolve(boot()), { once: true });
+            });
+          }
+
+          return boot();
         });
       }
     };
