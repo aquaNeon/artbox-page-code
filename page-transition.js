@@ -1888,7 +1888,9 @@
   };
 
   Modules.add('maskReveal', function (root) {
-    const items = Array.from(root.querySelectorAll('[data-mask], [data-grow], [data-fade]'));
+    const items = Array.from(root.querySelectorAll(
+      '[data-mask], [data-grow], [data-fade], [data-fade-children]'
+    ));
     if (!items.length || !hasScrollTrigger || reducedMotion) return;
 
     const triggers = [];
@@ -1909,6 +1911,12 @@
       /* Opacity, and nothing else. A fade shares an element with a clip
          or a hover scale without either noticing. */
       const fades = el.hasAttribute('data-fade');
+
+      /* The children carry it, not this element: a marquee copies its
+         list, and inline opacity written before that is copied with it —
+         a rule in the stylesheet reaches the copies, an inline style
+         never does. All this does at its cue is add the class. */
+      const fadesChildren = el.hasAttribute('data-fade-children');
       const rawFade = parseFloat(el.dataset.fade);
       const fadeDuration = Number.isFinite(rawFade) && rawFade > 0
         ? rawFade
@@ -1992,6 +2000,7 @@
          first paint is the picture flashing in ahead of its own
          reveal. */
       if (clips) el.style.clipPath = clipAt(0);
+      if (fadesChildren) touched.push(el);
       if (fades) {
         el.style.opacity = '0';
         if (fadeRise || fadeTilt) {
@@ -2008,8 +2017,8 @@
       touched.push(el);
       if (media && media !== el) touched.push(media);
 
-      return { el, media, clips, clipAt, fades, fadeDuration, fadeRise, fadeTilt, fadeZoom,
-        scaleFrom, scaleDuration, duration, ease };
+      return { el, media, clips, clipAt, fades, fadesChildren, fadeDuration, fadeRise, fadeTilt,
+        fadeZoom, scaleFrom, scaleDuration, duration, ease };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -2075,6 +2084,10 @@
           }, cue);
         }
 
+
+        if (item.fadesChildren) {
+          tl.call(() => item.el.classList.add('is-faded'), null, cue);
+        }
 
         if (item.fades) {
           const to = {
@@ -2165,6 +2178,7 @@
       listeners.forEach((fn) => fn());
       touched.forEach((el) => {
         gsap.killTweensOf(el);
+        el.classList.remove('is-faded');
         el.style.removeProperty('clip-path');
         el.style.removeProperty('opacity');
         el.style.removeProperty('transform');

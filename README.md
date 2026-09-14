@@ -1155,6 +1155,16 @@ perspective rides on the element itself (`FADE_IN.perspective`, 900) rather than
 on a parent, since in a slider that parent belongs to the library. The origin is
 `center bottom`, which keeps the base planted while the top leans back.
 
+**`[data-fade-children]`** staggers children that a script must not touch. A
+marquee copies its list to loop, so inline opacity written on a logo before that
+happens is copied with it and two thirds of them never get a tween — a rule in
+the stylesheet reaches the copies, an inline style never does. So the module
+only adds `.is-faded` to the container at its cue, and the CSS does the rest:
+put `data-fade-children` on the container, the class `is-fade-child` on each
+child, and the place in the order comes from `nth-child`, which a copied list
+repeats exactly. `--fade-child-step` (60ms) and `--fade-child-ms` (500ms) are the
+knobs; twenty slots, and past that they share the last.
+
 `[data-fade-group]` on a parent runs its fades as one staggered set off a single
 trigger — `data-fade-stagger` sets the gap, default 0.12s. That is how a drag
 slider or a marquee gets an entrance: the library already writes a transform to

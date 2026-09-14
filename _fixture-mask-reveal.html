@@ -190,6 +190,20 @@
     </div>
   </section>
 
+  <!-- [data-fade-children]: the stagger lives in CSS, so copies of the
+       list stagger the same way the original does. -->
+  <section data-text-anim>
+    <h2 data-text-anim-heading>data-fade-children — staggered logos</h2>
+    <div class="marquee_container" data-fade-children data-fade-after>
+      <div class="marquee_list" style="display:flex;gap:2rem">
+        <div class="is-fade-child" style="width:90px;height:40px;background:#14110f"></div>
+        <div class="is-fade-child" style="width:90px;height:40px;background:#14110f"></div>
+        <div class="is-fade-child" style="width:90px;height:40px;background:#14110f"></div>
+        <div class="is-fade-child" style="width:90px;height:40px;background:#14110f"></div>
+      </div>
+    </div>
+  </section>
+
   <section>
     <h2>ungrouped single, own trigger</h2>
     <div class="cases_img_wrap"><img data-mask src="https://picsum.photos/seed/s1/1200/675" alt=""></div>
