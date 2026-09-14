@@ -3749,6 +3749,15 @@
 
       const lineOpts = () => ({ duration: dur, ease, stagger: SWAP.lineStagger });
 
+      /* How long a statement actually takes: the last line starts a full
+         stagger behind the first, so the run is longer than the duration
+         by the whole spread. Hiding it at `dur` cut the last lines off
+         mid-move while the next statement was already arriving over
+         them, which is two statements showing at once in pieces. */
+      const span = (el) => (lined()
+        ? dur + Math.max(0, linesOf(el).length - 1) * SWAP.lineStagger
+        : dur);
+
       const away = (els) => els.forEach((el) => {
         if (!lined()) { gsap.set(el, hiddenBelow); return; }
         gsap.set(el, { autoAlpha: 0 });
@@ -3767,9 +3776,8 @@
           return;
         }
         timeline.to(linesOf(el), { yPercent: -SWAP.linePark, ...lineOpts() }, at);
-        // Put away only once it has gone, or an empty box is still
-        // sitting over the statement arriving underneath it.
-        timeline.set(el, { autoAlpha: 0 }, at + dur);
+        // Put away only once the last line has gone.
+        timeline.set(el, { autoAlpha: 0 }, at + span(el));
       };
 
       const enter = (timeline, el, at) => {
@@ -3831,7 +3839,11 @@
 
         tl = gsap.timeline({ onComplete: queue });
         leave(tl, current, 0);
-        enter(tl, list[index], dur * 0.35);
+        // A third of the way through the statement that is leaving, not a
+        // third of one line's duration: with eight lines those are very
+        // different moments, and the early one had them arriving on top
+        // of each other.
+        enter(tl, list[index], span(current) * 0.35);
       }
 
       let trigger = null;
