@@ -1064,10 +1064,39 @@ the whole picture flashing in ahead of its own reveal.
 Fixture: `node dev-server.js`, then
 `http://localhost:5173/_fixture-mask-reveal.html`.
 
+### Sequence — `[data-slot]`
+
+A composed item is several things arriving one after another — its rule, then
+the link, then the heading, then the body. The shape of that lives in one place,
+the `SEQUENCE` object at the top of `page-transition.js`:
+
+```js
+const SEQUENCE = {
+  lead: 0.4,   // after the trigger before the first part moves
+  step: 0.4,   // between one part and the next
+  slots: { rule: 0, link: 1, heading: 2, body: 3 }
+};
+```
+
+The markup only says which part a thing is — `data-slot="heading"` — and its cue
+is `lead + slot * step`. Reorder by renumbering the table, retime the whole
+cadence by moving `step`, and add a name for a part that does not have one. A
+bare number works too (`data-slot="4"`) for a one-off.
+
+A slot places a step **absolutely** within its group rather than chaining it
+onto whatever ran before, which is the point of naming places rather than gaps:
+`data-text-anim-delay` still wins where it is written, and an unslotted group
+behaves exactly as it did.
+
+Read by `textAnim` — on the group root it sets the group delay, on a step it
+sets that step's cue — and by `ruleReveal`.
+
 ### ruleReveal — `[data-rule]`
 
 The element's own border, drawn on left to right as it comes into view.
-**qubicXL** — the qubic curve at 1.2s.
+**inoutMask at 2s**, cued at the `rule` slot — 0.4s after the trigger. A
+`data-slot` on the element itself overrides that, so one rule can run out of
+turn.
 
 | Attribute | On | Meaning |
 | --- | --- | --- |

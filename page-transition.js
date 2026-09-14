@@ -432,6 +432,14 @@
     listStagger: 0.06,
     listEase: QUBIC.css,
 
+    /* -solo is one line standing on its own — a link, an eyebrow, a
+       single statement — so it takes the longer qubicL rather than the
+       body's 0.4s, which is paced for a paragraph of lines following
+       each other. */
+    soloDuration: QUBIC.l,
+    soloStagger: 0.08,
+    soloEase: QUBIC.css,
+
     // Smaller units, more of them: their own spacing, not the role's.
     wordStagger: 0.03,
     charStagger: 0.012,
@@ -465,6 +473,36 @@
     fontWait: 1.5,          // s before splitting without the webfont
     resplit: 0.15           // s a resize drag has to settle
   };
+
+  /* ===== SEQUENCE — the cadence of a composed item ===== */
+
+  /* A list item is several things arriving one after another — its rule,
+     then the link, then the heading, then the body. Written as named
+     slots rather than as a delay per element: the shape of the sequence
+     lives here in two numbers, and the markup only says which part a
+     thing is. Reorder by renumbering, retime by moving `step`.
+
+     `data-slot="heading"` on the element, or a bare number for a place
+     the table has no name for. Read by textAnim and by ruleReveal. */
+  const SEQUENCE = {
+    lead: 0.4,   // after the trigger before the first part moves
+    step: 0.4,   // between one part and the next
+
+    slots: {
+      rule: 0,
+      link: 1,
+      heading: 2,
+      body: 3
+    }
+  };
+
+  function slotCue(el) {
+    const raw = ((el && el.dataset && el.dataset.slot) || '').trim();
+    if (!raw) return null;
+    const named = SEQUENCE.slots[raw.toLowerCase()];
+    const n = Number.isFinite(named) ? named : parseFloat(raw);
+    return Number.isFinite(n) ? SEQUENCE.lead + n * SEQUENCE.step : null;
+  }
 
   // ?blur=1 / ?blur=0 overrides on a live URL.
   const blurParam = new URLSearchParams(location.search).get('blur');
@@ -514,10 +552,15 @@
         ease: TEXT.listEase, blur: TEXT.bodyBlur, fromY: TEXT.blockFromY
       };
     }
+    if (role === 'solo') {
+      return {
+        duration: TEXT.soloDuration, stagger: TEXT.soloStagger,
+        ease: TEXT.soloEase, blur: TEXT.bodyBlur, fromY: TEXT.soloFromY
+      };
+    }
     return {
       duration: TEXT.bodyDuration, stagger: TEXT.bodyStagger,
-      ease: TEXT.bodyEase, blur: TEXT.bodyBlur,
-      fromY: role === 'solo' ? TEXT.soloFromY : TEXT.blockFromY
+      ease: TEXT.bodyEase, blur: TEXT.bodyBlur, fromY: TEXT.blockFromY
     };
   }
 
@@ -550,7 +593,13 @@
   function stepDelay(el, wrap) {
     if (el === wrap) return 0; // the root's delay is the group delay
     const v = parseFloat(el.dataset.textAnimDelay);
-    return Number.isFinite(v) && v > 0 ? v : 0;
+    if (Number.isFinite(v) && v > 0) return v;
+    /* A slot on a step is measured from the group's start, not added to
+       where the step before it happened to end — that is the point of
+       naming places rather than gaps. The chain's own cue is subtracted
+       back out in scheduleGroup. */
+    const slot = slotCue(el);
+    return Number.isFinite(slot) ? slot : 0;
   }
 
   /* Opacity only: nothing travels and nothing is clipped. Read off the
@@ -697,11 +746,15 @@
 
     const speed = parseFloat(wrap.dataset.textAnim);
     const rawDelay = parseFloat(wrap.dataset.textAnimDelay);
+    // An explicit delay is face value; a slot is a place in the sequence.
+    const slot = slotCue(wrap);
 
     return {
       wrap,
       speed: Number.isFinite(speed) && speed > 0 ? speed : 1,
-      delay: Number.isFinite(rawDelay) && rawDelay > 0 ? rawDelay : 0,
+      delay: Number.isFinite(rawDelay) && rawDelay > 0
+        ? rawDelay
+        : (Number.isFinite(slot) ? slot : 0),
       cardOffset: 0,
       steps: marked.map((el) => ({
         el,
@@ -739,7 +792,11 @@
       /* Overlap pulls a step earlier, delay pushes it later, and a step
          can carry both: resolved to one signed offset here, since two
          stacked cues would depend on which was written first. */
-      if (first) {
+      if (Number.isFinite(slotCue(step.el))) {
+        // Placed at its slot, whatever ran before it.
+        step.start = delay;
+        first = false;
+      } else if (first) {
         step.start = delay;
         first = false;
       } else if (step.el.hasAttribute('data-text-anim-with')) {
@@ -1860,9 +1917,13 @@
      breakpoint, is what gets drawn. */
 
   const RULE = {
-    duration: QUBIC.xl,
-    ease: QUBIC.ease,
-    start: 'top 85%'
+    duration: 2,
+    ease: INOUT_MASK.ease,
+    start: 'top 85%',
+
+    // Its place in the item's cadence — see SEQUENCE. A slot on the
+    // element itself wins, so one rule can run out of turn.
+    slot: 'rule'
   };
 
   Modules.add('ruleReveal', function (root) {
@@ -1894,6 +1955,9 @@
       el.classList.add('is-rule');
       touched.push(el);
 
+      const own = slotCue(el);
+      const delay = Number.isFinite(own) ? own : (slotCue({ dataset: { slot: RULE.slot } }) || 0);
+
       triggers.push(ScrollTrigger.create({
         trigger: el,
         start: el.dataset.ruleStart || RULE.start,
@@ -1902,7 +1966,8 @@
           gsap.to(el, {
             '--rule-scale': 1,
             duration: RULE.duration,
-            ease: RULE.ease
+            ease: RULE.ease,
+            delay
           });
         }
       }));
