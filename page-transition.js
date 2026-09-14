@@ -1797,7 +1797,7 @@
      is the one it will usually meet. */
   const FADE_IN = {
     duration: 0.5,
-    ease: 'power2.out',
+    ease: QUBIC.ease,
 
     /* Fired as the picture begins to enter, not scrubbed to how far it
        has come. Scrubbing looked right on paper and wrong in the hand:
