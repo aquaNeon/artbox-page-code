@@ -1059,8 +1059,15 @@ is left exactly as kugiri wrote it.
 One motion, not two: growing from nothing already opens from the middle, and
 running an iris over the same element at the same time is two descriptions of
 one gesture — at `scale(0)` the box is a point, and clipping a point flickers.
-`TEXT.imgClip` takes an inset if a picture ever wants the iris instead,
-`imgAfterLine` turns the waiting off, and `imgFrom: false` the whole thing.
+`TEXT.imgClip` takes an inset if a picture ever wants the iris instead, and
+`imgFrom: false` turns the whole thing off.
+
+`imgAfterLine` is how much of its line's rise the picture waits out — `1` lets
+the line land first, `0` leaves with it, and a fraction starts partway up. It
+sits at `0.5`: half the line's time, which on the heading's easing is most of
+the way home, so the picture opens into a line that has nearly settled rather
+than one still travelling. `imgOffset` is dead air added after that, and
+`imgDuration` (0.5s) the scale itself.
 The grid overlaps its own cells at some widths, so the stacking is pinned in
 `page-transition.css`: `.home_img_wrap` takes an explicit `z-index: 0` and the
 `h1` a `2`. The cells need the 0 — the parallax transform makes each one a

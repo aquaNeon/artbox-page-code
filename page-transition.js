@@ -465,10 +465,16 @@
        clipping a point is where the flicker in the centre came from.
        Set it to an inset if a picture ever needs the iris instead. */
     imgClip: '',
-    imgDuration: 0.8,
+    imgDuration: 0.5,
     imgEase: INOUT_MASK.css,
-    imgAfterLine: true,     // wait for its line to land before arriving
-    imgOffset: 0.05,        // after that
+
+    /* How much of its line's rise the picture waits out: 1 lets the line
+       land first, 0 leaves with it, and a fraction starts partway up.
+       At 0.5 the line is half its time in — which on the heading's
+       easing is most of the way home, so the picture opens into a line
+       that is nearly settled rather than one still travelling. */
+    imgAfterLine: 0.5,
+    imgOffset: 0,           // after that
     imgStagger: 0.08,       // between images sharing a line
 
     /* [data-text-anim-icon], its own knobs rather than the image ones: a
@@ -929,7 +935,12 @@
         target.style.transformOrigin = 'center center';
 
         const lineAt = base + step.start + i * step.stagger;
-        const cue = (TEXT.imgAfterLine ? lineAt + step.duration : lineAt)
+        /* true and false still mean all of it and none of it, so a
+           number is the only new spelling. */
+        const share = TEXT.imgAfterLine === true ? 1
+          : TEXT.imgAfterLine === false ? 0
+          : Number(TEXT.imgAfterLine) || 0;
+        const cue = lineAt + step.duration * share
           + TEXT.imgOffset + j * TEXT.imgStagger;
 
         const from = { transform: `scale(${TEXT.imgFrom})` };
