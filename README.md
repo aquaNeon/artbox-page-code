@@ -1285,6 +1285,20 @@ rather than the plain attribute because a container that fades marked children
 can hold a Collection List too: /kontakt's marquee holds thirty-three items, and
 those keep staggering the way they always did.
 
+**Where the Designer cannot reach.** An attribute typed onto a component lands
+on every instance of it, and usually the placements that should stay still
+outnumber the one that should move. `ADOPTED` in the script is the way out: a
+selector, and the attributes to give whatever it finds, applied at mount before
+anything is collected. Scope it by the page rather than by the component —
+`[data-barba-namespace="…"]` sits on the Barba container, which is page-level
+markup no component owns. A hand-typed attribute always wins; adoption only
+fills in what is missing.
+
+An adopted container also wants a line in the stylesheet holding it from the
+first paint, the way the marked ones are. Mount is a stretch of time after the
+markup is painted, and for that stretch the children sit at full opacity before
+dropping to nothing — which is the flash the entrance was there to replace.
+
 `[data-fade-group]` on a parent runs its fades as one staggered set off a single
 trigger — `data-fade-stagger` sets the gap, default 0.12s. That is how a drag
 slider or a marquee gets an entrance: the library already writes a transform to

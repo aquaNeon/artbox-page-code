@@ -788,6 +788,25 @@ html.is-menu-open {
   }
 }
 
+/* The one-offs ADOPTED in the script, held from the first paint.
+
+   The script gives them data-fade-children at mount, and everything
+   from there is the rule above — but mount is a stretch of time after
+   the markup is painted, and for that stretch the cards sat at full
+   opacity before dropping to nothing. Which is the flash the entrance
+   was meant to replace. Held here instead, by the same selector, so
+   there is nothing to see until the cue lands. Same shape as the
+   heading holds: a watchdog in CSS, handed over to script. */
+[data-barba-namespace="contact"] .reach_out_team_wrap:not(.is-faded) .w-dyn-item {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-barba-namespace="contact"] .reach_out_team_wrap .w-dyn-item {
+    opacity: 1;
+  }
+}
+
 /* ===== BUTTON CHARACTERS — [data-button-animate-chars] — README ### buttonChars ===== */
 
 /* Each character climbs out of the box while its own text-shadow, sitting

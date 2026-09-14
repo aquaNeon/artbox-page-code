@@ -2006,7 +2006,44 @@
     hero: [50, 50, 50, 50]
   };
 
+  /* One-offs the Designer cannot reach. An attribute typed onto a
+     component lands on every instance of it, and the placements that
+     should stay still outnumber the one that should move — so the
+     entrance is named here instead, scoped by the page rather than by
+     the component. [data-barba-namespace] is on the container, which is
+     page-level markup no component owns.
+
+     Each entry is a selector and the attributes to give whatever it
+     finds, exactly as if they had been typed in the Designer. Nothing
+     else changes: the element is collected, cued and staggered by the
+     same machinery as every hand-marked one. */
+  const ADOPTED = [
+    ['[data-barba-namespace="contact"] .reach_out_team_wrap',
+      { 'data-fade-children': 'cms', 'data-fade-after': '' }]
+  ];
+
+  function adoptOneOffs(root) {
+    ADOPTED.forEach(([selector, attrs]) => {
+      let found;
+      try {
+        found = root.querySelectorAll(selector);
+      } catch (err) {
+        console.warn('[maskReveal] bad selector in ADOPTED:', selector, err);
+        return;
+      }
+      found.forEach((el) => {
+        Object.entries(attrs).forEach(([name, value]) => {
+          // Never argue with the Designer: a hand-typed value wins.
+          if (!el.hasAttribute(name)) el.setAttribute(name, value);
+        });
+      });
+    });
+  }
+
   Modules.add('maskReveal', function (root) {
+    // Before anything is collected, or the marks arrive too late to count.
+    adoptOneOffs(root);
+
     /* :not(.text-anim_mask) because kugiri numbers its own line wrappers
        with data-mask — data-mask="0" on every masked line. Nothing is
        split yet when this mounts, so the two have never actually met,
