@@ -1796,14 +1796,21 @@
      stacks with anything that writes a transform: data-scale's hover lean
      is the one it will usually meet. */
   const FADE_IN = {
-    duration: 0.35,
+    duration: 0.25,
     ease: 'power2.out',
 
-    /* The moment the picture's top edge crosses the bottom of the
-       screen. A fade this short is meant to be over before you have
-       looked at the thing — held any later it plays in the middle of the
-       screen and becomes an event. */
-    start: 'top bottom'
+    /* Before the picture is on screen, not as it arrives.
+
+       The reference fires on the file landing, and its loader starts
+       fetching a few hundred pixels early — so the fade is spent by the
+       time the picture clears the fold and you only ever catch it in
+       peripheral vision. Firing at the fold instead put ours right in
+       front of you at the edge of the frame: the same quarter second,
+       a completely different thing to watch.
+
+       So the trigger is pulled up by the same few hundred pixels. That is
+       the whole of it — a short fade, finished before you look. */
+    start: 'top bottom+=300'
   };
 
   const GROW = {

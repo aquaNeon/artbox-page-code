@@ -1142,16 +1142,20 @@ Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 
 ### data-fade — the picture arrives out of nothing
 
-`data-fade` on a picture or its wrapper: opacity 0 to 1 the moment its top edge
-crosses the bottom of the screen. **power2.out at 0.35s** — short enough to be
-over before you have looked at the thing. `data-fade="0.5"` sets its own
-duration, `data-fade-start` its own trigger.
+`data-fade` on a picture or its wrapper: opacity 0 to 1, **power2.out at
+0.25s**, fired 300px **before** the picture reaches the fold —
+`top bottom+=300`. `data-fade="0.5"` sets its own duration, `data-fade-start`
+its own trigger.
 
-It fires on the scroll and nothing else. Tying it to the picture's load instead
-— which is what the reference does, through vanilla-lazyload — sounds right and
-is not: the browser fetches on its own schedule, so a picture already in cache
-fades while it is still a page below and nobody sees it at all. That only works
-there because their loader holds off until you are nearly on top of it.
+Early is the whole point. The reference fires on the file landing and its loader
+starts fetching a few hundred pixels out, so its fades are spent by the time
+anything clears the fold — you only ever catch them in peripheral vision. Fired
+at the fold instead, the same quarter second plays right in front of you at the
+edge of the frame and reads as a completely different thing.
+
+Tying it to the picture's load directly, the way the reference does, does not
+survive here: the browser fetches on its own schedule, so a cached picture fades
+a page below the fold and nobody sees it at all.
 
 Opacity and nothing else, so it stacks with anything writing a transform —
 `data-scale` being the one it will usually meet. It rides the same trigger,
