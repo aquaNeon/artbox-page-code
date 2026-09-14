@@ -1801,17 +1801,12 @@
        middle while the picture grows out of nothing. The numbers are the
        hero's, so the two read as one gesture wherever they meet. */
     heroScaleFrom: 0,
-
-    /* Quicker than the hero's own 1s/0.8s. The hero has a whole screen
-       and a page load to fill; a row of pictures answering a heading is
-       a smaller moment, and the same numbers read as slow there. The
-       ratio is kept — the clip finishes a beat after the scale. */
-    heroOpen: 0.7,        // s the clip takes
-    heroGrow: 0.55,       // s the scale takes
+    heroOpen: 1,          // s the clip takes, --hero-in-open in the CSS
+    heroGrow: 0.8,        // s the scale takes, --hero-in-grow
 
     /* data-mask-after: the run waits for the text above it to finish
        rather than for a number. */
-    afterGap: 0.1,        // s between the last line landing and the first picture
+    afterGap: 0,          // s between the last line landing and the first picture
     afterWait: 5          // s before it gives up waiting and plays anyway
   };
 

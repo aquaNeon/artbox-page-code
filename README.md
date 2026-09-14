@@ -1120,7 +1120,9 @@ out first, so the text starts later and the pictures land on top of it.
 on a group root once its last line has settled, and the run starts when both
 that and its own trigger have happened.
 
-`data-mask-delay` then means the gap after the text rather than the wait itself.
+`data-mask-delay` then means the gap after the text rather than the wait itself,
+and the default gap is nothing: the pictures follow the last line straight away,
+since the waiting has already been done by the text.
 Text that never plays — below the fold, switched off, a reveal that threw —
 cannot strand the pictures: `MASK.afterWait` (5s) gives up and plays them anyway.
 
