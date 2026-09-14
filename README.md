@@ -1225,7 +1225,7 @@ sets that step's cue — and by `ruleReveal`.
 
 ### data-scale — hover lean
 
-`data-scale` on a picture, or on the wrapper around one, and it grows to 1.15
+`data-scale` on a picture, or on the wrapper around one, and it grows to 1.08
 under the pointer. `data-scale="1.06"` for a different number. Pure CSS in
 `page-transition.css`, no module.
 
@@ -1242,7 +1242,7 @@ and a hover is not worth paying that on load.
 `attr()` is read on the element that carries the attribute and inherited down,
 because `attr()` only ever sees the element it runs on — a number written on a
 wrapper is invisible to a rule targeting the image inside it. Below Chrome 133
-every marked picture takes the 1.15 fallback.
+every marked picture takes the 1.08 fallback.
 
 Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 `prefers-reduced-motion`, since the lean is the whole effect.

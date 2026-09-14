@@ -735,7 +735,7 @@ html .work_smoothly_wrap {
      attr() with a type is Chrome 133+; everywhere else takes the
      fallback, which is the number we would have written anyway. */
   [data-scale] {
-    --scale-to: attr(data-scale type(<number>), 1.15);
+    --scale-to: attr(data-scale type(<number>), 1.08);
   }
 
   [data-scale] :is(img, video),
@@ -748,7 +748,7 @@ html .work_smoothly_wrap {
   [data-scale]:hover :is(img, video),
   img[data-scale]:hover,
   video[data-scale]:hover {
-    transform: scale(var(--scale-to, 1.15));
+    transform: scale(var(--scale-to, 1.08));
   }
 }
 
