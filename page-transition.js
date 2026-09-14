@@ -1796,21 +1796,18 @@
      stacks with anything that writes a transform: data-scale's hover lean
      is the one it will usually meet. */
   const FADE_IN = {
-    duration: 0.25,
-    ease: 'power2.out',
+    /* Scrubbed, not played. The reference's fade is tied to where the
+       picture is, not to a clock: creep down two pixels and two pixels'
+       worth of it appears, stop and it stops with you, throw the wheel
+       and you see the whole thing at once. A timed tween cannot do that
+       — it starts on a line and then owns the next quarter second no
+       matter what the hand does.
 
-    /* Before the picture is on screen, not as it arrives.
-
-       The reference fires on the file landing, and its loader starts
-       fetching a few hundred pixels early — so the fade is spent by the
-       time the picture clears the fold and you only ever catch it in
-       peripheral vision. Firing at the fold instead put ours right in
-       front of you at the edge of the frame: the same quarter second,
-       a completely different thing to watch.
-
-       So the trigger is pulled up by the same few hundred pixels. That is
-       the whole of it — a short fade, finished before you look. */
-    start: 'top bottom+=300'
+       The range runs from the picture's top edge touching the bottom of
+       the screen to `distance` pixels further on, so it is over well
+       before the picture clears the fold. */
+    distance: 320,   // px of scroll the fade is spread across
+    start: 'top bottom'
   };
 
   const GROW = {
@@ -1847,10 +1844,22 @@
       /* Opacity, and nothing else. A fade shares an element with a clip
          or a hover scale without either noticing. */
       const fades = el.hasAttribute('data-fade');
+      /* The value is px of scroll, not seconds: the fade has no duration
+         of its own, only a stretch of road.
+
+         Anything under 20 is read as the seconds it used to mean — a
+         half-second written as 0.5 would otherwise become a half-pixel
+         range, which is a fade nobody can see and nothing to tell you
+         why. */
       const rawFade = parseFloat(el.dataset.fade);
-      const fadeDuration = Number.isFinite(rawFade) && rawFade > 0
-        ? rawFade
-        : FADE_IN.duration;
+      const usable = Number.isFinite(rawFade) && rawFade >= 20;
+      if (Number.isFinite(rawFade) && !usable) {
+        console.warn(
+          '[data-fade] the value is now px of scroll, not seconds — "' + rawFade +
+          '" is being ignored. Try data-fade="' + FADE_IN.distance + '".', el
+        );
+      }
+      const fadeDistance = usable ? rawFade : FADE_IN.distance;
       const key = (el.dataset.mask || '').trim().toLowerCase();
 
       const rawGrow = parseFloat(el.dataset.grow);
@@ -1906,7 +1915,7 @@
       touched.push(el);
       if (media && media !== el) touched.push(media);
 
-      return { el, media, clips, clipAt, fades, fadeDuration, scaleFrom, duration, ease };
+      return { el, media, clips, clipAt, fades, fadeDistance, scaleFrom, duration, ease };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -1947,16 +1956,6 @@
           }, cue);
         }
 
-        if (item.fades) {
-          tl.to(item.el, {
-            opacity: 1,
-            duration: item.fadeDuration,
-            ease: FADE_IN.ease,
-            // Handed back, so a hover or a swap is not fighting a number
-            // this module left on the element.
-            clearProps: 'opacity'
-          }, cue);
-        }
 
         if (item.scaleFrom !== 1) {
           tl.to(item.media, { scale: 1, duration: item.duration, ease: item.ease }, cue);
@@ -1969,6 +1968,23 @@
           || (fadeOnly ? FADE_IN.start : MASK.start),
         once: true,
         onEnter: () => tl.play()
+      }));
+    });
+
+    /* One scrubbed trigger per fade, and its own range: a group's stagger
+       is a clock too, and there is no clock here. What staggers them is
+       simply that they reach the line one after another. */
+    plan.forEach((item) => {
+      if (!item.fades) return;
+
+      triggers.push(ScrollTrigger.create({
+        trigger: item.el,
+        start: item.el.dataset.fadeStart || FADE_IN.start,
+        end: `+=${item.fadeDistance}`,
+        scrub: true,
+        animation: gsap.fromTo(item.el,
+          { opacity: 0 },
+          { opacity: 1, ease: 'none' })
       }));
     });
 

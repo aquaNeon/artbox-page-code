@@ -1142,20 +1142,25 @@ Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 
 ### data-fade — the picture arrives out of nothing
 
-`data-fade` on a picture or its wrapper: opacity 0 to 1, **power2.out at
-0.25s**, fired 300px **before** the picture reaches the fold —
-`top bottom+=300`. `data-fade="0.5"` sets its own duration, `data-fade-start`
-its own trigger.
+`data-fade` on a picture or its wrapper: opacity 0 to 1, **scrubbed to the
+scroll**, spread over 320px starting where the picture's top edge touches the
+bottom of the screen. `data-fade="600"` gives one its own stretch;
+`data-fade-start` its own line.
 
-Early is the whole point. The reference fires on the file landing and its loader
-starts fetching a few hundred pixels out, so its fades are spent by the time
-anything clears the fold — you only ever catch them in peripheral vision. Fired
-at the fold instead, the same quarter second plays right in front of you at the
-edge of the frame and reads as a completely different thing.
+**The value is px of scroll, not seconds** — the fade has no duration of its
+own. Anything under 20 is taken as the seconds it used to mean, ignored, and
+warned about, since a half-second written as `0.5` would otherwise be a
+half-pixel range: a fade nobody can see and nothing to say why.
 
-Tying it to the picture's load directly, the way the reference does, does not
-survive here: the browser fetches on its own schedule, so a cached picture fades
-a page below the fold and nobody sees it at all.
+Scrubbed rather than played, because that is what the reference does. Creep down
+two pixels and two pixels' worth appears; stop and it stops with you; throw the
+wheel and you see the whole thing at once. A timed tween cannot behave that way
+— it starts on a line and then owns the next quarter second whatever the hand
+does, which is why the same numbers read as a different effect.
+
+Each fade is its own trigger, with no stagger: a group's stagger is a clock too,
+and there is no clock here. What staggers them is that they reach the line one
+after another.
 
 Opacity and nothing else, so it stacks with anything writing a transform —
 `data-scale` being the one it will usually meet. It rides the same trigger,
