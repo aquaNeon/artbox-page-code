@@ -693,40 +693,42 @@ html.is-menu-open {
    The place in the order comes from nth-child, so a copied list staggers
    exactly like the original. Twenty is more logos than a row shows at
    once; past that they share the last slot. */
-[data-fade-children] .is-fade-child {
+[data-fade-children] .is-fade-child,
+[data-fade-children] [data-marquee-item] {
   opacity: 0;
   transition: opacity var(--fade-child-ms, 500ms) var(--ease-qubic);
   transition-delay: calc(var(--fade-child-i, 0) * var(--fade-child-step, 60ms));
 }
 
-[data-fade-children].is-faded .is-fade-child {
+[data-fade-children].is-faded .is-fade-child,
+[data-fade-children].is-faded [data-marquee-item] {
   opacity: 1;
 }
 
-[data-fade-children] .is-fade-child:nth-child(1) { --fade-child-i: 0; }
-[data-fade-children] .is-fade-child:nth-child(2) { --fade-child-i: 1; }
-[data-fade-children] .is-fade-child:nth-child(3) { --fade-child-i: 2; }
-[data-fade-children] .is-fade-child:nth-child(4) { --fade-child-i: 3; }
-[data-fade-children] .is-fade-child:nth-child(5) { --fade-child-i: 4; }
-[data-fade-children] .is-fade-child:nth-child(6) { --fade-child-i: 5; }
-[data-fade-children] .is-fade-child:nth-child(7) { --fade-child-i: 6; }
-[data-fade-children] .is-fade-child:nth-child(8) { --fade-child-i: 7; }
-[data-fade-children] .is-fade-child:nth-child(9) { --fade-child-i: 8; }
-[data-fade-children] .is-fade-child:nth-child(10) { --fade-child-i: 9; }
-[data-fade-children] .is-fade-child:nth-child(11) { --fade-child-i: 10; }
-[data-fade-children] .is-fade-child:nth-child(12) { --fade-child-i: 11; }
-[data-fade-children] .is-fade-child:nth-child(13) { --fade-child-i: 12; }
-[data-fade-children] .is-fade-child:nth-child(14) { --fade-child-i: 13; }
-[data-fade-children] .is-fade-child:nth-child(15) { --fade-child-i: 14; }
-[data-fade-children] .is-fade-child:nth-child(16) { --fade-child-i: 15; }
-[data-fade-children] .is-fade-child:nth-child(17) { --fade-child-i: 16; }
-[data-fade-children] .is-fade-child:nth-child(18) { --fade-child-i: 17; }
-[data-fade-children] .is-fade-child:nth-child(19) { --fade-child-i: 18; }
-[data-fade-children] .is-fade-child:nth-child(n+20) { --fade-child-i: 19; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(1) { --fade-child-i: 0; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(2) { --fade-child-i: 1; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(3) { --fade-child-i: 2; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(4) { --fade-child-i: 3; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(5) { --fade-child-i: 4; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(6) { --fade-child-i: 5; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(7) { --fade-child-i: 6; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(8) { --fade-child-i: 7; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(9) { --fade-child-i: 8; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(10) { --fade-child-i: 9; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(11) { --fade-child-i: 10; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(12) { --fade-child-i: 11; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(13) { --fade-child-i: 12; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(14) { --fade-child-i: 13; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(15) { --fade-child-i: 14; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(16) { --fade-child-i: 15; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(17) { --fade-child-i: 16; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(18) { --fade-child-i: 17; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(19) { --fade-child-i: 18; }
+[data-fade-children] :is(.is-fade-child, [data-marquee-item]):nth-child(n+20) { --fade-child-i: 19; }
 
 /* Nothing to reveal if nothing can move. */
 @media (prefers-reduced-motion: reduce) {
-  [data-fade-children] .is-fade-child {
+  [data-fade-children] :is(.is-fade-child, [data-marquee-item]) {
     opacity: 1;
     transition: none;
   }

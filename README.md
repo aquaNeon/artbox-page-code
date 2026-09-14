@@ -1160,9 +1160,10 @@ marquee copies its list to loop, so inline opacity written on a logo before that
 happens is copied with it and two thirds of them never get a tween — a rule in
 the stylesheet reaches the copies, an inline style never does. So the module
 only adds `.is-faded` to the container at its cue, and the CSS does the rest:
-put `data-fade-children` on the container, the class `is-fade-child` on each
-child, and the place in the order comes from `nth-child`, which a copied list
-repeats exactly. `--fade-child-step` (60ms) and `--fade-child-ms` (500ms) are the
+put `data-fade-children` on the container and the place in the order comes from
+`nth-child`, which a copied list repeats exactly. Marquee items are picked up by
+their own `[data-marquee-item]`, so a marquee needs nothing else; anywhere else,
+the class `is-fade-child` on each child marks them. `--fade-child-step` (60ms) and `--fade-child-ms` (500ms) are the
 knobs; twenty slots, and past that they share the last.
 
 `[data-fade-group]` on a parent runs its fades as one staggered set off a single
