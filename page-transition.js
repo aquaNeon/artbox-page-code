@@ -67,7 +67,7 @@
   // picture is a different gesture from type rising into place: it has to
   // leave and arrive slowly, and hold speed through the middle.
   const INOUT_MASK = Object.assign(namedEase('inoutMask', '0.77, 0, 0.175, 1'), {
-    duration: 1.5
+    duration: 0.8
   });
 
   const E = {

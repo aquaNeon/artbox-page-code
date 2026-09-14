@@ -991,8 +991,14 @@ gsap — the two engines cannot share one value, so they are cut from one.
 | **qubicXL** | `QUBIC.xl` — 1.2s | nothing yet; ask for it by name |
 | **inoutMask** | `INOUT_MASK.duration` — 1.5s | the mask wipe over pictures, `cubic-bezier(0.77, 0, 0.175, 1)` |
 
-`textAnim` runs the same curve at its own 0.4s, since a line rising inside a
+`textAnim` runs the qubic curve at its own 0.4s, since a line rising inside a
 mask is a shorter move than a whole statement crossing the screen.
+
+The stylesheet holds the same set as CSS variables — `--ease-inout-mask` and
+`--ease-qubic` on `:root` — so a keyframe gets the same gesture as a gsap tween.
+The hero cells use the first: the entrance keyframe stays the embed's, and only
+its timing function is taken over here, which needs `:not(.wf-design-mode)` in
+the selector to beat the shorthand the embed writes it in.
 
 ### maskReveal — `[data-mask]`
 
