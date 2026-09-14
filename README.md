@@ -934,8 +934,10 @@ Tuning lives in the `HERO` object at the top of the module. The two
 transforms sit on different elements on purpose: parallax drives
 `.home_img_wrap`, the pointer bump drives the `img` inside it.
 
-**Entrance order.** The fade/scale keyframe stays in the embed; the six
-delays are overridden in `page-transition.css`. Spacing is uniform, order is
+**Entrance order.** The entrance keyframes stay in the embed — a cell may carry
+several, on their own durations, and the module waits for the last of them
+before it takes the transform back for the bump. The six delays are overridden
+in `page-transition.css`. Spacing is uniform, order is
 not — DOM cell 1→2, 2→4, 3→0, 4→3, 5→1, video→5 — so the grid reads as
 arriving rather than as counting off. Two variables on `.home_wrap` tune it:
 

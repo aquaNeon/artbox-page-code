@@ -2543,8 +2543,18 @@
         fn();
       };
       if (getComputedStyle(img).animationName === 'none') { done(); return; }
-      img.addEventListener('animationend', done, { once: true });
-      cleanups.push(() => img.removeEventListener('animationend', done));
+
+      /* Every entrance on the cell, not the first to finish. A cell can
+         carry more than one — the mask and the scale run on their own
+         clocks — and dropping the animation at the first animationend
+         takes the longer one down with it, mid-wipe. */
+      const onEnd = () => {
+        if (img.getAnimations().some((a) => a.playState === 'running')) return;
+        img.removeEventListener('animationend', onEnd);
+        done();
+      };
+      img.addEventListener('animationend', onEnd);
+      cleanups.push(() => img.removeEventListener('animationend', onEnd));
     };
 
     /* Collected, not bound inside the context: on a swap the animation
