@@ -1172,14 +1172,30 @@
         });
       }
 
+      /* Said out loud, so anything that wants to follow the text can wait
+         for it instead of guessing at a number — a guess survives a
+         reload and not a page transition, where the reveal starts
+         whenever the incoming container is laid out.
+
+         Two moments, because following text rarely means waiting for all
+         of it: `textanim:last` is the final step setting off, which is
+         the one to follow if the two are meant to overlap, and
+         `textanim:done` is everything settled. */
+      const lastCue = Math.max(0, ...inst.groups.map((g) => (
+        g.delay + g.cardOffset + Math.max(0, ...g.steps.map((step) => step.start))
+      )));
+
+      const shout = (name) => {
+        if (dead) return;
+        inst.trigger.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+      };
+
+      setTimeout(() => shout('textanim:last'), lastCue * 1000);
+
       Promise.allSettled(inst.anims.map((a) => a.finished)).then(() => {
         if (dead) return;
         inst.groups.forEach(releaseMasks);
-        /* Said out loud, so anything that wants to follow the text can
-           wait for it instead of guessing at a number. A guess survives a
-           reload and not a page transition, where the reveal starts
-           whenever the incoming container is laid out. */
-        inst.trigger.dispatchEvent(new CustomEvent('textanim:done', { bubbles: true }));
+        shout('textanim:done');
       });
     };
 
@@ -2024,7 +2040,13 @@
          laid out. Empty means every text group in the section; a value is
          a selector for the ones to wait for.
 
-         The hold becomes the gap after the text rather than the wait
+         It follows the text's LAST step setting off rather than all of it
+         settling: the pictures are answering the paragraph, not queueing
+         behind it, and a step's tail is long enough that waiting it out
+         reads as dead air. data-mask-after-settled waits for the end
+         instead.
+
+         The hold becomes the gap after that moment rather than the wait
          itself, since the waiting is no longer this group's to measure. */
       const afterRaw = data.maskAfter ?? data.growAfter ?? data.fadeAfter;
       const waits = afterRaw !== undefined;
@@ -2107,13 +2129,14 @@
         if (scope.matches && scope.matches(sel)) sources.unshift(scope);
         pending = new Set(sources);
 
-        const onDone = (e) => {
+        const cue = data.maskAfterSettled !== undefined ? 'textanim:done' : 'textanim:last';
+        const onCue = (e) => {
           if (!pending.has(e.target)) return;
           pending.delete(e.target);
           start();
         };
-        document.addEventListener('textanim:done', onDone);
-        listeners.push(() => document.removeEventListener('textanim:done', onDone));
+        document.addEventListener(cue, onCue);
+        listeners.push(() => document.removeEventListener(cue, onCue));
       }
 
       triggers.push(ScrollTrigger.create({

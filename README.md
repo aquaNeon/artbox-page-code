@@ -1101,7 +1101,8 @@ clip covers all three, where marking the `video` leaves the poster unwiped.
 | `data-mask-group` | a wrapper | Everything marked inside plays as one run off the wrapper's trigger, staggered |
 | `data-mask-stagger` | the group | Seconds between them, default `0.12`. The run follows DOM order, which for a row is left to right |
 | `data-mask-delay` | the group | Seconds the whole run waits before the first one moves |
-| `data-mask-after` | the group | Waits for the text in its section to finish instead of counting. Empty means every `[data-text-anim]` group in the section, including the section itself; a value is a selector for the ones to wait for |
+| `data-mask-after` | the group | Waits for the text in its section instead of counting — for its last step setting off. Empty means every `[data-text-anim]` group in the section, including the section itself; a value is a selector for the ones to wait for |
+| `data-mask-after-settled` | the group | Waits for that text to finish entirely rather than to reach its last step |
 | `data-mask-start` | the group | ScrollTrigger start, default `top 85%` |
 | `data-mask-delay` | one element | Extra seconds on top of its place in the run |
 | `data-mask-scale` | one element | Overscale settling as the clip lands, default `1` — off. Set it per element (`1.06` is a gentle one), and leave it off wherever the picture already carries a parallax or hover transform, which is the same property |
@@ -1116,9 +1117,15 @@ three, because it is a thing the site does rather than a set of numbers.
 **Waiting for the text.** `data-mask-delay` is a number, and a number that lines
 up on a reload is wrong on a page transition — Barba lays the incoming container
 out first, so the text starts later and the pictures land on top of it.
-`data-mask-after` waits for the thing itself: `textAnim` announces `textanim:done`
-on a group root once its last line has settled, and the run starts when both
-that and its own trigger have happened.
+`data-mask-after` waits for the thing itself. `textAnim` announces two moments on
+a group root — `textanim:last` when its final step sets off, and `textanim:done`
+when everything has settled — and the run starts when the first of those and its
+own trigger have both happened.
+
+It follows the **last step setting off**, not the end: the pictures are
+answering the paragraph, not queueing behind it, and a step's tail is long
+enough that waiting it out reads as dead air. `data-mask-after-settled` on the
+group waits for the end instead.
 
 `data-mask-delay` then means the gap after the text rather than the wait itself,
 and the default gap is nothing: the pictures follow the last line straight away,
