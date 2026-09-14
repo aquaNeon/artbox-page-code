@@ -1816,6 +1816,17 @@
     tilt: 0,
     perspective: 900,
 
+    /* A picture that travels has to be bigger than its box, or the box
+       shows through where the picture no longer is — a row of them
+       leaving a band along the bottom, which looks for all the world
+       like a mask.
+
+       Measured at mount from the rise and the element's own height, so
+       the cover is exactly enough and no more, with a fallback for the
+       case where nothing has been laid out yet. */
+    zoomPad: 2,       // multiples of the rise to cover
+    zoomFallback: 1.1,
+
     /* Fired as the picture begins to enter, not scrubbed to how far it
        has come. Scrubbing looked right on paper and wrong in the hand:
        tie opacity to travel and a slow scroll leaves the picture parked
@@ -1878,6 +1889,19 @@
       };
       const fadeRise = num('fadeRise', FADE_IN.rise);
       const fadeTilt = num('fadeTilt', FADE_IN.tilt);
+
+      /* Enough overscale to cover the travel. An explicit data-fade-zoom
+         wins; otherwise it is worked out from how far the thing moves
+         against how tall it is. */
+      const ownZoom = num('fadeZoom', 0);
+      const height = el.getBoundingClientRect().height;
+      const fadeZoom = ownZoom > 0
+        ? ownZoom
+        : (fadeRise || fadeTilt
+          ? (height > 0
+            ? 1 + (Math.abs(fadeRise) * FADE_IN.zoomPad) / height
+            : FADE_IN.zoomFallback)
+          : 1);
       const key = (el.dataset.mask || '').trim().toLowerCase();
 
       const rawGrow = parseFloat(el.dataset.grow);
@@ -1934,6 +1958,7 @@
           gsap.set(el, {
             y: fadeRise,
             rotationX: fadeTilt,
+            scale: fadeZoom,
             transformPerspective: FADE_IN.perspective,
             transformOrigin: 'center bottom'
           });
@@ -1943,7 +1968,7 @@
       touched.push(el);
       if (media && media !== el) touched.push(media);
 
-      return { el, media, clips, clipAt, fades, fadeDuration, fadeRise, fadeTilt, scaleFrom, duration, ease };
+      return { el, media, clips, clipAt, fades, fadeDuration, fadeRise, fadeTilt, fadeZoom, scaleFrom, duration, ease };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -1996,6 +2021,7 @@
           };
           if (item.fadeRise) to.y = 0;
           if (item.fadeTilt) to.rotationX = 0;
+          if (item.fadeZoom !== 1) to.scale = 1;
           tl.to(item.el, to, cue);
         }
 
