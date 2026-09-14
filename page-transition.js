@@ -490,6 +490,11 @@
 
     slots: {
       rule: 0,
+      /* A component whose text is one marked wrapper has a single part
+         here, whatever it holds: the tailored list items carry their
+         heading and paragraph as one solo step, so `text` is the whole
+         block and the names below it are for items that split theirs. */
+      text: 1,
       link: 1,
       heading: 2,
       body: 3

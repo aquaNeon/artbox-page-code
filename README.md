@@ -1074,9 +1074,14 @@ the `SEQUENCE` object at the top of `page-transition.js`:
 const SEQUENCE = {
   lead: 0.4,   // after the trigger before the first part moves
   step: 0.4,   // between one part and the next
-  slots: { rule: 0, link: 1, heading: 2, body: 3 }
+  slots: { rule: 0, text: 1, link: 1, heading: 2, body: 3 }
 };
 ```
+
+`text` and the three names under it share the same ground: a component whose
+text is one marked wrapper — the tailored list items carry their heading and
+paragraph as a single solo step — has one part, `text`, whatever it holds. The
+finer names are for items that mark their parts separately.
 
 The markup only says which part a thing is — `data-slot="heading"` — and its cue
 is `lead + slot * step`. Reorder by renumbering the table, retime the whole
