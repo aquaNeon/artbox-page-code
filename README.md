@@ -319,7 +319,7 @@ module** — the rest of the site still uses it, the text does not.
 | `data-text-anim-with` | On a step: run it alongside the previous step instead of after it |
 | `data-text-anim-fade` | On a step, or on the root for all of them: opacity only, no travel and no clip |
 | `data-text-anim-split` | On a step: `lines` (default), `words`, `chars`, or `none` for an unsplit block rise |
-| `data-text-anim-icon` | On a non-text child of a step (an eyebrow square, a bullet): give it the step's own cue instead of letting it appear whole |
+| `data-text-anim-icon` | On a non-text child of a step (an eyebrow square, a bullet): give it the step's own cue instead of letting it appear whole. It grows out of its own middle; `-icon="x"` wipes from the left edge instead. For a one-off inside a component — where the Designer would write the attribute onto every instance at once — add a class selector to `TEXT.iconAlso` instead, scoped to the section that wants it |
 | `data-text-anim-ignore` | On anything inside a marked element: never cut into, never a unit |
 
 Timing knobs, all optional:

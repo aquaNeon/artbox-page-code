@@ -481,6 +481,13 @@
     iconOffset: 0,          // relative to its step's start
     iconStagger: 0.08,      // between icons in one step
 
+    /* One-offs that cannot wear the attribute: the eyebrow square is a
+       component used across the site, and the Designer writes a custom
+       attribute onto every instance of it at once. Class names, scoped
+       to the one section that wants the pop, leave the rest alone.
+       Add a selector per one-off; an empty string is none. */
+    iconAlso: '.insight_item_wrap .icon_eyebrow_item',
+
     // Unsplit fallback: -split="none", and every role with no kugiri.
     blockFromY: 30,         // % of its own height
     soloFromY: 14,          // -solo is one line, where 30% is a big move
@@ -502,6 +509,12 @@
     fontWait: 1.5,          // s before splitting without the webfont
     resplit: 0.15           // s a resize drag has to settle
   };
+
+  /* The attribute, plus whatever one-offs TEXT.iconAlso names. Both are
+     read the same way everywhere: kugiri is told to leave them alone, and
+     revealIcons gives them the step's cue. */
+  const ICONS = ['[data-text-anim-icon]', TEXT.iconAlso]
+    .filter(Boolean).join(', ');
 
   /* ===== SEQUENCE — the cadence of a composed item ===== */
 
@@ -709,7 +722,7 @@
         type: [level],
         mask: { [level]: TEXT.reach },
         // Both belong to another module, which animates them itself.
-        ignore: '[data-swap], [data-text-anim-ignore], [data-text-anim-icon]',
+        ignore: `[data-swap], [data-text-anim-ignore], ${ICONS}`,
         classes: {
           lines: 'text-anim_line',
           words: 'text-anim_word',
@@ -947,7 +960,7 @@
   function revealIcons(step, base) {
     if (!step.units.length) return []; // a block rise already carries it
 
-    return Array.from(step.el.querySelectorAll('[data-text-anim-icon]')).map((icon, j) => {
+    return Array.from(step.el.querySelectorAll(ICONS)).map((icon, j) => {
       if (step.fade) {
         return icon.animate([{ opacity: 0 }, { opacity: 1 }], {
           duration: step.duration * 1000,
@@ -1994,8 +2007,14 @@
   };
 
   Modules.add('maskReveal', function (root) {
+    /* :not(.text-anim_mask) because kugiri numbers its own line wrappers
+       with data-mask — data-mask="0" on every masked line. Nothing is
+       split yet when this mounts, so the two have never actually met,
+       but the day they do this module would clip the text's own windows
+       shut and the lines behind them would never be seen. */
     const items = Array.from(root.querySelectorAll(
-      '[data-mask], [data-grow], [data-fade], [data-fade-children]:not([data-fade-children="false"])'
+      '[data-mask]:not(.text-anim_mask), [data-grow], [data-fade], ' +
+      '[data-fade-children]:not([data-fade-children="false"])'
     ));
     if (!items.length || !hasScrollTrigger || reducedMotion) return;
 
