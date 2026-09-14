@@ -682,6 +682,27 @@ html.is-menu-open {
   overflow-wrap: anywhere;
 }
 
+/* ===== SMOOTHLY ROW — .work_smoothly_wrap ===== */
+
+/* The row has to clip: it is a rail of pictures wider than the screen.
+   But `hidden` cuts an entrance dead — a picture that rises or tilts into
+   place is travelling outside the box while it does it, and the bottom of
+   it is sliced off against the rail's edge on the way.
+
+   `clip` takes a margin where `hidden` takes none, so the rail still
+   swallows the rail while the pictures paint past its top and bottom.
+   The margin applies on every side, which costs nothing here: the row is
+   full bleed, so its left and right edges are the viewport's, and
+   .page_wrap clips what falls outside.
+
+   The leading `html` outranks the section embed's own `overflow: hidden`
+   without needing !important — that rule is a single class, and it sits
+   later in the document, so a plain class here would tie and lose. */
+html .work_smoothly_wrap {
+  overflow: clip;
+  overflow-clip-margin: var(--smoothly-spill, 120px);
+}
+
 /* ===== HOVER SCALE — [data-scale] — README ### data-scale ===== */
 
 /* The picture leans in under the pointer. Mark the wrapper or the
