@@ -682,33 +682,6 @@ html.is-menu-open {
   overflow-wrap: anywhere;
 }
 
-/* ===== FADE SWEEP — [data-fade] — README ### data-fade ===== */
-
-/* Not an opacity fade over the whole picture: a soft-edged gradient
-   sliding down it, so the reveal has a moving edge and the bottom is
-   still arriving while the top is already there.
-
-   The mask is twice the element tall — black over the first half, clear
-   over the second — and --fade-y slides it. At 100 the clear half is over
-   the picture and nothing shows; at 0 the black half covers it and the
-   whole picture is there. The 18% of gradient between them is the soft
-   edge doing the actual work.
-
-   Only ever present while the sweep runs. A mask is a compositing layer,
-   and every picture on the page wearing one for the whole session is a
-   cost for an effect that lasted half a second — the module adds the
-   class, then takes it off. */
-.is-fading {
-  -webkit-mask-image: linear-gradient(to bottom, #000 41%, transparent 59%);
-  mask-image: linear-gradient(to bottom, #000 41%, transparent 59%);
-  -webkit-mask-size: 100% 200%;
-  mask-size: 100% 200%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: 0 calc(var(--fade-y, 0) * 1%);
-  mask-position: 0 calc(var(--fade-y, 0) * 1%);
-}
-
 /* ===== HOVER SCALE — [data-scale] — README ### data-scale ===== */
 
 /* The picture leans in under the pointer. Mark the wrapper or the

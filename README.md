@@ -1142,28 +1142,18 @@ Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 
 ### data-fade — the picture arrives out of nothing
 
-`data-fade` on a picture or its wrapper. A soft-edged gradient slides down it,
-so the reveal has a moving edge — the bottom is still arriving while the top is
-already there. **power2.out at 0.6s**; `data-fade="0.5"` sets its own duration.
+`data-fade` on a picture or its wrapper: opacity 0 to 1 the moment its top edge
+crosses the bottom of the screen. **power2.out at 0.35s** — short enough to be
+over before you have looked at the thing. `data-fade="0.5"` sets its own
+duration, `data-fade-start` its own trigger.
 
-Not an opacity fade. The mask is twice the element tall, black over the first
-half and clear over the second, and `--fade-y` slides it: 100 hides, 0 shows,
-and the 18% of gradient between them is the soft edge doing the work. The mask
-only exists while the sweep runs — it is a compositing layer, and every picture
-on the page wearing one for the session is a cost for half a second of effect,
-so the module adds the class and takes it off again.
+It fires on the scroll and nothing else. Tying it to the picture's load instead
+— which is what the reference does, through vanilla-lazyload — sounds right and
+is not: the browser fetches on its own schedule, so a picture already in cache
+fades while it is still a page below and nobody sees it at all. That only works
+there because their loader holds off until you are nearly on top of it.
 
-**Two cues, and it waits for the second of them**: the picture has to have
-loaded, and it has to have come near the screen (`top bottom`, the moment its
-top edge crosses the bottom of the viewport).
-
-Either alone is wrong. On load only, a picture already in cache sweeps while it
-is still a page below and nobody ever sees it — the reference gets away with
-that only because its loader does not fetch until you are nearly there. On
-scroll only, a picture that has not arrived sweeps an empty box and then pops
-in. Marked elements holding no picture ride the trigger alone.
-
-A mask and nothing else, so it stacks with anything writing a transform —
+Opacity and nothing else, so it stacks with anything writing a transform —
 `data-scale` being the one it will usually meet. It rides the same trigger,
 group and stagger plumbing as the other reveals, and hands the property back
 (`clearProps`) once it lands so a hover is never fighting a number this module

@@ -1796,20 +1796,13 @@
      stacks with anything that writes a transform: data-scale's hover lean
      is the one it will usually meet. */
   const FADE_IN = {
-    duration: 0.6,
+    duration: 0.35,
     ease: 'power2.out',
 
-    /* The picture's own load is the cue, not a line in the viewport.
-
-       That is what the reference does — vanilla-lazyload swapping its
-       classes when the file lands — and it is why its fades are so hard
-       to catch: the browser fetches a few hundred pixels before the
-       picture arrives, so by the time it is on screen the fade is spent.
-       A scroll threshold cannot reproduce that however early it fires;
-       it waits for geometry where the other waits for the network.
-
-       The start below is the fallback for anything marked that holds no
-       picture at all. */
+    /* The moment the picture's top edge crosses the bottom of the
+       screen. A fade this short is meant to be over before you have
+       looked at the thing — held any later it plays in the middle of the
+       screen and becomes an event. */
     start: 'top bottom'
   };
 
@@ -1832,7 +1825,6 @@
 
     const triggers = [];
     const touched = [];
-    const listeners = [];
 
     /* The clip is written before anything is measured or scrolled: the
        trigger is a frame away at best, and an unclipped first paint is
@@ -1902,10 +1894,7 @@
          first paint is the picture flashing in ahead of its own
          reveal. */
       if (clips) el.style.clipPath = clipAt(0);
-      if (fades) {
-        el.classList.add('is-fading');
-        el.style.setProperty('--fade-y', '100');
-      }
+      if (fades) el.style.opacity = '0';
       if (scaleFrom !== 1) media.style.transform = `scale(${scaleFrom})`;
       touched.push(el);
       if (media && media !== el) touched.push(media);
@@ -1951,11 +1940,15 @@
           }, cue);
         }
 
-        /* A fade holding a picture waits for both its load and this
-           trigger, whichever lands second — see below. One with nothing
-           to load rides the trigger alone. */
-        if (item.fades && !item.media) {
-          tl.to(item.el, { '--fade-y': 0, duration: item.fadeDuration, ease: FADE_IN.ease }, cue);
+        if (item.fades) {
+          tl.to(item.el, {
+            opacity: 1,
+            duration: item.fadeDuration,
+            ease: FADE_IN.ease,
+            // Handed back, so a hover or a swap is not fighting a number
+            // this module left on the element.
+            clearProps: 'opacity'
+          }, cue);
         }
 
         if (item.scaleFrom !== 1) {
@@ -1968,75 +1961,14 @@
         start: data.maskStart || data.growStart || data.fadeStart
           || (fadeOnly ? FADE_IN.start : MASK.start),
         once: true,
-        onEnter: () => {
-          tl.play();
-          list.forEach((item) => { if (item.arrive) item.arrive(); });
-        }
+        onEnter: () => tl.play()
       }));
-    });
-
-    /* Two cues, and the sweep waits for the second of them: the picture
-       has to have loaded, and it has to have come near the screen.
-
-       Either alone is wrong. On load only, a cached picture sweeps while
-       it is still a page below and nobody ever sees it — which is the
-       reference's behaviour only because its loader does not fetch until
-       you are nearly there. On scroll only, a picture that has not
-       arrived sweeps an empty box and then pops in. */
-    plan.forEach((item) => {
-      if (!item.fades || !item.media) return;
-
-      const media = item.media;
-      let loaded = false;
-      let entered = false;
-
-      const maybe = () => {
-        if (!loaded || !entered) return;
-        run();
-      };
-
-      item.arrive = () => { entered = true; maybe(); };
-
-      const run = () => {
-        gsap.to(item.el, {
-          '--fade-y': 0,
-          duration: item.fadeDuration,
-          ease: FADE_IN.ease,
-          /* The mask comes off with the class: nothing marked keeps a
-             compositing layer for an effect that is over. */
-          onComplete: () => {
-            item.el.classList.remove('is-fading');
-            item.el.style.removeProperty('--fade-y');
-          }
-        });
-      };
-
-      // Decoded already: a cached picture has nothing to arrive from.
-      const ready = media.tagName === 'VIDEO'
-        ? media.readyState >= 2
-        : media.complete && media.naturalWidth > 0;
-
-      if (ready) { loaded = true; maybe(); return; }
-
-      // error as well as load: a picture that never arrives must not
-      // leave its element parked at zero for the rest of the session.
-      const events = media.tagName === 'VIDEO' ? ['loadeddata', 'error'] : ['load', 'error'];
-      const once = () => {
-        events.forEach((e) => media.removeEventListener(e, once));
-        loaded = true;
-        maybe();
-      };
-      events.forEach((e) => media.addEventListener(e, once));
-      listeners.push(() => events.forEach((e) => media.removeEventListener(e, once)));
     });
 
     return () => {
       triggers.forEach((t) => t.kill());
-      listeners.forEach((fn) => fn());
       touched.forEach((el) => {
         gsap.killTweensOf(el);
-        el.classList.remove('is-fading');
-        el.style.removeProperty('--fade-y');
         el.style.removeProperty('clip-path');
         el.style.removeProperty('opacity');
         el.style.removeProperty('transform');
