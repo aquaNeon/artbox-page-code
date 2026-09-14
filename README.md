@@ -1097,12 +1097,19 @@ clip covers all three, where marking the `video` leaves the poster unwiped.
 
 | Attribute | On | Meaning |
 | --- | --- | --- |
-| `data-mask` | the image, video, or its wrapper | Marks it. A value sets the edge the wipe starts at: `top` (default), `bottom`, `left`, `right` |
+| `data-mask` | the image, video, or its wrapper | Marks it. A value sets the edge the wipe starts at: `top` (default), `bottom`, `left`, `right`, `center`, or **`hero`** |
 | `data-mask-group` | a wrapper | Everything marked inside plays as one run off the wrapper's trigger, staggered |
 | `data-mask-stagger` | the group | Seconds between them, default `0.12` |
 | `data-mask-start` | the group | ScrollTrigger start, default `top 85%` |
 | `data-mask-delay` | one element | Extra seconds on top of its place in the run |
 | `data-mask-scale` | one element | Overscale settling as the clip lands, default `1` — off. Set it per element (`1.06` is a gentle one), and leave it off wherever the picture already carries a parallax or hover transform, which is the same property |
+
+**`data-mask="hero"`** is the home hero's arrival brought to anything that has
+to wait for a scroll: the clip opens from a line at the middle while the picture
+grows out of nothing, on the hero's own two clocks — `heroOpen` 1s for the clip,
+`heroGrow` 0.8s for the scale, both on inoutMask. One attribute rather than
+three, because it is a thing the site does rather than a set of numbers.
+`center` gives the same iris without the scale.
 
 Ungrouped, each marked element is its own trigger.
 
@@ -1270,9 +1277,11 @@ left behind.
 
 Kept for now, likely to be removed — nothing on the site uses them:
 
-- **`maskReveal` / `[data-mask]`** and its `[data-grow]` variant — the clip wipe
-  over pictures, with `_fixture-mask-reveal.html`.
+- **`[data-grow]`** — the sideways variant of the wipe.
 - **`ruleReveal` / `[data-rule]`** — the border drawn left to right.
+
+`maskReveal` itself has come off this list: `data-mask="hero"` is how the site's
+own entrance reaches anything that waits for a scroll.
 
 `SEQUENCE`, `data-fade` and `data-scale` stay whatever happens to those two;
 `ruleReveal` is the only thing that reads the `rule` slot.

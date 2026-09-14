@@ -1789,7 +1789,15 @@
        with data-mask-scale to have the picture settle as the clip lands
        — and leave it alone wherever the picture already carries a
        parallax or hover transform, which is the same property. */
-    scaleFrom: 1
+    scaleFrom: 1,
+
+    /* data-mask="hero" is the home hero's arrival, brought to anything
+       that has to wait for a scroll: the clip opens from a line at the
+       middle while the picture grows out of nothing. The numbers are the
+       hero's, so the two read as one gesture wherever they meet. */
+    heroScaleFrom: 0,
+    heroOpen: 1,          // s the clip takes, --hero-in-open in the CSS
+    heroGrow: 0.8         // s the scale takes, --hero-in-grow
   };
 
   /* [data-grow] — the same wipe, opening sideways from the middle and
@@ -1847,7 +1855,10 @@
     top: [0, 0, 100, 0],
     bottom: [100, 0, 0, 0],
     left: [0, 100, 0, 0],
-    right: [0, 0, 0, 100]
+    right: [0, 0, 0, 100],
+    // Shut in the middle and opening to every edge at once.
+    center: [50, 50, 50, 50],
+    hero: [50, 50, 50, 50]
   };
 
   Modules.add('maskReveal', function (root) {
@@ -1896,6 +1907,11 @@
       const fadeZoom = ownZoom > 0 ? ownZoom : 1;
       const key = (el.dataset.mask || '').trim().toLowerCase();
 
+      /* The hero gesture is a centre iris and a scale together, on the
+         hero's own clocks — one attribute rather than three, since it is
+         a thing the site does rather than a set of numbers. */
+      const hero = key === 'hero';
+
       const rawGrow = parseFloat(el.dataset.grow);
       const growFrom = Number.isFinite(rawGrow) ? rawGrow : GROW.from;
       const side = Math.max(0, (1 - growFrom) / 2) * 100;
@@ -1904,7 +1920,7 @@
         ? [0, side, 0, side]
         : (MASK_EDGES[key] || MASK_EDGES[MASK.from]);
 
-      const duration = grows ? GROW.duration : MASK.duration;
+      const duration = grows ? GROW.duration : (hero ? MASK.heroOpen : MASK.duration);
       const ease = grows ? GROW.ease : MASK.ease;
 
       /* Corners come from the element itself: inset() clips to a
@@ -1937,7 +1953,12 @@
         : el.querySelector('img, video');
 
       const scale = parseFloat(el.dataset.maskScale);
-      const scaleFrom = media ? (Number.isFinite(scale) ? scale : MASK.scaleFrom) : 1;
+      const scaleFrom = media
+        ? (Number.isFinite(scale) ? scale : (hero ? MASK.heroScaleFrom : MASK.scaleFrom))
+        : 1;
+      // The hero's two clocks: the clip finishes a beat after the scale,
+      // which is what stops the edge arriving at full size.
+      const scaleDuration = hero ? MASK.heroGrow : duration;
 
       /* The start state is written before anything is measured or
          scrolled: the trigger is a frame away at best, and an unclipped
@@ -1960,7 +1981,8 @@
       touched.push(el);
       if (media && media !== el) touched.push(media);
 
-      return { el, media, clips, clipAt, fades, fadeDuration, fadeRise, fadeTilt, fadeZoom, scaleFrom, duration, ease };
+      return { el, media, clips, clipAt, fades, fadeDuration, fadeRise, fadeTilt, fadeZoom,
+        scaleFrom, scaleDuration, duration, ease };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -2018,7 +2040,12 @@
         }
 
         if (item.scaleFrom !== 1) {
-          tl.to(item.media, { scale: 1, duration: item.duration, ease: item.ease }, cue);
+          tl.to(item.media, {
+            scale: 1,
+            duration: item.scaleDuration,
+            ease: item.ease,
+            transformOrigin: 'center center'
+          }, cue);
         }
       });
 
