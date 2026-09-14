@@ -996,9 +996,9 @@ mask is a shorter move than a whole statement crossing the screen.
 
 The stylesheet holds the same set as CSS variables — `--ease-inout-mask` and
 `--ease-qubic` on `:root` — so a keyframe gets the same gesture as a gsap tween.
-The hero cells use the first: the entrance keyframe stays the embed's, and only
-its timing function is taken over here, which needs `:not(.wf-design-mode)` in
-the selector to beat the shorthand the embed writes it in.
+The home hero's entrance is **not** one of them: curve and duration both stay in
+the section embed, which writes them in an `animation` shorthand, and nothing
+here overrides it. The corporate hero borrows `--ease-qubic` to match it.
 
 ### maskReveal — `[data-mask]`
 

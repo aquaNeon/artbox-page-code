@@ -1471,21 +1471,6 @@ html.is-menu-open [data-video="component"].is-travelling,
   pointer-events: auto;
 }
 
-/* The entrance keyframe is the embed's; its curve is not. Only the
-   timing function is taken, so the Designer still owns what the cells do
-   and this owns how they do it — and the pictures land on the same
-   inOutQuart the mask wipe uses.
-
-   :not(.wf-design-mode) is carried for the specificity, not the filter:
-   the embed writes the curve inside an `animation` shorthand on
-   `html:not(.wf-design-mode) .home_img_wrap img`, and a plain `html`
-   prefix only ties with that — a tie the embed wins by sitting later in
-   the document. The delay rules below clear the same bar through their
-   nth-child. */
-html:not(.wf-design-mode) .home_wrap .home_img_wrap img {
-  animation-timing-function: var(--ease-inout-mask);
-}
-
 .home_wrap {
   --hero-in-lead: 0.15s;   /* before the first cell moves */
   --hero-in-step: 0.1s;    /* between one cell and the next */
@@ -1648,7 +1633,7 @@ html .cta_wrap {
 
   html:not(.wf-design-mode) .corporate_images_mobile_img_wrap {
     animation: var(--corp-hero-duration, 0.9s)
-      var(--ease-inout-mask)
+      var(--ease-qubic)
       var(--corp-hero-lead, 0.15s) 1 normal both running corp-hero-in;
     transform-origin: center center;
   }
