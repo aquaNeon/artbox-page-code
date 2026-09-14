@@ -957,6 +957,16 @@ statements change without moving.
 `data-text-anim` / `data-text-anim-heading` on it if you want the line rise.
 The images fade/scale in, bump toward the pointer, and parallax *against*
 the scroll direction (negative `y`).
+
+A picture set inline into a heading arrives the way the hero cells do — an iris
+opening from its middle while it grows out of nothing — and it **waits for its
+own line to land** rather than riding up with it. The line's mask carries the
+type; a picture sitting in the middle of that line has no mask of its own, so
+travelling with it means arriving early and alone. Waiting leaves a hole in the
+line exactly the size of the picture, since the wrapper is laid out either way
+and a transform never touches layout, and the hole fills once the words have
+settled. `TEXT.imgAfterLine` turns that off, `imgClip` the iris, and
+`imgFrom: false` the whole thing.
 The grid overlaps its own cells at some widths, so the stacking is pinned in
 `page-transition.css`: `.home_img_wrap` takes an explicit `z-index: 0` and the
 `h1` a `2`. The cells need the 0 — the parallax transform makes each one a

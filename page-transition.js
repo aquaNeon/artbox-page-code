@@ -444,12 +444,22 @@
     wordStagger: 0.03,
     charStagger: 0.012,
 
-    // Inline heading images scale rather than travel — the line mask
-    // already carries them up with the type.
-    imgFrom: 0.6,           // 0 turns the image scaling off
-    imgDuration: 0.9,
-    imgEase: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-    imgOffset: 0.08,        // after its own line starts
+    /* A picture set into a heading arrives the way the hero cells do: an
+       iris opening from its middle while it grows out of nothing.
+
+       It waits for its own line to land rather than riding up with it.
+       The line's mask carries the type; the picture sitting in the middle
+       of that line has no mask of its own, so travelling with it means
+       arriving early and alone. Waiting leaves a hole in the line exactly
+       the size of the picture — the wrapper is laid out either way, and a
+       transform never touches layout — and the hole fills once the words
+       have settled. */
+    imgFrom: 0,             // scale it starts at; false turns the reveal off
+    imgClip: 'inset(50%)',  // the iris it opens from; '' for no clip
+    imgDuration: 0.8,
+    imgEase: INOUT_MASK.css,
+    imgAfterLine: true,     // wait for its line to land before arriving
+    imgOffset: 0.05,        // after that
     imgStagger: 0.08,       // between images sharing a line
 
     /* [data-text-anim-icon], its own knobs rather than the image ones: a
@@ -871,7 +881,7 @@
      with object-fit:cover, so scaling the picture alone shows the frame's
      background around a shrunken photo. */
   function revealImages(step, base) {
-    if (!TEXT.imgFrom) return [];
+    if (TEXT.imgFrom === false) return [];
     const anims = [];
     step.units.forEach((unit, i) => {
       const imgs = Array.from(unit.querySelectorAll('img'));
@@ -881,15 +891,26 @@
       ));
       targets.forEach((target, j) => {
         target.style.transformOrigin = 'center center';
-        anims.push(target.animate(
-          [{ transform: `scale(${TEXT.imgFrom})` }, { transform: 'none' }],
-          {
-            duration: TEXT.imgDuration * 1000,
-            delay: (base + step.start + i * step.stagger + TEXT.imgOffset + j * TEXT.imgStagger) * 1000,
-            easing: TEXT.imgEase,
-            fill: 'backwards'
-          }
-        ));
+
+        const lineAt = base + step.start + i * step.stagger;
+        const cue = (TEXT.imgAfterLine ? lineAt + step.duration : lineAt)
+          + TEXT.imgOffset + j * TEXT.imgStagger;
+
+        const from = { transform: `scale(${TEXT.imgFrom})` };
+        const to = { transform: 'none' };
+        if (TEXT.imgClip) {
+          // Both ends one inset of one value, or there is no shape to
+          // interpolate between and it snaps at the end.
+          from.clipPath = TEXT.imgClip;
+          to.clipPath = 'inset(0%)';
+        }
+
+        anims.push(target.animate([from, to], {
+          duration: TEXT.imgDuration * 1000,
+          delay: cue * 1000,
+          easing: TEXT.imgEase,
+          fill: 'backwards'
+        }));
       });
     });
     return anims;
