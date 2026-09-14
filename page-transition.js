@@ -2129,7 +2129,11 @@
         if (scope.matches && scope.matches(sel)) sources.unshift(scope);
         pending = new Set(sources);
 
-        const cue = data.maskAfterSettled !== undefined ? 'textanim:done' : 'textanim:last';
+        /* Read across the three families like every other key here: a
+           fade group asking for the strict cue writes
+           data-fade-after-settled, and only the mask spelling worked. */
+        const settled = data.maskAfterSettled ?? data.growAfterSettled ?? data.fadeAfterSettled;
+        const cue = settled !== undefined ? 'textanim:done' : 'textanim:last';
         const onCue = (e) => {
           if (!pending.has(e.target)) return;
           pending.delete(e.target);
