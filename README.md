@@ -1087,13 +1087,11 @@ meeting the transform that library is already writing. Asked for, the transform
 lands on the marked element, which in those components is the picture and never
 the slide.
 
-A picture that travels is overscaled while it does, or the box shows through
-where the picture no longer is — a row of them leaving a band along the bottom,
-which looks for all the world like a mask. The scale is worked out at mount from
-the rise against the element's own height, so the cover is exactly enough and no
-more; `data-fade-zoom="1.2"` pins it by hand. Note the measurement happens
-before pictures have loaded, so on a box that has no height yet it falls back to
-`FADE_IN.zoomFallback` (1.1).
+A picture that travels leaves its own box uncovered at one edge for the length
+of the move — across a row that reads as a band along the bottom. An overscale
+fixes it and `data-fade-zoom="1.12"` is how you ask for one, but it is never
+assumed: the cover crops the picture while it runs, and that is a decision for
+the component, not for this module.
 
 The tilt is a 3D rotation, so it needs something to be seen through: the
 perspective rides on the element itself (`FADE_IN.perspective`, 900) rather than

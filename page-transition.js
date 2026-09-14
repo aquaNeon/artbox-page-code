@@ -1816,16 +1816,6 @@
     tilt: 0,
     perspective: 900,
 
-    /* A picture that travels has to be bigger than its box, or the box
-       shows through where the picture no longer is — a row of them
-       leaving a band along the bottom, which looks for all the world
-       like a mask.
-
-       Measured at mount from the rise and the element's own height, so
-       the cover is exactly enough and no more, with a fallback for the
-       case where nothing has been laid out yet. */
-    zoomPad: 2,       // multiples of the rise to cover
-    zoomFallback: 1.1,
 
     /* Fired as the picture begins to enter, not scrubbed to how far it
        has come. Scrubbing looked right on paper and wrong in the hand:
@@ -1890,18 +1880,12 @@
       const fadeRise = num('fadeRise', FADE_IN.rise);
       const fadeTilt = num('fadeTilt', FADE_IN.tilt);
 
-      /* Enough overscale to cover the travel. An explicit data-fade-zoom
-         wins; otherwise it is worked out from how far the thing moves
-         against how tall it is. */
+      /* Asked for and never assumed. A picture that travels leaves its
+         box uncovered at one edge, and an overscale is the fix — but it
+         crops the picture for the length of the move, so it is the
+         caller's call, not this module's. */
       const ownZoom = num('fadeZoom', 0);
-      const height = el.getBoundingClientRect().height;
-      const fadeZoom = ownZoom > 0
-        ? ownZoom
-        : (fadeRise || fadeTilt
-          ? (height > 0
-            ? 1 + (Math.abs(fadeRise) * FADE_IN.zoomPad) / height
-            : FADE_IN.zoomFallback)
-          : 1);
+      const fadeZoom = ownZoom > 0 ? ownZoom : 1;
       const key = (el.dataset.mask || '').trim().toLowerCase();
 
       const rawGrow = parseFloat(el.dataset.grow);
@@ -1958,7 +1942,7 @@
           gsap.set(el, {
             y: fadeRise,
             rotationX: fadeTilt,
-            scale: fadeZoom,
+            ...(fadeZoom !== 1 ? { scale: fadeZoom } : {}),
             transformPerspective: FADE_IN.perspective,
             transformOrigin: 'center bottom'
           });
