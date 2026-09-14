@@ -1796,15 +1796,20 @@
      stacks with anything that writes a transform: data-scale's hover lean
      is the one it will usually meet. */
   const FADE_IN = {
-    duration: 1,
-    ease: QUBIC.ease,
+    duration: 0.6,
+    ease: 'power2.out',
 
-    /* The moment the picture's top edge crosses the bottom of the screen,
-       not a sixth of the way up it like the clips. A fade is meant to be
-       over by the time you are looking at the thing: scroll slowly and it
-       should have happened somewhere below, scroll fast and it catches
-       up. Held to the later start it plays in the middle of the screen
-       and turns into an event. */
+    /* The picture's own load is the cue, not a line in the viewport.
+
+       That is what the reference does — vanilla-lazyload swapping its
+       classes when the file lands — and it is why its fades are so hard
+       to catch: the browser fetches a few hundred pixels before the
+       picture arrives, so by the time it is on screen the fade is spent.
+       A scroll threshold cannot reproduce that however early it fires;
+       it waits for geometry where the other waits for the network.
+
+       The start below is the fallback for anything marked that holds no
+       picture at all. */
     start: 'top bottom'
   };
 
@@ -1827,6 +1832,7 @@
 
     const triggers = [];
     const touched = [];
+    const listeners = [];
 
     /* The clip is written before anything is measured or scrolled: the
        trigger is a frame away at best, and an unclipped first paint is
@@ -1896,7 +1902,10 @@
          first paint is the picture flashing in ahead of its own
          reveal. */
       if (clips) el.style.clipPath = clipAt(0);
-      if (fades) el.style.opacity = '0';
+      if (fades) {
+        el.classList.add('is-fading');
+        el.style.setProperty('--fade-y', '100');
+      }
       if (scaleFrom !== 1) media.style.transform = `scale(${scaleFrom})`;
       touched.push(el);
       if (media && media !== el) touched.push(media);
@@ -1942,15 +1951,10 @@
           }, cue);
         }
 
-        if (item.fades) {
-          tl.to(item.el, {
-            opacity: 1,
-            duration: item.fadeDuration,
-            ease: FADE_IN.ease,
-            // Handed back, so a hover or a swap is not fighting a number
-            // this module left on the element.
-            clearProps: 'opacity'
-          }, cue);
+        /* A fade with a picture in it is driven by the load, below —
+           only a marked element with nothing to load rides the trigger. */
+        if (item.fades && !item.media) {
+          tl.to(item.el, { '--fade-y': 0, duration: item.fadeDuration, ease: FADE_IN.ease }, cue);
         }
 
         if (item.scaleFrom !== 1) {
@@ -1967,10 +1971,52 @@
       }));
     });
 
+    /* Bound at mount, not at a trigger: the file may already be on its
+       way, or already in cache, and either way the fade belongs to the
+       moment it lands. */
+    plan.forEach((item) => {
+      if (!item.fades || !item.media) return;
+
+      const media = item.media;
+      const run = () => {
+        gsap.to(item.el, {
+          '--fade-y': 0,
+          duration: item.fadeDuration,
+          ease: FADE_IN.ease,
+          /* The mask comes off with the class: nothing marked keeps a
+             compositing layer for an effect that is over. */
+          onComplete: () => {
+            item.el.classList.remove('is-fading');
+            item.el.style.removeProperty('--fade-y');
+          }
+        });
+      };
+
+      // Decoded already: a cached picture has nothing to arrive from.
+      const ready = media.tagName === 'VIDEO'
+        ? media.readyState >= 2
+        : media.complete && media.naturalWidth > 0;
+
+      if (ready) { run(); return; }
+
+      // error as well as load: a picture that never arrives must not
+      // leave its element parked at zero for the rest of the session.
+      const events = media.tagName === 'VIDEO' ? ['loadeddata', 'error'] : ['load', 'error'];
+      const once = () => {
+        events.forEach((e) => media.removeEventListener(e, once));
+        run();
+      };
+      events.forEach((e) => media.addEventListener(e, once));
+      listeners.push(() => events.forEach((e) => media.removeEventListener(e, once)));
+    });
+
     return () => {
       triggers.forEach((t) => t.kill());
+      listeners.forEach((fn) => fn());
       touched.forEach((el) => {
         gsap.killTweensOf(el);
+        el.classList.remove('is-fading');
+        el.style.removeProperty('--fade-y');
         el.style.removeProperty('clip-path');
         el.style.removeProperty('opacity');
         el.style.removeProperty('transform');

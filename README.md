@@ -1142,19 +1142,27 @@ Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 
 ### data-fade — the picture arrives out of nothing
 
-`data-fade` on a picture or its wrapper, opacity 0 to 1 when it comes into view,
-**qubic at 1s**. `data-fade="0.5"` sets its own duration.
+`data-fade` on a picture or its wrapper. A soft-edged gradient slides down it,
+so the reveal has a moving edge — the bottom is still arriving while the top is
+already there. **power2.out at 0.6s**; `data-fade="0.5"` sets its own duration.
 
-It fires the moment the picture's top edge crosses the bottom of the screen —
-`top bottom`, not the `top 85%` the clips use. A fade is meant to be over by the
-time you are looking at the thing: scroll slowly and it happened somewhere
-below, scroll fast and it catches up. Held to the later start it plays in the
-middle of the screen and turns into an event, which is exactly what it should
-not be. A run of nothing but fades takes that start; mixed with a clip in one
-group, the clip's start wins, since a picture that fades a screen below where it
-uncovers reads as two gestures. `data-fade-start` overrides either.
+Not an opacity fade. The mask is twice the element tall, black over the first
+half and clear over the second, and `--fade-y` slides it: 100 hides, 0 shows,
+and the 18% of gradient between them is the soft edge doing the work. The mask
+only exists while the sweep runs — it is a compositing layer, and every picture
+on the page wearing one for the session is a cost for half a second of effect,
+so the module adds the class and takes it off again.
 
-Opacity and nothing else, so it stacks with anything writing a transform —
+**The picture's own load is the cue**, not a line in the viewport. That is what
+the reference does — vanilla-lazyload swapping its classes when the file lands —
+and it is why its reveals are so hard to catch: the browser fetches a few
+hundred pixels before the picture arrives, so by the time it is on screen the
+sweep is spent. A scroll threshold cannot reproduce that however early it fires;
+it waits for geometry where the other waits for the network. A cached picture is
+already decoded and simply shows. Marked elements holding no picture fall back
+to the scroll trigger.
+
+A mask and nothing else, so it stacks with anything writing a transform —
 `data-scale` being the one it will usually meet. It rides the same trigger,
 group and stagger plumbing as the other reveals, and hands the property back
 (`clearProps`) once it lands so a hover is never fighting a number this module
