@@ -1115,6 +1115,52 @@ behaves exactly as it did.
 Read by `textAnim` — on the group root it sets the group delay, on a step it
 sets that step's cue — and by `ruleReveal`.
 
+### data-scale — hover lean
+
+`data-scale` on a picture, or on the wrapper around one, and it scales to 1.1
+under the pointer. `data-scale="1.04"` for a different number. Pure CSS in
+`page-transition.css`, no module.
+
+Nothing it adds can take a click: no overlay, no pseudo-element, no
+`pointer-events`. A transform moves pixels, not hit-testing, so a link under the
+picture keeps every click it had — the fixture has one marked `<a>` to prove it.
+
+Whatever is scaled is clipped by its wrapper (`overflow: clip`, never `hidden` —
+a hidden overflow makes the element a scrollport, which is what broke the sticky
+sections). No `will-change` either: a permanent compositing layer on every
+marked picture is what put the slider's art over its own colour panel in Safari,
+and a hover is not worth paying that on load.
+
+`attr()` is read on the element that carries the attribute and inherited down,
+because `attr()` only ever sees the element it runs on — a number written on a
+wrapper is invisible to a rule targeting the image inside it. Below Chrome 133
+every marked picture takes the 1.1 fallback.
+
+Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
+`prefers-reduced-motion`, since the lean is the whole effect.
+
+### data-fade — the picture arrives out of nothing
+
+`data-fade` on a picture or its wrapper, opacity 0 to 1 when it comes into view,
+**qubic at 1s**. `data-fade="0.5"` sets its own duration.
+
+Opacity and nothing else, so it stacks with anything writing a transform —
+`data-scale` being the one it will usually meet. It rides the same trigger,
+group and stagger plumbing as the other reveals, and hands the property back
+(`clearProps`) once it lands so a hover is never fighting a number this module
+left behind.
+
+## Trash list
+
+Kept for now, likely to be removed — nothing on the site uses them:
+
+- **`maskReveal` / `[data-mask]`** and its `[data-grow]` variant — the clip wipe
+  over pictures, with `_fixture-mask-reveal.html`.
+- **`ruleReveal` / `[data-rule]`** — the border drawn left to right.
+
+`SEQUENCE`, `data-fade` and `data-scale` stay whatever happens to those two;
+`ruleReveal` is the only thing that reads the `rule` slot.
+
 ### testimonialColours — `[data-bg]`
 
 The hex lives on `.c_testimonial_content_wrap` as `data-bg`, `data-text` and

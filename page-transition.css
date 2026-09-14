@@ -682,6 +682,65 @@ html.is-menu-open {
   overflow-wrap: anywhere;
 }
 
+/* ===== HOVER SCALE — [data-scale] — README ### data-scale ===== */
+
+/* The picture leans in under the pointer. Mark the wrapper or the
+   picture itself; either way the transform lands on the picture and the
+   wrapper does the clipping.
+
+   Nothing here takes the pointer: no overlay, no pseudo, no
+   pointer-events. A transform moves pixels, not hit-testing, so a link
+   or a card under this keeps every click it had.
+
+   No will-change either. A permanent compositing layer on every marked
+   picture is what put the slider's art over its own colour panel in
+   Safari, and a hover is not worth paying that on load. */
+@media (hover: hover) and (pointer: fine) {
+  /* Whatever is scaled has to be clipped by something, or the picture
+     spills over what sits beside it. clip, not hidden — a hidden
+     overflow makes the element a scrollport, which is what broke the
+     sticky sections. */
+  [data-scale]:not(img):not(video),
+  :has(> img[data-scale]),
+  :has(> video[data-scale]) {
+    overflow: clip;
+  }
+
+  /* Read where the attribute is, inherited by the picture. attr() only
+     ever sees the element it runs on, so a number written on the wrapper
+     is invisible to a rule that targets the image inside it — which is
+     how data-scale="1.04" quietly came out at 1.1.
+
+     attr() with a type is Chrome 133+; everywhere else takes the
+     fallback, which is the number we would have written anyway. */
+  [data-scale] {
+    --scale-to: attr(data-scale type(<number>), 1.1);
+  }
+
+  [data-scale] :is(img, video),
+  img[data-scale],
+  video[data-scale] {
+    transform: scale(1);
+    transition: transform var(--scale-ms, 500ms) var(--ease-qubic);
+  }
+
+  [data-scale]:hover :is(img, video),
+  img[data-scale]:hover,
+  video[data-scale]:hover {
+    transform: scale(var(--scale-to, 1.1));
+  }
+}
+
+/* The lean is the whole effect, so there is nothing to soften: it goes. */
+@media (prefers-reduced-motion: reduce) {
+  [data-scale] :is(img, video),
+  img[data-scale],
+  video[data-scale] {
+    transition: none;
+    transform: none;
+  }
+}
+
 /* ===== TESTIMONIAL COLOURS — README ### testimonialColours ===== */
 
 /* The hex lives on the element as data-bg / data-text, and this reads it

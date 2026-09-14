@@ -1792,6 +1792,14 @@
      it — every face in it narrows for the length of the move and springs
      back — where a clip only ever shows less of a picture that is already
      the right shape. */
+  /* [data-fade] — the picture arrives out of nothing. Opacity only, so it
+     stacks with anything that writes a transform: data-scale's hover lean
+     is the one it will usually meet. */
+  const FADE_IN = {
+    duration: 1,
+    ease: QUBIC.ease
+  };
+
   const GROW = {
     from: 0.75,            // width the clip starts at, 0-1
     duration: 0.4,
@@ -1806,7 +1814,7 @@
   };
 
   Modules.add('maskReveal', function (root) {
-    const items = Array.from(root.querySelectorAll('[data-mask], [data-grow]'));
+    const items = Array.from(root.querySelectorAll('[data-mask], [data-grow], [data-fade]'));
     if (!items.length || !hasScrollTrigger || reducedMotion) return;
 
     const triggers = [];
@@ -1820,7 +1828,16 @@
          wipe rather than a second effect: its own edges, its own clock,
          one clip-path. Marked with both, the wipe wins — the sides would
          be writing over each other otherwise. */
+      const clips = el.hasAttribute('data-mask') || el.hasAttribute('data-grow');
       const grows = el.hasAttribute('data-grow') && !el.hasAttribute('data-mask');
+
+      /* Opacity, and nothing else. A fade shares an element with a clip
+         or a hover scale without either noticing. */
+      const fades = el.hasAttribute('data-fade');
+      const rawFade = parseFloat(el.dataset.fade);
+      const fadeDuration = Number.isFinite(rawFade) && rawFade > 0
+        ? rawFade
+        : FADE_IN.duration;
       const key = (el.dataset.mask || '').trim().toLowerCase();
 
       const rawGrow = parseFloat(el.dataset.grow);
@@ -1870,12 +1887,13 @@
          scrolled: the trigger is a frame away at best, and an unclipped
          first paint is the picture flashing in ahead of its own
          reveal. */
-      el.style.clipPath = clipAt(0);
+      if (clips) el.style.clipPath = clipAt(0);
+      if (fades) el.style.opacity = '0';
       if (scaleFrom !== 1) media.style.transform = `scale(${scaleFrom})`;
       touched.push(el);
       if (media && media !== el) touched.push(media);
 
-      return { el, media, clipAt, scaleFrom, duration, ease };
+      return { el, media, clips, clipAt, fades, fadeDuration, scaleFrom, duration, ease };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -1901,13 +1919,26 @@
         const delay = parseFloat(item.el.dataset.maskDelay ?? item.el.dataset.growDelay);
         const cue = at + (Number.isFinite(delay) ? delay : 0);
 
-        const wipe = { p: 0 };
-        tl.to(wipe, {
-          p: 1,
-          duration: item.duration,
-          ease: item.ease,
-          onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
-        }, cue);
+        if (item.clips) {
+          const wipe = { p: 0 };
+          tl.to(wipe, {
+            p: 1,
+            duration: item.duration,
+            ease: item.ease,
+            onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
+          }, cue);
+        }
+
+        if (item.fades) {
+          tl.to(item.el, {
+            opacity: 1,
+            duration: item.fadeDuration,
+            ease: FADE_IN.ease,
+            // Handed back, so a hover or a swap is not fighting a number
+            // this module left on the element.
+            clearProps: 'opacity'
+          }, cue);
+        }
 
         if (item.scaleFrom !== 1) {
           tl.to(item.media, { scale: 1, duration: item.duration, ease: item.ease }, cue);
@@ -1927,6 +1958,7 @@
       touched.forEach((el) => {
         gsap.killTweensOf(el);
         el.style.removeProperty('clip-path');
+        el.style.removeProperty('opacity');
         el.style.removeProperty('transform');
         el.style.removeProperty('transform-origin');
       });
