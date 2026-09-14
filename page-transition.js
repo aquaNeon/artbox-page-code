@@ -1019,6 +1019,28 @@
 
   // A clip cuts at rest too — descenders, a focus ring, a hover lift — so
   // it comes off once the group it belongs to has finished moving.
+  /* kugiri's reach widens a mask window vertically and leaves it flush
+     with the line box on both sides. Text never needs the slack, but a
+     picture set into a line does: an inline-block at the end of a line
+     can sit past the box the split measured, so it is cut while the
+     reveal runs and snaps to full width the moment the masks are
+     released. A width glitch, exactly at the end.
+
+     Horizontal slack costs nothing — lines are stacked, so nothing else
+     is out there to show through — and the vertical value, which is the
+     one doing the work, is left exactly as kugiri wrote it. */
+  function widenMasks(split) {
+    split?.masks?.forEach((mask) => {
+      const clip = mask.style.clipPath;
+      if (!clip) return;
+      /* The horizontal value is the last one before the bracket, and the
+         vertical one is whatever kugiri wrote — a calc(), usually, which
+         is why this replaces the tail rather than parsing the shape. */
+      const widened = clip.replace(/\s+[^\s)]+\)\s*$/, ' -100vw)');
+      if (widened !== clip) mask.style.clipPath = widened;
+    });
+  }
+
   function releaseMasks(group) {
     group.steps.forEach(unclipStep);
   }
@@ -1164,6 +1186,10 @@
       if (hasKugiri) {
         splitSteps(own);
         inst.groups.forEach(rescueUnreached);
+        own.forEach((step) => {
+          widenMasks(step.split);
+          step.extra?.forEach(widenMasks);
+        });
       }
       inst.groups.forEach(scheduleGroup);
       if (TEXT_DEBUG) {

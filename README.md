@@ -964,7 +964,15 @@ type; a picture sitting in the middle of that line has no mask of its own, so
 travelling with it means arriving early and alone. Waiting leaves a hole in the
 line exactly the size of the picture, since the wrapper is laid out either way
 and a transform never touches layout, and the hole fills once the words have
-settled. One motion, not two: growing from nothing already opens from the middle, and
+settled. The line masks are given horizontal slack for this. kugiri's reach widens a mask
+window vertically and leaves it flush with the line box on both sides — text
+never needs more, but an inline-block picture at the end of a line can sit past
+the box the split measured, so it is cut for the whole reveal and snaps to full
+width the moment the masks are released. Slack costs nothing, since lines are
+stacked and there is nothing out there to show through, and the vertical value
+is left exactly as kugiri wrote it.
+
+One motion, not two: growing from nothing already opens from the middle, and
 running an iris over the same element at the same time is two descriptions of
 one gesture — at `scale(0)` the box is a point, and clipping a point flickers.
 `TEXT.imgClip` takes an inset if a picture ever wants the iris instead,
