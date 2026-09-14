@@ -1889,7 +1889,7 @@
 
   Modules.add('maskReveal', function (root) {
     const items = Array.from(root.querySelectorAll(
-      '[data-mask], [data-grow], [data-fade], [data-fade-children]'
+      '[data-mask], [data-grow], [data-fade], [data-fade-children]:not([data-fade-children="false"])'
     ));
     if (!items.length || !hasScrollTrigger || reducedMotion) return;
 
@@ -1915,8 +1915,15 @@
       /* The children carry it, not this element: a marquee copies its
          list, and inline opacity written before that is copied with it —
          a rule in the stylesheet reaches the copies, an inline style
-         never does. All this does at its cue is add the class. */
-      const fadesChildren = el.hasAttribute('data-fade-children');
+         never does. All this does at its cue is add the class.
+
+         "false" counts as off, so this can be a component property: the
+         attribute is then baked into every instance and the value is what
+         says which placement animates. It can also sit on any ancestor —
+         a section, a wrapper around one instance — since the rule that
+         does the work is a descendant selector. */
+      const fadesChildren = el.hasAttribute('data-fade-children')
+        && el.getAttribute('data-fade-children').trim().toLowerCase() !== 'false';
       const rawFade = parseFloat(el.dataset.fade);
       const fadeDuration = Number.isFinite(rawFade) && rawFade > 0
         ? rawFade

@@ -1163,7 +1163,13 @@ only adds `.is-faded` to the container at its cue, and the CSS does the rest:
 put `data-fade-children` on the container and the place in the order comes from
 `nth-child`, which a copied list repeats exactly. Marquee items are picked up by
 their own `[data-marquee-item]`, so a marquee needs nothing else; anywhere else,
-the class `is-fade-child` on each child marks them. `--fade-child-step` (60ms) and `--fade-child-ms` (500ms) are the
+the class `is-fade-child` on each child marks them.
+
+`data-fade-children="false"` is off, so the attribute can be baked into a
+component and switched per placement through a component property. It can also
+sit on **any ancestor** — a section, or a wrapper around one instance — since
+the rule that does the work is a descendant selector. That is how one placement
+of a shared component animates while the others do not. `--fade-child-step` (60ms) and `--fade-child-ms` (500ms) are the
 knobs; twenty slots, and past that they share the last.
 
 `[data-fade-group]` on a parent runs its fades as one staggered set off a single
