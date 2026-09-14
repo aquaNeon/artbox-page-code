@@ -1951,8 +1951,9 @@
           }, cue);
         }
 
-        /* A fade with a picture in it is driven by the load, below —
-           only a marked element with nothing to load rides the trigger. */
+        /* A fade holding a picture waits for both its load and this
+           trigger, whichever lands second — see below. One with nothing
+           to load rides the trigger alone. */
         if (item.fades && !item.media) {
           tl.to(item.el, { '--fade-y': 0, duration: item.fadeDuration, ease: FADE_IN.ease }, cue);
         }
@@ -1967,17 +1968,35 @@
         start: data.maskStart || data.growStart || data.fadeStart
           || (fadeOnly ? FADE_IN.start : MASK.start),
         once: true,
-        onEnter: () => tl.play()
+        onEnter: () => {
+          tl.play();
+          list.forEach((item) => { if (item.arrive) item.arrive(); });
+        }
       }));
     });
 
-    /* Bound at mount, not at a trigger: the file may already be on its
-       way, or already in cache, and either way the fade belongs to the
-       moment it lands. */
+    /* Two cues, and the sweep waits for the second of them: the picture
+       has to have loaded, and it has to have come near the screen.
+
+       Either alone is wrong. On load only, a cached picture sweeps while
+       it is still a page below and nobody ever sees it — which is the
+       reference's behaviour only because its loader does not fetch until
+       you are nearly there. On scroll only, a picture that has not
+       arrived sweeps an empty box and then pops in. */
     plan.forEach((item) => {
       if (!item.fades || !item.media) return;
 
       const media = item.media;
+      let loaded = false;
+      let entered = false;
+
+      const maybe = () => {
+        if (!loaded || !entered) return;
+        run();
+      };
+
+      item.arrive = () => { entered = true; maybe(); };
+
       const run = () => {
         gsap.to(item.el, {
           '--fade-y': 0,
@@ -1997,14 +2016,15 @@
         ? media.readyState >= 2
         : media.complete && media.naturalWidth > 0;
 
-      if (ready) { run(); return; }
+      if (ready) { loaded = true; maybe(); return; }
 
       // error as well as load: a picture that never arrives must not
       // leave its element parked at zero for the rest of the session.
       const events = media.tagName === 'VIDEO' ? ['loadeddata', 'error'] : ['load', 'error'];
       const once = () => {
         events.forEach((e) => media.removeEventListener(e, once));
-        run();
+        loaded = true;
+        maybe();
       };
       events.forEach((e) => media.addEventListener(e, once));
       listeners.push(() => events.forEach((e) => media.removeEventListener(e, once)));

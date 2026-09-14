@@ -1153,14 +1153,15 @@ only exists while the sweep runs — it is a compositing layer, and every pictur
 on the page wearing one for the session is a cost for half a second of effect,
 so the module adds the class and takes it off again.
 
-**The picture's own load is the cue**, not a line in the viewport. That is what
-the reference does — vanilla-lazyload swapping its classes when the file lands —
-and it is why its reveals are so hard to catch: the browser fetches a few
-hundred pixels before the picture arrives, so by the time it is on screen the
-sweep is spent. A scroll threshold cannot reproduce that however early it fires;
-it waits for geometry where the other waits for the network. A cached picture is
-already decoded and simply shows. Marked elements holding no picture fall back
-to the scroll trigger.
+**Two cues, and it waits for the second of them**: the picture has to have
+loaded, and it has to have come near the screen (`top bottom`, the moment its
+top edge crosses the bottom of the viewport).
+
+Either alone is wrong. On load only, a picture already in cache sweeps while it
+is still a page below and nobody ever sees it — the reference gets away with
+that only because its loader does not fetch until you are nearly there. On
+scroll only, a picture that has not arrived sweeps an empty box and then pops
+in. Marked elements holding no picture ride the trigger alone.
 
 A mask and nothing else, so it stacks with anything writing a transform —
 `data-scale` being the one it will usually meet. It rides the same trigger,
