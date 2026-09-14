@@ -3226,6 +3226,11 @@
     showEase: E.body,
     coverFrom: 0.18,         // the incoming image starts this small, centred
     coverDuration: 0.7,
+
+    /* And an iris with it, the same pair the tabs and the hero cells
+       use. A beat longer than the growth, so the edge does not land
+       while the picture is still on its way. */
+    coverClip: 0.9,
     coverEase: E.body,
     fill: 0.5,               // the colour wipe behind the row
     fillEase: E.open,
@@ -3473,6 +3478,26 @@
           duration: SERVICES.coverDuration,
           ease: SERVICES.coverEase,
           onComplete: drop
+        });
+
+        /* The iris, written from a number each frame: gsap interpolates
+           two clip-paths only when they read as the same shape token for
+           token, and the browser hands four equal insets back as one, so
+           a plain tween between them jumps at the end instead of
+           opening. */
+        const iris = { p: 0 };
+        gsap.set(clone, { clipPath: 'inset(50% 50% 50% 50%)' });
+        gsap.to(iris, {
+          p: 1,
+          duration: SERVICES.coverClip,
+          ease: SERVICES.coverEase,
+          onUpdate: () => {
+            const inset = (50 * (1 - iris.p)).toFixed(3);
+            clone.style.clipPath = `inset(${inset}% ${inset}% ${inset}% ${inset}%)`;
+          },
+          // Handed back, so the layer underneath is never covered by a
+          // clip that has finished its work.
+          onComplete: () => { clone.style.removeProperty('clip-path'); }
         });
       }
 

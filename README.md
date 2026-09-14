@@ -654,7 +654,14 @@ does not toggle it shut. Opening changes the document height, so each toggle
 ends in the same guarded `refreshScrollHeight()` the footer uses. Under
 `prefers-reduced-motion` the state flips instantly.
 
-### servicesHover — `.services_wrap`
+### servicesHover
+
+The image in the cursor panel arrives the way every other picture on the site
+does: an iris opening from its middle while it grows over the one before it —
+`coverFrom` 0.18 to full over `coverDuration` 0.7s, with `coverClip` 0.9s of
+clip, a beat longer so the edge does not land while the picture is still on its
+way. The covered layers are dropped only once it has arrived, so nothing
+underneath ever flashes through. — `.services_wrap`
 
 The service rows. Hovering one wipes the neon up behind its text, dims
 the other rows, and starts an image preview that follows the cursor.
