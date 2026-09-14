@@ -2018,8 +2018,15 @@
      else changes: the element is collected, cued and staggered by the
      same machinery as every hand-marked one. */
   const ADOPTED = [
-    ['[data-barba-namespace="contact"] .reach_out_team_wrap',
-      { 'data-fade-children': 'cms', 'data-fade-after': '' }]
+    /* The whole section arrives at once, on the scroll that brings it in.
+       Its parts were staggering against a wait for the text above them,
+       and that section's heading is switched off — so the wait had
+       nothing to hear and the cards sat out the five seconds before the
+       handshake gives up. One fade on the section is the thing that was
+       actually wanted, and the paragraph still plays its own lines
+       inside it. */
+    ['[data-barba-namespace="contact"] .reach_out_wrap',
+      { 'data-fade': '', 'data-fade-start': 'top 80%' }]
   ];
 
   function adoptOneOffs(root) {

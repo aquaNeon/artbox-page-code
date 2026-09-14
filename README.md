@@ -1294,10 +1294,19 @@ anything is collected. Scope it by the page rather than by the component —
 markup no component owns. A hand-typed attribute always wins; adoption only
 fills in what is missing.
 
-An adopted container also wants a line in the stylesheet holding it from the
-first paint, the way the marked ones are. Mount is a stretch of time after the
-markup is painted, and for that stretch the children sit at full opacity before
-dropping to nothing — which is the flash the entrance was there to replace.
+`data-fade` on the element itself needs no such hold — the module writes
+`opacity: 0` inline at mount, before anything is measured. A container whose
+children are held by a rule instead (`data-fade-children`) does want that line
+in the stylesheet, since mount is a stretch of time after the markup is painted
+and for that stretch the children sit at full opacity before dropping to
+nothing, which is the flash the entrance was there to replace.
+
+Prefer one fade on the wrapper over a stagger that waits. `data-fade-after`
+listens for `[data-text-anim]` groups **in its own section**: point it at a
+section whose heading is switched off and there is nothing to hear, so it sits
+out the five-second give-up before playing. Nothing crosses a section boundary —
+to follow the section above, use the scroll: `data-fade-start="top 80%"` starts
+once the section is properly in view rather than the moment it peeks.
 
 `[data-fade-group]` on a parent runs its fades as one staggered set off a single
 trigger — `data-fade-stagger` sets the gap, default 0.12s. That is how a drag
