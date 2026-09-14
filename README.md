@@ -1078,6 +1078,12 @@ clip covers all three, where marking the `video` leaves the poster unwiped.
 
 Ungrouped, each marked element is its own trigger.
 
+`[data-fade-group]` on a parent runs its fades as one staggered set off a single
+trigger — `data-fade-stagger` sets the gap, default 0.12s. That is how a drag
+slider or a marquee gets an entrance: the library already writes a transform to
+every slide, so the fade goes on the picture **inside** it and the two never
+touch the same property.
+
 **`[data-grow]`** is the same wipe opening sideways from the middle, and
 starting part-open rather than shut: the clip runs from 80% of the width out to
 both edges. **inoutMask at 1.2s.** A value sets where it starts —
