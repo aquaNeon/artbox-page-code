@@ -929,6 +929,13 @@ statements change without moving.
 `data-text-anim` / `data-text-anim-heading` on it if you want the line rise.
 The images fade/scale in, bump toward the pointer, and parallax *against*
 the scroll direction (negative `y`).
+
+A picture set inline into any heading — `.hero-h1__img` in the corporate hero,
+say — is scaled by `textAnim` rather than by this module, on the hero's own
+numbers: `TEXT.imgFrom` 0.05 to full over `imgDuration` 0.8s on qubic, cued
+`imgOffset` after its own line starts. The scale lands on the picture's
+**wrapper** and a transform never touches layout, so the box keeps the width the
+heading laid out for it and no line reflows while it grows.
 The grid overlaps its own cells at some widths, so the stacking is pinned in
 `page-transition.css`: `.home_img_wrap` takes an explicit `z-index: 0` and the
 `h1` a `2`. The cells need the 0 — the parallax transform makes each one a

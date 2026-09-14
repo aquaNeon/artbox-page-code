@@ -444,11 +444,17 @@
     wordStagger: 0.03,
     charStagger: 0.012,
 
-    // Inline heading images scale rather than travel — the line mask
-    // already carries them up with the type.
-    imgFrom: 0.6,           // 0 turns the image scaling off
-    imgDuration: 0.9,
-    imgEase: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    /* Inline heading images scale rather than travel — the line mask
+       already carries them up with the type. The numbers are the home
+       hero's, so a picture set into a heading arrives the way the hero
+       cells do.
+
+       The scale lands on the picture's WRAPPER, and a transform never
+       touches layout: the box keeps the width the heading laid out for
+       it, so nothing reflows while it grows. */
+    imgFrom: 0.05,          // 0 turns the image scaling off entirely
+    imgDuration: 0.8,
+    imgEase: QUBIC.css,
     imgOffset: 0.08,        // after its own line starts
     imgStagger: 0.08,       // between images sharing a line
 

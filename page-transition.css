@@ -1738,6 +1738,11 @@ html .cta_wrap {
   to   { opacity: 1; transform: scale(1); }
 }
 
+/* The mobile blocks keep the 0.6 they had: they are the size of the
+   screen, and a full-bleed picture growing out of nothing is a different
+   gesture from a thumbnail set into a line of type. Only the timing
+   follows the hero. */
+
 @media screen and (max-width: 991px) {
   /* The inline images leave with the desktop heading — lifted out of the
      section embed so the breakpoint is one number in one place. */
@@ -1747,7 +1752,7 @@ html .cta_wrap {
   }
 
   html:not(.wf-design-mode) .corporate_images_mobile_img_wrap {
-    animation: var(--corp-hero-duration, 0.9s)
+    animation: var(--corp-hero-duration, 0.8s)
       var(--ease-qubic)
       var(--corp-hero-lead, 0.15s) 1 normal both running corp-hero-in;
     transform-origin: center center;
