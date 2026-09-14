@@ -929,13 +929,6 @@ statements change without moving.
 `data-text-anim` / `data-text-anim-heading` on it if you want the line rise.
 The images fade/scale in, bump toward the pointer, and parallax *against*
 the scroll direction (negative `y`).
-
-A picture set inline into any heading — `.hero-h1__img` in the corporate hero,
-say — is scaled by `textAnim` rather than by this module, on the hero's own
-numbers: `TEXT.imgFrom` 0.05 to full over `imgDuration` 0.8s on qubic, cued
-`imgOffset` after its own line starts. The scale lands on the picture's
-**wrapper** and a transform never touches layout, so the box keeps the width the
-heading laid out for it and no line reflows while it grows.
 The grid overlaps its own cells at some widths, so the stacking is pinned in
 `page-transition.css`: `.home_img_wrap` takes an explicit `z-index: 0` and the
 `h1` a `2`. The cells need the 0 — the parallax transform makes each one a
@@ -1015,6 +1008,17 @@ The stylesheet holds the same set as CSS variables — `--ease-inout-mask` and
 The home hero's entrance is **not** one of them: curve and duration both stay in
 the section embed, which writes them in an `animation` shorthand, and nothing
 here overrides it. The corporate hero borrows `--ease-qubic` to match it.
+
+### corporateHero — mobile blocks
+
+Below 992 the corporate hero's pictures leave the heading and stack as
+`.corporate_images_mobile_img_wrap` blocks. Those grow out of nothing from the
+middle on the home hero's curve and clock — `scale(0)` to full, 0.8s on
+`--ease-qubic`, staggered by `--corp-hero-step`.
+
+Only below 992. Above it the same pictures are set inline into the heading,
+where `textAnim` scales them with the line they sit on (`TEXT.imgFrom`), and a
+second scale here would be fighting that one.
 
 ### maskReveal — `[data-mask]`
 

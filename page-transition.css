@@ -1733,15 +1733,14 @@ html .cta_wrap {
 /* Corporate hero, mobile images: the home hero's entrance borrowed —
    same 0.6 scale, staggered down the block. The scroll drift is the
    corporateHero module. */
+/* Out of nothing, from the middle, on the home hero's curve and clock.
+   Only below 992: above it these pictures are set inline into the
+   heading, where textAnim scales them with the line they sit on and a
+   second scale here would be fighting it. */
 @keyframes corp-hero-in {
-  from { opacity: 0; transform: scale(0.6); }
+  from { opacity: 0; transform: scale(0); }
   to   { opacity: 1; transform: scale(1); }
 }
-
-/* The mobile blocks keep the 0.6 they had: they are the size of the
-   screen, and a full-bleed picture growing out of nothing is a different
-   gesture from a thumbnail set into a line of type. Only the timing
-   follows the hero. */
 
 @media screen and (max-width: 991px) {
   /* The inline images leave with the desktop heading — lifted out of the
