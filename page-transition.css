@@ -1681,6 +1681,29 @@ html.is-menu-open [data-video="component"].is-travelling,
 }
 
 
+/* ===== INLINE HEADING PICTURES — .hero-h1__img ===== */
+
+/* A picture set into a line of type is a box the heading laid out, and
+   the file inside it almost never has that exact ratio. Nothing was
+   fitting it or clipping it, so the excess painted past the wrapper —
+   the strip of image hanging off the last one, which is only the last
+   one because that is where the leftover falls.
+
+   cover, not contain: the box is the design, and a letterboxed picture
+   in the middle of a word reads as a mistake. clip rather than hidden,
+   for the reason it always is here — hidden makes the element a
+   scrollport. */
+.hero-h1__img {
+  overflow: clip;
+}
+
+.hero-h1__img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 /* ===== HERO ENTRANCE — [data-hero-in] — README ### hero entrance ===== */
 
 /* The home hero's arrival, lifted out of its embed so any hero can wear
