@@ -1175,6 +1175,11 @@
       Promise.allSettled(inst.anims.map((a) => a.finished)).then(() => {
         if (dead) return;
         inst.groups.forEach(releaseMasks);
+        /* Said out loud, so anything that wants to follow the text can
+           wait for it instead of guessing at a number. A guess survives a
+           reload and not a page transition, where the reveal starts
+           whenever the incoming container is laid out. */
+        inst.trigger.dispatchEvent(new CustomEvent('textanim:done', { bubbles: true }));
       });
     };
 
@@ -1797,7 +1802,12 @@
        hero's, so the two read as one gesture wherever they meet. */
     heroScaleFrom: 0,
     heroOpen: 1,          // s the clip takes, --hero-in-open in the CSS
-    heroGrow: 0.8         // s the scale takes, --hero-in-grow
+    heroGrow: 0.8,        // s the scale takes, --hero-in-grow
+
+    /* data-mask-after: the run waits for the text above it to finish
+       rather than for a number. */
+    afterGap: 0.1,        // s between the last line landing and the first picture
+    afterWait: 5          // s before it gives up waiting and plays anyway
   };
 
   /* [data-grow] — the same wipe, opening sideways from the middle and
@@ -1867,6 +1877,7 @@
 
     const triggers = [];
     const touched = [];
+    const listeners = [];
 
     /* The clip is written before anything is measured or scrolled: the
        trigger is a frame away at best, and an unclipped first paint is
@@ -2005,7 +2016,19 @@
          different module on a different trigger. Seconds, on the group,
          added to every cue in it. */
       const rawHold = parseFloat(data.maskDelay ?? data.growDelay ?? data.fadeDelay);
-      const hold = Number.isFinite(rawHold) && rawHold > 0 ? rawHold : 0;
+      const fixedHold = Number.isFinite(rawHold) && rawHold > 0 ? rawHold : 0;
+
+      /* data-mask-after waits for the text instead of counting: a number
+         that lines up on a reload is wrong on a page transition, where
+         the text does not start until the incoming container has been
+         laid out. Empty means every text group in the section; a value is
+         a selector for the ones to wait for.
+
+         The hold becomes the gap after the text rather than the wait
+         itself, since the waiting is no longer this group's to measure. */
+      const afterRaw = data.maskAfter ?? data.growAfter ?? data.fadeAfter;
+      const waits = afterRaw !== undefined;
+      const hold = waits ? (fixedHold || MASK.afterGap) : fixedHold;
 
       /* A run of nothing but fades takes the fade's start. Mixed with a
          clip, the clip's wins: they are one gesture then, and a picture
@@ -2056,17 +2079,63 @@
         }
       });
 
+      /* Both have to have happened: the group has to have been reached,
+         and the text it follows has to have finished. Whichever is last
+         starts the run. */
+      let entered = false;
+      let pending = null;
+      let giveUp = null;
+
+      const start = () => {
+        if (!entered || (pending && pending.size)) return;
+        clearTimeout(giveUp);
+        tl.play();
+      };
+
+      if (waits) {
+        const sel = (String(afterRaw).trim() && String(afterRaw).trim() !== 'true')
+          ? String(afterRaw).trim()
+          : '[data-text-anim]';
+        const scope = trigger.closest('section') || document;
+
+        /* The scope itself counts. A section is usually the text group's
+           own root — data-text-anim sits on the <section> — and
+           querySelectorAll never returns the element it was called on, so
+           searching inside it finds nothing and the pictures wait for a
+           group that was never in the list. */
+        const sources = Array.from(scope.querySelectorAll(sel));
+        if (scope.matches && scope.matches(sel)) sources.unshift(scope);
+        pending = new Set(sources);
+
+        const onDone = (e) => {
+          if (!pending.has(e.target)) return;
+          pending.delete(e.target);
+          start();
+        };
+        document.addEventListener('textanim:done', onDone);
+        listeners.push(() => document.removeEventListener('textanim:done', onDone));
+      }
+
       triggers.push(ScrollTrigger.create({
         trigger,
         start: data.maskStart || data.growStart || data.fadeStart
           || (fadeOnly ? FADE_IN.start : MASK.start),
         once: true,
-        onEnter: () => tl.play()
+        onEnter: () => {
+          entered = true;
+          /* Text that never plays must not strand the pictures: a group
+             below the fold, one switched off, a reveal that threw. */
+          if (pending && pending.size) {
+            giveUp = setTimeout(() => { pending.clear(); start(); }, MASK.afterWait * 1000);
+          }
+          start();
+        }
       }));
     });
 
     return () => {
       triggers.forEach((t) => t.kill());
+      listeners.forEach((fn) => fn());
       touched.forEach((el) => {
         gsap.killTweensOf(el);
         el.style.removeProperty('clip-path');

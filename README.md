@@ -1100,7 +1100,8 @@ clip covers all three, where marking the `video` leaves the poster unwiped.
 | `data-mask` | the image, video, or its wrapper | Marks it. A value sets the edge the wipe starts at: `top` (default), `bottom`, `left`, `right`, `center`, or **`hero`** |
 | `data-mask-group` | a wrapper | Everything marked inside plays as one run off the wrapper's trigger, staggered |
 | `data-mask-stagger` | the group | Seconds between them, default `0.12`. The run follows DOM order, which for a row is left to right |
-| `data-mask-delay` | the group | Seconds the whole run waits before the first one moves — how a row of pictures holds until the heading over it has finished, since that heading is a different module on a different trigger |
+| `data-mask-delay` | the group | Seconds the whole run waits before the first one moves |
+| `data-mask-after` | the group | Waits for the text in its section to finish instead of counting. Empty means every `[data-text-anim]` group in the section, including the section itself; a value is a selector for the ones to wait for |
 | `data-mask-start` | the group | ScrollTrigger start, default `top 85%` |
 | `data-mask-delay` | one element | Extra seconds on top of its place in the run |
 | `data-mask-scale` | one element | Overscale settling as the clip lands, default `1` — off. Set it per element (`1.06` is a gentle one), and leave it off wherever the picture already carries a parallax or hover transform, which is the same property |
@@ -1111,6 +1112,17 @@ grows out of nothing, on the hero's own two clocks — `heroOpen` 1s for the cli
 `heroGrow` 0.8s for the scale, both on inoutMask. One attribute rather than
 three, because it is a thing the site does rather than a set of numbers.
 `center` gives the same iris without the scale.
+
+**Waiting for the text.** `data-mask-delay` is a number, and a number that lines
+up on a reload is wrong on a page transition — Barba lays the incoming container
+out first, so the text starts later and the pictures land on top of it.
+`data-mask-after` waits for the thing itself: `textAnim` announces `textanim:done`
+on a group root once its last line has settled, and the run starts when both
+that and its own trigger have happened.
+
+`data-mask-delay` then means the gap after the text rather than the wait itself.
+Text that never plays — below the fold, switched off, a reveal that threw —
+cannot strand the pictures: `MASK.afterWait` (5s) gives up and plays them anyway.
 
 Ungrouped, each marked element is its own trigger.
 
