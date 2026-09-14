@@ -1818,7 +1818,7 @@ navigation while `sync: true` keeps the outgoing page alive.
 | Looked for | Role |
 | --- | --- |
 | `[data-nav]` / `.meganav` | the bar. Also the scroll-state target |
-| `.meganav_feature_wrap` | the left column. Full height above 992px, so its CTA sits on the floor of the panel rather than under its own sentence — `--meganav-cta-align` (default `start`) sets whether the button hugs the left edge or stretches |
+| `.meganav_feature_wrap` | the left column. Full height above 992px — that is what holds the panel's height — but its CTA sits under its own sentence, where it reads as belonging to it. `--meganav-cta-push: auto` puts it back on the floor of the panel; `--meganav-cta-align` (default `start`) sets whether it hugs the left edge or stretches. Below 992px the floor is the point: a different element, `.meganav_mobile_btn_wrap`, is pinned there through the column |
 | `[data-nav-panel]` / `.meganav_panel` | the sheet |
 | `[data-nav-toggle]`, `.meganav_button_nav_open-wrap`, `.meganav_mobile_open` | anything that opens it. The click is caught on the wrapper, so the `href="#"` anchor inside never jumps the page |
 | `.meganav_feature_text`, `.button_main_wrap`, `.meganav_heading`, `.footer_link_wrap`, `[data-nav-content]` | the rows that stagger in, in DOM order |

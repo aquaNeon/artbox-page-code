@@ -268,8 +268,12 @@ html.is-transitioning {
     flex: 1 1 auto;
   }
 
+  /* Under its own sentence, which is where it reads as belonging to the
+     sentence. The column is still stretched — that is what holds the
+     panel's height — so --meganav-cta-push: auto puts the button back on
+     the floor of the panel for anyone who wants it there. */
   .meganav_root .meganav_feature_btn_wrap {
-    margin-top: auto;
+    margin-top: var(--meganav-cta-push, 0);
     align-self: var(--meganav-cta-align, start);
   }
 }
