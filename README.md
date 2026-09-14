@@ -1276,6 +1276,15 @@ the rule that does the work is a descendant selector. That is how one placement
 of a shared component animates while the others do not. `--fade-child-step` (60ms) and `--fade-child-ms` (500ms) are the
 knobs; twenty slots, and past that they share the last.
 
+`data-fade-children="cms"` takes the Collection Items as the children instead,
+with no class on them at all. The generic rule needs `.is-fade-child` or
+`[data-marquee-item]` on each child, and both mean editing a component that is
+placed in a dozen other spots to reach the one placement that wants the
+entrance — where a CMS list is already the staggered set. It is its own value
+rather than the plain attribute because a container that fades marked children
+can hold a Collection List too: /kontakt's marquee holds thirty-three items, and
+those keep staggering the way they always did.
+
 `[data-fade-group]` on a parent runs its fades as one staggered set off a single
 trigger — `data-fade-stagger` sets the gap, default 0.12s. That is how a drag
 slider or a marquee gets an entrance: the library already writes a transform to

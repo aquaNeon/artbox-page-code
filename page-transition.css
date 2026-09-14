@@ -696,7 +696,8 @@ html.is-menu-open {
 
    The place in the order comes from nth-child, so a copied list staggers
    exactly like the original. Twenty is more logos than a row shows at
-   once; past that they share the last slot. */
+   once; past that they share the last slot.
+ */
 [data-fade-children]:not([data-fade-children="false"]) .is-fade-child,
 [data-fade-children]:not([data-fade-children="false"]) [data-marquee-item] {
   opacity: 0;
@@ -733,6 +734,55 @@ html.is-menu-open {
 /* Nothing to reveal if nothing can move. */
 @media (prefers-reduced-motion: reduce) {
   [data-fade-children]:not([data-fade-children="false"]) :is(.is-fade-child, [data-marquee-item]) {
+    opacity: 1;
+    transition: none;
+  }
+}
+
+/* data-fade-children="cms" — the Collection Items are the children.
+
+   The generic rule needs a class or a marquee attribute on each child,
+   and both mean editing a component that is placed in a dozen other
+   spots to reach the one placement that wants the entrance. A CMS list
+   is already a staggered set, so naming it on the container is enough.
+
+   Its own value rather than the plain attribute, because a container
+   that already fades marked children can hold a Collection List too —
+   /kontakt's marquee holds thirty-three items — and those must keep
+   staggering exactly as they do now. */
+[data-fade-children="cms"] .w-dyn-item {
+  opacity: 0;
+  transition: opacity var(--fade-child-ms, 500ms) var(--ease-qubic);
+  transition-delay: calc(var(--fade-child-i, 0) * var(--fade-child-step, 60ms));
+}
+
+[data-fade-children="cms"].is-faded .w-dyn-item {
+  opacity: 1;
+}
+
+[data-fade-children="cms"] .w-dyn-item:nth-child(1) { --fade-child-i: 0; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(2) { --fade-child-i: 1; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(3) { --fade-child-i: 2; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(4) { --fade-child-i: 3; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(5) { --fade-child-i: 4; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(6) { --fade-child-i: 5; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(7) { --fade-child-i: 6; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(8) { --fade-child-i: 7; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(9) { --fade-child-i: 8; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(10) { --fade-child-i: 9; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(11) { --fade-child-i: 10; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(12) { --fade-child-i: 11; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(13) { --fade-child-i: 12; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(14) { --fade-child-i: 13; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(15) { --fade-child-i: 14; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(16) { --fade-child-i: 15; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(17) { --fade-child-i: 16; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(18) { --fade-child-i: 17; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(19) { --fade-child-i: 18; }
+[data-fade-children="cms"] .w-dyn-item:nth-child(n+20) { --fade-child-i: 19; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-fade-children="cms"] .w-dyn-item {
     opacity: 1;
     transition: none;
   }
