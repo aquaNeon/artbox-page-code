@@ -2000,6 +2000,13 @@
       const data = trigger.dataset || {};
       const rawStagger = parseFloat(data.maskStagger ?? data.growStagger ?? data.fadeStagger);
 
+      /* A whole run can be held back: the pictures under a heading want
+         to wait for it rather than race it, and the heading is a
+         different module on a different trigger. Seconds, on the group,
+         added to every cue in it. */
+      const rawHold = parseFloat(data.maskDelay ?? data.growDelay ?? data.fadeDelay);
+      const hold = Number.isFinite(rawHold) && rawHold > 0 ? rawHold : 0;
+
       /* A run of nothing but fades takes the fade's start. Mixed with a
          clip, the clip's wins: they are one gesture then, and a picture
          that fades in a screen below where it uncovers reads as two. */
@@ -2009,7 +2016,7 @@
       const tl = gsap.timeline({ paused: true });
 
       list.forEach((item, i) => {
-        const at = i * stagger;
+        const at = hold + i * stagger;
         const delay = parseFloat(item.el.dataset.maskDelay ?? item.el.dataset.growDelay);
         const cue = at + (Number.isFinite(delay) ? delay : 0);
 

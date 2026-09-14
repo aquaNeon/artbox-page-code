@@ -1099,7 +1099,8 @@ clip covers all three, where marking the `video` leaves the poster unwiped.
 | --- | --- | --- |
 | `data-mask` | the image, video, or its wrapper | Marks it. A value sets the edge the wipe starts at: `top` (default), `bottom`, `left`, `right`, `center`, or **`hero`** |
 | `data-mask-group` | a wrapper | Everything marked inside plays as one run off the wrapper's trigger, staggered |
-| `data-mask-stagger` | the group | Seconds between them, default `0.12` |
+| `data-mask-stagger` | the group | Seconds between them, default `0.12`. The run follows DOM order, which for a row is left to right |
+| `data-mask-delay` | the group | Seconds the whole run waits before the first one moves — how a row of pictures holds until the heading over it has finished, since that heading is a different module on a different trigger |
 | `data-mask-start` | the group | ScrollTrigger start, default `top 85%` |
 | `data-mask-delay` | one element | Extra seconds on top of its place in the run |
 | `data-mask-scale` | one element | Overscale settling as the clip lands, default `1` — off. Set it per element (`1.06` is a gentle one), and leave it off wherever the picture already carries a parallax or hover transform, which is the same property |
