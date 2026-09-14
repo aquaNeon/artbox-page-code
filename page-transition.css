@@ -682,6 +682,32 @@ html.is-menu-open {
   overflow-wrap: anywhere;
 }
 
+/* ===== TESTIMONIAL COLOURS — README ### testimonialColours ===== */
+
+/* The hex lives on the element as data-bg / data-text, and this reads it
+   straight into the variables the component already uses — no script in
+   the way, so the colour is there at first paint rather than a frame
+   later.
+
+   attr() with a type is Chrome 133+, and testimonialColours writes the
+   same variables inline for everything else. Inline wins, so the two
+   never disagree; where both work the CSS has simply already done it.
+
+   The fallbacks are deliberately loud rather than neutral: a hex the CMS
+   got wrong shows as an uncoloured section, which is a thing you notice,
+   instead of silently inheriting something that looks almost right. */
+.c_testimonial_content_wrap[data-bg]:not([data-bg=""]) {
+  --section-bg: attr(data-bg type(<color>), transparent);
+}
+
+.c_testimonial_content_wrap[data-text]:not([data-text=""]) {
+  --section-text: attr(data-text type(<color>), currentColor);
+}
+
+.c_testimonial_content_wrap[data-text-secondary]:not([data-text-secondary=""]) {
+  --section-text-secondary: attr(data-text-secondary type(<color>), currentColor);
+}
+
 /* ===== RULE REVEAL — [data-rule] — README ### ruleReveal ===== */
 
 /* The line the module draws over the element's own border. It only

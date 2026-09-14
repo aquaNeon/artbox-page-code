@@ -1115,6 +1115,38 @@ behaves exactly as it did.
 Read by `textAnim` — on the group root it sets the group delay, on a step it
 sets that step's cue — and by `ruleReveal`.
 
+### testimonialColours — `[data-bg]`
+
+The hex lives on `.c_testimonial_content_wrap` as `data-bg`, `data-text` and
+`data-text-secondary`, and becomes `--section-bg`, `--section-text` and
+`--section-text-secondary`.
+
+Two paths to the same variables. `page-transition.css` reads the attribute
+directly — `attr(data-bg type(<color>))`, Chrome 133+ — so the colour is there
+at first paint with no script in the way. `testimonialColours` in the JS writes
+the same variables inline for browsers without typed `attr()`. Inline wins, so
+the two never disagree; where both work the CSS has already done it.
+
+8-digit hex carries its alpha: `#F7F7F560` resolves to `rgba(247, 247, 245,
+0.376)`. An attribute that is missing or empty leaves the Designer's own value
+alone. One the CMS got wrong falls back to `transparent` — deliberately loud,
+since a section with no colour is a thing you notice, where something
+almost-right is not.
+
+**Seeing it in the Designer.** Custom code in the page head does not render on
+the canvas, so neither path applies there and the component shows whatever
+colour its class carries. An **HTML Embed element does** render live on the
+canvas, so a copy of the three rules in an embed inside the component makes the
+real colours show while designing:
+
+```html
+<style>
+.c_testimonial_content_wrap[data-bg]:not([data-bg=""]) { --section-bg: attr(data-bg type(<color>), transparent); }
+.c_testimonial_content_wrap[data-text]:not([data-text=""]) { --section-text: attr(data-text type(<color>), currentColor); }
+.c_testimonial_content_wrap[data-text-secondary]:not([data-text-secondary=""]) { --section-text-secondary: attr(data-text-secondary type(<color>), currentColor); }
+</style>
+```
+
 ### ruleReveal — `[data-rule]`
 
 The element's own border, drawn on left to right as it comes into view.
