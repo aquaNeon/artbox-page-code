@@ -920,6 +920,17 @@ An item the Designer hid — `display: none` on the second one is how these
 usually arrive — is put back into the flow at mount, since it can never take
 its turn otherwise. Teardown restores it, along with the transforms.
 
+The statements are **cut into lines and arrive line by line**, the way a heading
+does — `SWAP.lineStagger` between them, each parked `SWAP.linePark` below its
+own mask until its turn. The cut happens in `textSwap` rather than in `textAnim`,
+which skips everything inside a `[data-swap]`: both would be writing the same
+transform to the same statement. Where kugiri never landed, and under reduced
+motion, the statement moves whole as it did before.
+
+A split is a snapshot of one layout, so a resize takes the statements back to
+their text and cuts again at the new width, putting the showing one back where
+it was.
+
 Timing lives in the `SWAP` object. Under `prefers-reduced-motion` the
 statements change without moving.
 

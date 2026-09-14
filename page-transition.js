@@ -3509,6 +3509,10 @@
     soloEase: E.qubic,
     soloShift: 30,      // yPercent
 
+    /* The statements arrive line by line, the way a heading does. */
+    lineStagger: 0.08,  // between one line and the next
+    linePark: 110,      // yPercent a line waits at, clear of its mask
+
     start: 'top 70%',
     stack: '(max-width: 767px)'   // below this the statements go full width
   };
@@ -3675,7 +3679,7 @@
       let placeTimer = null;
       const onResize = () => {
         clearTimeout(placeTimer);
-        placeTimer = setTimeout(place, 150);
+        placeTimer = setTimeout(() => { place(); recut(); }, 150);
       };
       window.addEventListener('resize', onResize, { passive: true });
 
@@ -3684,6 +3688,7 @@
       let tl = null;
       let dead = false;
       let scrubbed = false;
+      let shown = false;
 
       // These usually arrive with display:none on every statement but
       // the first, which cannot take its turn. Restored on teardown.
@@ -3709,10 +3714,95 @@
         : { autoAlpha: 0, yPercent: 0, y: -SWAP.shift };
       const resting = { autoAlpha: 1, yPercent: 0, y: 0 };
 
-      gsap.set(list, hiddenBelow);
+      /* Cut into lines here rather than by textAnim, which skips
+         everything inside a [data-swap] — both would be writing the same
+         transform to the same statement. Cut, the swap moves the lines
+         and the statement itself carries only visibility; uncut, it moves
+         the statement whole, which is what happens where kugiri never
+         landed and under reduced motion, where nothing travels at all. */
+      const cuts = new Map();
+      const lined = () => cuts.size === list.length;
+      const linesOf = (el) => (cuts.get(el) || {}).lines || [];
+
+      const cut = () => {
+        if (!hasKugiri || reducedMotion) return;
+        try {
+          const splits = window.kugiri.splitText(list, {
+            type: ['lines'],
+            mask: { lines: TEXT.reach },
+            classes: { lines: 'text-anim_line', mask: 'text-anim_mask' }
+          });
+          list.forEach((el, i) => { if (splits[i]) cuts.set(el, splits[i]); });
+        } catch (err) {
+          console.warn('[swap] could not cut the statements into lines, ' +
+            'moving them whole instead', err);
+          cuts.clear();
+        }
+      };
+
+      const uncut = () => {
+        cuts.forEach((split) => {
+          try { split.revert(); } catch (err) { /* already gone */ }
+        });
+        cuts.clear();
+      };
+
+      const lineOpts = () => ({ duration: dur, ease, stagger: SWAP.lineStagger });
+
+      const away = (els) => els.forEach((el) => {
+        if (!lined()) { gsap.set(el, hiddenBelow); return; }
+        gsap.set(el, { autoAlpha: 0 });
+        gsap.set(linesOf(el), { yPercent: SWAP.linePark });
+      });
+
+      const settle = (el) => {
+        if (!lined()) { gsap.set(el, resting); return; }
+        gsap.set(el, { autoAlpha: 1 });
+        gsap.set(linesOf(el), { yPercent: 0 });
+      };
+
+      const leave = (timeline, el, at) => {
+        if (!lined()) {
+          timeline.to(el, { ...hiddenAbove, duration: dur, ease }, at);
+          return;
+        }
+        timeline.to(linesOf(el), { yPercent: -SWAP.linePark, ...lineOpts() }, at);
+        // Put away only once it has gone, or an empty box is still
+        // sitting over the statement arriving underneath it.
+        timeline.set(el, { autoAlpha: 0 }, at + dur);
+      };
+
+      const enter = (timeline, el, at) => {
+        if (!lined()) {
+          timeline.fromTo(el, hiddenBelow, { ...resting, duration: dur, ease }, at);
+          return;
+        }
+        timeline.set(el, { autoAlpha: 1 }, at);
+        timeline.fromTo(linesOf(el),
+          { yPercent: SWAP.linePark },
+          { yPercent: 0, ...lineOpts() },
+          at
+        );
+      };
+
+      const enterNow = (el) => enter(gsap.timeline(), el, 0);
+
+      /* A split is a snapshot of one layout, so a resize takes it back to
+         the text and cuts again at the new width. Whichever statement was
+         showing is put back, since cutting parks every line. */
+      const recut = () => {
+        if (dead || !lined()) return;
+        uncut();
+        cut();
+        away(list);
+        if (shown || !waits) settle(list[index]);
+      };
+
+      cut();
+      away(list);
       // Waiting means waiting for the first one too: shown at mount, it
       // has been read by the time its cue arrives.
-      if (!waits) gsap.set(list[0], resting);
+      if (!waits) settle(list[0]);
 
       const queue = () => {
         clearTimeout(timer);
@@ -3729,9 +3819,7 @@
         /* Anything neither leaving nor arriving is put away outright: an
            interrupted swap leaves its statement wherever the kill caught
            it, and two half-showing over each other is the result. */
-        list.forEach((el) => {
-          if (el !== current && el !== list[index]) gsap.set(el, hiddenBelow);
-        });
+        away(list.filter((el) => el !== current && el !== list[index]));
 
         tl?.kill();
         if (reducedMotion) {
@@ -3742,12 +3830,8 @@
         }
 
         tl = gsap.timeline({ onComplete: queue });
-        tl.to(current, { ...hiddenAbove, duration: dur, ease }, 0);
-        tl.fromTo(list[index],
-          hiddenBelow,
-          { ...resting, duration: dur, ease },
-          dur * 0.35
-        );
+        leave(tl, current, 0);
+        enter(tl, list[index], dur * 0.35);
       }
 
       let trigger = null;
@@ -3756,15 +3840,14 @@
       // transition rectangle fires at the wrong scroll position.
       const onExternalStart = () => {
         if (dead) return;
-        if (reducedMotion) gsap.set(list[0], resting);
-        else gsap.fromTo(list[0], hiddenBelow, { ...resting, duration: dur, ease });
+        if (reducedMotion) settle(list[0]);
+        else enterNow(list[0]);
         queue();
       };
 
       /* Scroll-driven from here on: whoever sends swap:to owns the
          sequence, and the timer is dropped rather than have two things
          disagree about what is being read. */
-      let shown = false;
       const onExternalTo = (e) => {
         if (dead) return;
         scrubbed = true;
@@ -3774,10 +3857,10 @@
         if (!shown) {
           shown = true;
           index = i;
-          if (reducedMotion) gsap.set(list[i], resting);
+          if (reducedMotion) settle(list[i]);
           // fromTo, not to: a `to` from wherever it sits has nowhere to
           // travel, and the first statement arrives without the rise.
-          else gsap.fromTo(list[i], hiddenBelow, { ...resting, duration: dur, ease });
+          else enterNow(list[i]);
           return;
         }
         swap(i);
@@ -3789,7 +3872,7 @@
         if (dead) return;
         clearTimeout(timer);
         tl?.kill();
-        gsap.set(list, hiddenBelow);
+        away(list);
         index = 0;
         shown = false;
       };
@@ -3815,6 +3898,7 @@
         dead = true;
         clearTimeout(timer);
         clearTimeout(placeTimer);
+        uncut();
         wrap.removeEventListener('swap:start', onExternalStart);
         wrap.removeEventListener('swap:to', onExternalTo);
         wrap.removeEventListener('swap:reset', onExternalReset);
