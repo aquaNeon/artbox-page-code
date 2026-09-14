@@ -1013,6 +1013,14 @@ which skips everything inside a `[data-swap]`: both would be writing the same
 transform to the same statement. Where kugiri never landed, and under reduced
 motion, the statement moves whole as it did before.
 
+Because `textAnim` skips them, nobody was dropping the stylesheet's
+anti-flicker hold either — a statement marked `data-text-anim-solo` matches
+that rule, and a running animation outranks an inline style. The entrance wrote
+`opacity: 1` onto an element the hold was still pinning at 0, so the statement
+arrived invisible and stayed that way until the hold expired by itself, three
+seconds in. `textSwap` drops it at mount now, straight after parking them, so
+visibility carries the hiding exactly as it does in `textAnim`.
+
 A split is a snapshot of one layout, so a resize takes the statements back to
 their text and cuts again at the new width, putting the showing one back where
 it was.

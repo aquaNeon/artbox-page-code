@@ -4253,6 +4253,20 @@
 
       cut();
       away(list);
+
+      /* And the stylesheet's hold goes with it. A statement carrying
+         data-text-anim-solo matches the anti-flicker rule, textAnim
+         skips anything inside a [data-swap] — so nobody dropped it, and
+         a running animation outranks an inline style: the entrance wrote
+         opacity 1 onto an element the hold was still pinning at 0. The
+         statement arrived invisible and stayed that way until the hold
+         expired by itself, three seconds in, which on the home hero is
+         most of the time you spend looking at it.
+
+         Safe here because away() has already hidden them: visibility
+         carries the hiding from now on, exactly as it does in textAnim. */
+      list.forEach((el) => { el.style.animation = 'none'; });
+
       // Waiting means waiting for the first one too: shown at mount, it
       // has been read by the time its cue arrives.
       if (!waits) settle(list[0]);
