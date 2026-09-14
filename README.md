@@ -1143,7 +1143,7 @@ Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 ### data-fade — the picture arrives out of nothing
 
 `data-fade` on a picture or its wrapper: opacity 0 to 1, **power2.out at
-0.35s**, fired as the picture begins to enter — `top bottom`.
+0.5s**, fired as the picture begins to enter — `top bottom`.
 `data-fade="0.6"` gives one its own duration, `data-fade-start` its own line.
 
 Triggered, not scrubbed to how far the picture has travelled. Scrubbing looks

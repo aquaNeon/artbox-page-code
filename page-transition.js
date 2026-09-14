@@ -1796,7 +1796,7 @@
      stacks with anything that writes a transform: data-scale's hover lean
      is the one it will usually meet. */
   const FADE_IN = {
-    duration: 0.35,
+    duration: 0.5,
     ease: 'power2.out',
 
     /* Fired as the picture begins to enter, not scrubbed to how far it
