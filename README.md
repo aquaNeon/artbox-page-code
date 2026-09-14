@@ -1073,7 +1073,7 @@ the `SEQUENCE` object at the top of `page-transition.js`:
 ```js
 const SEQUENCE = {
   lead: 0.4,   // after the trigger before the first part moves
-  step: 0.4,   // between one part and the next
+  step: 0.05,  // between one part and the next
   item: 0.6,   // between one item of a [data-seq] list and the next
   slots: { rule: 0, text: 1, link: 1, heading: 2, body: 3 }
 };
@@ -1085,10 +1085,13 @@ text, rule, text — rather than every rule going at once and every text after
 them:
 
 ```
-rule 0   0.4     text 0   0.8
-rule 1   1.0     text 1   1.4
-rule 2   1.6     text 2   2.0
+rule 0   0.40    text 0   0.45
+rule 1   1.00    text 1   1.05
+rule 2   1.60    text 2   1.65
 ```
+
+`step` is a hair rather than a beat: the text goes **with** its line, not after
+it, so an item reads as one gesture and the list marches through the pairs.
 
 The list is also what triggers. A per-item trigger would put the fifth item's
 offset after the moment it came into view — five items' worth of waiting for a
@@ -1115,7 +1118,7 @@ sets that step's cue — and by `ruleReveal`.
 ### ruleReveal — `[data-rule]`
 
 The element's own border, drawn on left to right as it comes into view.
-**inoutMask at 2s**, cued at the `rule` slot — 0.4s after the trigger. A
+**qubic at 1s** — a 1px box scaled from a left origin — cued at the `rule` slot — 0.4s after the trigger. A
 `data-slot` on the element itself overrides that, so one rule can run out of
 turn.
 

@@ -486,7 +486,13 @@
      the table has no name for. Read by textAnim and by ruleReveal. */
   const SEQUENCE = {
     lead: 0.4,   // after the trigger before the first part moves
-    step: 0.4,   // between one part and the next
+
+    /* A hair, not a beat: the text goes with its line rather than after
+       it. Measured off the reference, where the two are 3-45ms apart —
+       close enough to read as one gesture, far enough that the line
+       still leads. The pairs are what the list then marches through. */
+    step: 0.05,  // between one part and the next
+
     item: 0.6,   // between one item of a [data-seq] list and the next
 
     slots: {
@@ -1944,8 +1950,11 @@
      breakpoint, is what gets drawn. */
 
   const RULE = {
-    duration: 2,
-    ease: INOUT_MASK.ease,
+    /* Both taken off the reference: a 1s transform on easeInOutCubic,
+       which is qubic to two decimals. It draws a 1px box from a left
+       origin there too. */
+    duration: 1,
+    ease: QUBIC.ease,
     start: 'top 85%',
 
     // Its place in the item's cadence — see SEQUENCE. A slot on the
