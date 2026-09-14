@@ -1142,26 +1142,16 @@ Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 
 ### data-fade — the picture arrives out of nothing
 
-`data-fade` on a picture or its wrapper: opacity 0 to 1, **scrubbed to the
-scroll**, spread over 220px starting where the picture's top edge touches the
-bottom of the screen — a shorter stretch of road means more of the change per
-pixel, which is the knob for how noticeable it is. `data-fade="600"` gives one its own stretch;
-`data-fade-start` its own line.
+`data-fade` on a picture or its wrapper: opacity 0 to 1, **power2.out at
+0.35s**, fired as the picture begins to enter — `top bottom`.
+`data-fade="0.6"` gives one its own duration, `data-fade-start` its own line.
 
-**The value is px of scroll, not seconds** — the fade has no duration of its
-own. Anything under 20 is taken as the seconds it used to mean, ignored, and
-warned about, since a half-second written as `0.5` would otherwise be a
-half-pixel range: a fade nobody can see and nothing to say why.
-
-Scrubbed rather than played, because that is what the reference does. Creep down
-two pixels and two pixels' worth appears; stop and it stops with you; throw the
-wheel and you see the whole thing at once. A timed tween cannot behave that way
-— it starts on a line and then owns the next quarter second whatever the hand
-does, which is why the same numbers read as a different effect.
-
-Each fade is its own trigger, with no stagger: a group's stagger is a clock too,
-and there is no clock here. What staggers them is that they reach the line one
-after another.
+Triggered, not scrubbed to how far the picture has travelled. Scrubbing looks
+right on paper and is wrong in the hand: tied to travel, a slow scroll leaves
+the picture parked half-lit for as long as you hold there. Triggered, a crawl
+reads the way the reference does — the two pixels of picture on screen have
+already faded, because the fade ran while there was nothing to see — and a fast
+scroll brings the whole frame in mid-fade.
 
 Opacity and nothing else, so it stacks with anything writing a transform —
 `data-scale` being the one it will usually meet. It rides the same trigger,
