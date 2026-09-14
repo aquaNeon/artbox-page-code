@@ -506,6 +506,13 @@ belongs in the Designer.
 
 ### tabs — `[data-tabs="wrapper"]`
 
+The visual does not cross-fade between tabs: the incoming one **grows from the
+middle over the one before it**, which holds still at full strength until it is
+covered — the same move the services rows make, at the same numbers
+(`coverFrom` 0.18, `coverDuration` 0.7s). The covered visual is only dropped
+once the new one has landed, so nothing shows past the corners of a picture
+still on its way in.
+
 A content column of clickable items beside a visual column of matching
 panels. Opening a tab animates its `item-details` from height `0` to `auto`,
 cross-fades the matching visual in from the right, and — with autoplay on —

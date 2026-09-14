@@ -2219,9 +2219,15 @@
   const TABS = {
     duration: 0.65,
     ease: E.panel,
-    outProgress: 0.3,   // how long the leaving progress bar takes to empty,
-                        // and how long the incoming visual waits
-    shift: 3,           // xPercent the visual travels while fading
+    outProgress: 0.3,   // how long the leaving progress bar takes to empty
+
+    /* The visual does not cross-fade: the incoming one grows from the
+       middle over the one before it, which stays put until it is
+       covered. Same move as the services rows, same numbers — see
+       SERVICES.coverFrom. */
+    coverFrom: 0.18,    // the incoming visual starts this small, centred
+    coverDuration: 0.7,
+    coverEase: E.body,
     autoplayMs: 5000,
 
     /* The detail's content rises with the height, rather than carrying
@@ -2402,8 +2408,8 @@
           const b = bar(i);
           if (b) gsap.set(b, { scaleX: 0, transformOrigin: 'left center' });
           gsap.set(visualItems[i], i === index
-            ? { autoAlpha: 1, xPercent: 0 }
-            : { autoAlpha: 0, xPercent: TABS.shift });
+            ? { autoAlpha: 1, scale: 1, zIndex: 1 }
+            : { autoAlpha: 0, scale: 1, zIndex: 0 });
         });
       }
 
@@ -2440,7 +2446,12 @@
           switchTl.set(outBar, { transformOrigin: 'right center' }, 0)
                   .to(outBar, { scaleX: 0, duration: TABS.outProgress }, 0);
         }
-        switchTl.to(visualItems[outIndex], { autoAlpha: 0, xPercent: TABS.shift }, 0);
+        /* The leaving visual is covered, not faded: it holds still at
+           full strength and the incoming one grows over it. Dropped only
+           once it is hidden, so nothing shows through the corners of a
+           picture that has not finished arriving. */
+        switchTl.set(visualItems[outIndex], { zIndex: 0 }, 0);
+        switchTl.set(visualItems[outIndex], { autoAlpha: 0 }, TABS.coverDuration);
         if (outDetail) switchTl.to(outDetail, { height: 0 }, 0);
         const outInner = detailInner(outIndex);
         if (outInner) {
@@ -2451,9 +2462,9 @@
 
         switchTl.fromTo(
           visualItems[index],
-          { autoAlpha: 0, xPercent: TABS.shift },
-          { autoAlpha: 1, xPercent: 0 },
-          TABS.outProgress
+          { autoAlpha: 1, scale: TABS.coverFrom, zIndex: 1, transformOrigin: 'center center' },
+          { scale: 1, duration: TABS.coverDuration, ease: TABS.coverEase },
+          0
         );
         const inDetail = detail(index);
         if (inDetail) switchTl.fromTo(inDetail, { height: 0 }, { height: 'auto' }, 0);
