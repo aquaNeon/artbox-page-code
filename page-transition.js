@@ -1799,6 +1799,14 @@
     duration: 0.5,
     ease: QUBIC.ease,
 
+    /* Off unless asked for, per element or per group: data-fade is
+       opacity-only by default so it can sit inside a slider or a marquee
+       without meeting the transform that library is already writing.
+       Asked for, the transform goes on the marked element — which in
+       those components is the picture, never the slide. */
+    rise: 0,   // px it travels up into place
+    tilt: 0,   // deg it straightens out of
+
     /* Fired as the picture begins to enter, not scrubbed to how far it
        has come. Scrubbing looked right on paper and wrong in the hand:
        tie opacity to travel and a slow scroll leaves the picture parked
@@ -1849,6 +1857,18 @@
       const fadeDuration = Number.isFinite(rawFade) && rawFade > 0
         ? rawFade
         : FADE_IN.duration;
+
+      /* Read off the element, then the group it sits in: a row wants one
+         number, not one per picture. */
+      const fadeGroup = el.closest('[data-fade-group]');
+      const num = (key, fallback) => {
+        const own = parseFloat(el.dataset[key]);
+        if (Number.isFinite(own)) return own;
+        const shared = fadeGroup && parseFloat(fadeGroup.dataset[key]);
+        return Number.isFinite(shared) ? shared : fallback;
+      };
+      const fadeRise = num('fadeRise', FADE_IN.rise);
+      const fadeTilt = num('fadeTilt', FADE_IN.tilt);
       const key = (el.dataset.mask || '').trim().toLowerCase();
 
       const rawGrow = parseFloat(el.dataset.grow);
@@ -1899,12 +1919,17 @@
          first paint is the picture flashing in ahead of its own
          reveal. */
       if (clips) el.style.clipPath = clipAt(0);
-      if (fades) el.style.opacity = '0';
+      if (fades) {
+        el.style.opacity = '0';
+        if (fadeRise || fadeTilt) {
+          gsap.set(el, { y: fadeRise, rotation: fadeTilt });
+        }
+      }
       if (scaleFrom !== 1) media.style.transform = `scale(${scaleFrom})`;
       touched.push(el);
       if (media && media !== el) touched.push(media);
 
-      return { el, media, clips, clipAt, fades, fadeDuration, scaleFrom, duration, ease };
+      return { el, media, clips, clipAt, fades, fadeDuration, fadeRise, fadeTilt, scaleFrom, duration, ease };
     });
 
     /* Marked elements inside one group play as a run rather than each on
@@ -1947,14 +1972,17 @@
 
 
         if (item.fades) {
-          tl.to(item.el, {
+          const to = {
             opacity: 1,
             duration: item.fadeDuration,
             ease: FADE_IN.ease,
-            // Handed back, so a hover or a swap is not fighting a number
+            // Handed back, so a hover or a swap is not fighting numbers
             // this module left on the element.
-            clearProps: 'opacity'
-          }, cue);
+            clearProps: item.fadeRise || item.fadeTilt ? 'opacity,transform' : 'opacity'
+          };
+          if (item.fadeRise) to.y = 0;
+          if (item.fadeTilt) to.rotation = 0;
+          tl.to(item.el, to, cue);
         }
 
         if (item.scaleFrom !== 1) {
