@@ -1439,6 +1439,15 @@ behaves exactly as it did.
 Read by `textAnim` — on the group root it sets the group delay, on a step it
 sets that step's cue — and by `ruleReveal`.
 
+The slider's card art takes the same lean without the attribute:
+`.c_slider_swiper .card_hover_img_wrap img` grows to `--card-img-lean` (1.04)
+on the same curve. The section embed reaches for this already and cannot land
+it — its rest scale is on `.card_hover_img` (0,1,0) while its own later rule
+sets `transform` on `.card_hover_img_wrap img` (0,1,1), which is more specific
+and wins, so the image sat at 1.004 and hovered to 1. Both rules here are more
+specific again, and neither promotes the image: `will-change` on this element
+is what put the photo over its own colour panel in Safari.
+
 ### data-scale — hover lean
 
 `data-scale` on a picture, or on the wrapper around one, and it grows to 1.04

@@ -1108,6 +1108,38 @@ html .work_smoothly_wrap {
   backface-visibility: visible;
 }
 
+/* The same lean the rest of the site has on [data-scale], on the card
+   art — 1.04 on an ease-in-out, one gesture with the colour panel
+   lifting off it.
+
+   The section embed reaches for this already and cannot land it: its
+   rest scale is on .card_hover_img (0,1,0) while its own later rule sets
+   transform on .card_hover_img_wrap img (0,1,1), which is more specific
+   and wins. The image sat at 1.004 and hovered to 1 — a shrink of four
+   thousandths, which is nothing to see. Both rules here are more
+   specific again, so the pair reads as written without touching the
+   embed.
+
+   No will-change and no backface-visibility, deliberately: promoting
+   this image is what put the photo over its own colour panel in Safari,
+   and a transform transition does not need the layer. */
+@media (hover: hover) and (pointer: fine) {
+  .c_slider_swiper .card_hover_img_wrap img {
+    transform: scale(1);
+    transition: transform var(--scale-ms, 500ms) ease-in-out;
+  }
+
+  .c_slider_swiper .card_hover_wrap:hover .card_hover_img_wrap img {
+    transform: scale(var(--card-img-lean, 1.04));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c_slider_swiper .card_hover_img_wrap img {
+    transition: none;
+  }
+}
+
 /* Hover tint. A pseudo inside the image wrap, not a layer of its own, so
    it is clipped by the same rounded corners and rides the image's scale.
    Always on, never animated: the colour panel above it is what reveals
