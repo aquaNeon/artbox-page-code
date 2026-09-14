@@ -1109,10 +1109,27 @@ embed. `afterLeave` kills triggers scoped to the outgoing container plus
 orphans — never `ScrollTrigger.getAll().kill()`, which under `sync: true`
 would take the already-mounted incoming page's triggers with it.
 
-`baseLib` calls `MYL.video.init(root)`, `MYL.formValidation.init(root)` and
-`MYL.matchContainer.init(root)`. Those three scripts currently bind on
-`DOMContentLoaded`, which fires only once — until each exposes an `init(root)`,
-video and form validation stop working after the first swap.
+`baseLib` puts base-lib back after a swap. It used to call `MYL.video.init()`
+and friends — but `window.MYL` does not exist and never did, so the module
+returned on its first line every time. The video library is on
+`window.videoLibrary`, form validation on a bare
+`window.initAdvancedFormValidation`.
+
+It calls `videoLibrary.init()`, **not** `reinitialize()`: reinitialize is
+`destroy()` then `init()`, and destroy walks `this.eventListeners` with
+`forEach` — which is a `WeakMap`, and a WeakMap has no forEach. It throws every
+time, so the tidy call is the one that cannot work. `init()` re-scans and
+re-observes, which is the half that matters.
+
+This is what made the hero video play on a fresh load and not when you
+navigated to the page. Its `<source>` carries `data-src`, and base-lib's
+IntersectionObserver is what promotes it to `src` — bound once, on
+`DOMContentLoaded`. After a swap nothing observed the new `<video>`, so the
+element had no resource at all: `play()` resolved, `paused` went false, and
+`networkState` stayed at `NO_SOURCE`. Nothing to see, and no error either.
+
+`match-container` exposes nothing to call, so a swapped-in page cannot have it
+back.
 
 Script tags placed inside the swapped container never execute on a Barba
 navigation. The three former inline section embeds now live here as modules —
@@ -1417,7 +1434,7 @@ sets that step's cue — and by `ruleReveal`.
 
 ### data-scale — hover lean
 
-`data-scale` on a picture, or on the wrapper around one, and it grows to 1.08
+`data-scale` on a picture, or on the wrapper around one, and it grows to 1.04
 under the pointer. `data-scale="1.06"` for a different number. Pure CSS in
 `page-transition.css`, no module.
 
@@ -1434,9 +1451,11 @@ and a hover is not worth paying that on load.
 `attr()` is read on the element that carries the attribute and inherited down,
 because `attr()` only ever sees the element it runs on — a number written on a
 wrapper is invisible to a rule targeting the image inside it. Below Chrome 133
-every marked picture takes the 1.08 fallback.
+every marked picture takes the 1.04 fallback.
 
-Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
+Knobs: `--scale-ms` (500ms) and the value itself. The curve is `ease-in-out`
+rather than the site's own: a lean this small wants to ease in and out of
+itself rather than snap away and coast back. Off entirely under
 `prefers-reduced-motion`, since the lean is the whole effect.
 
 ### data-fade — the picture arrives out of nothing
@@ -1579,24 +1598,6 @@ pin with the growth still running and a rect read mid-flight is a scaled one.
 The stylesheet's `left: 0; right: 0` spans the frame, which since the frame
 stopped being the viewport would stretch them off both edges of a phone.
 
-A scrim rides in with the pin so the statements stay readable over a bright
-frame: a pseudo on `.home_video_contain`, black at the foot fading out
-`--hero-video-scrim-rise` (26rem) above it on a five-stop ease curve — a
-straight ramp over that height reads as a grey band with a visible top edge. It hangs off the text rather than
-the frame — the frame is scaled to cover and its bottom edge is below the
-screen, so a gradient anchored there would arrive half spent — and it exists
-only while the statements are inside the component, which is exactly the pin.
-Going back up it fades before it goes. The scrim is a pseudo on the statements,
-so it leaves with them — and on the way up they leave in a single frame, taking
-the gradient with them. `heroVideo` marks the statements on the way out, waits
-`HERO_VIDEO.scrimOut` for the fade, and only then hands them back to the stage.
-Coming back down inside that window cancels it, since the move it was waiting to
-make is the one being undone.
-
-`--hero-video-scrim` (0.55) is its strength, `--hero-video-scrim-ms` (900ms) and
-`--hero-video-scrim-delay` (120ms) its fade in, `--hero-video-scrim-out` (260ms)
-its fade out — held off the first beat so it does
-not compete with the statement's own entrance.
 
 The first statement enters through a `fromTo`, not a `to`. Whoever sends
 `swap:to` owns the entrance, and a `to` from wherever the statement happens to

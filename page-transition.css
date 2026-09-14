@@ -886,25 +886,28 @@ html .work_smoothly_wrap {
   /* Read where the attribute is, inherited by the picture. attr() only
      ever sees the element it runs on, so a number written on the wrapper
      is invisible to a rule that targets the image inside it — which is
-     how data-scale="1.04" quietly came out at 1.1.
+     how a data-scale written on a wrapper quietly came out at the
+     fallback instead.
 
      attr() with a type is Chrome 133+; everywhere else takes the
      fallback, which is the number we would have written anyway. */
   [data-scale] {
-    --scale-to: attr(data-scale type(<number>), 1.08);
+    --scale-to: attr(data-scale type(<number>), 1.04);
   }
 
   [data-scale] :is(img, video),
   img[data-scale],
   video[data-scale] {
     transform: scale(1);
-    transition: transform var(--scale-ms, 500ms) var(--ease-qubic);
+    /* Softer than the site's own curve: a lean this small wants to ease
+       in and out of itself rather than snap away and coast back. */
+    transition: transform var(--scale-ms, 500ms) ease-in-out;
   }
 
   [data-scale]:hover :is(img, video),
   img[data-scale]:hover,
   video[data-scale]:hover {
-    transform: scale(var(--scale-to, 1.08));
+    transform: scale(var(--scale-to, 1.04));
   }
 }
 
@@ -1705,85 +1708,6 @@ html.is-menu-open [data-video="component"].is-travelling,
   right: 0;
   z-index: 2;
 }
-
-/* Scrim under the statements while the pin holds.
-
-   Hung off the TEXT, not the frame: the frame is scaled to cover and
-   its bottom edge is off the bottom of the screen, so a gradient
-   anchored there would reach the statements already half spent. Off the
-   text it lands in the same place whatever the frame is doing.
-
-   It exists only while the statements are inside the component — which
-   is exactly the pin — so it arrives with the stick and leaves with it,
-   and the keyframe covers the pop that the DOM move would otherwise be.
-
-   Runs to black at --hero-video-scrim-rise below its top and simply
-   stays there: the bottom overhang is off-screen, and the component
-   clips whatever is past its own edge. */
-@keyframes hero-video-scrim-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-[data-video="component"] > .home_video_contain::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  /* Past both edges: the statements' box is the design's column, the
-     scrim is the screen. The frame clips it. */
-  left: -50vw;
-  right: -50vw;
-  top: calc(var(--hero-video-scrim-rise, 26rem) * -1);
-  bottom: -100vh;
-  pointer-events: none;
-  /* Five stops on an ease curve, not two: a straight ramp over this
-     much height reads as a grey band with a visible top edge, and the
-     banding is worst exactly where the alpha is lowest. */
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0,
-    rgba(0, 0, 0, calc(var(--hero-video-scrim, 0.55) * 0.06)) calc(var(--hero-video-scrim-rise, 26rem) * 0.28),
-    rgba(0, 0, 0, calc(var(--hero-video-scrim, 0.55) * 0.2))  calc(var(--hero-video-scrim-rise, 26rem) * 0.5),
-    rgba(0, 0, 0, calc(var(--hero-video-scrim, 0.55) * 0.45)) calc(var(--hero-video-scrim-rise, 26rem) * 0.72),
-    rgba(0, 0, 0, calc(var(--hero-video-scrim, 0.55) * 0.75)) calc(var(--hero-video-scrim-rise, 26rem) * 0.89),
-    rgba(0, 0, 0, var(--hero-video-scrim, 0.55)) var(--hero-video-scrim-rise, 26rem)
-  );
-  /* Held off the first beat: the statements' own entrance owns that
-     moment, and a scrim arriving under it competes. */
-  animation: hero-video-scrim-in var(--hero-video-scrim-ms, 900ms)
-    cubic-bezier(0.22, 1, 0.36, 1) var(--hero-video-scrim-delay, 120ms) both;
-}
-
-/* Going back up, the statements leave the component and this selector
-   stops matching — the scrim would simply be gone between one frame and
-   the next. So heroVideo marks it on the way out and waits for the fade
-   before it moves them.
-
-   A second animation rather than a transition: the entrance keyframe
-   fills both ways, and dropping it for a plain opacity does not reliably
-   start a transition — the before-change style still carries the filled
-   animation, so it snaps. Replacing one animation with another always
-   runs. */
-@keyframes hero-video-scrim-out {
-  from { opacity: 1; }
-  to   { opacity: 0; }
-}
-
-.home_video_contain.is-scrim-out::before {
-  animation: hero-video-scrim-out var(--hero-video-scrim-out, 260ms) ease both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-video="component"] > .home_video_contain::before {
-    animation: none;
-  }
-
-  .home_video_contain.is-scrim-out::before {
-    animation: none;
-    opacity: 0;
-  }
-}
-
 
 /* ===== INLINE HEADING PICTURES — .hero-h1__img ===== */
 

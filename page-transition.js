@@ -5413,12 +5413,6 @@
 
     dwell: 1300,       // ms a statement holds, however fast the pin runs
 
-    /* s the scrim takes to go on the way back up, before the statements
-       are handed back to the stage. Matches --hero-video-scrim-out in the
-       stylesheet; the pair only has to agree well enough that the move
-       happens after the gradient has gone. */
-    scrimOut: 0.26,
-
     // Fallback only: the real delay is this cell's slot in the entrance
     // order, read off --hero-in-* in the CSS.
     from: 0.6,
@@ -5558,9 +5552,6 @@
     };
 
     const bringText = () => {
-      // Coming back down before the fade has finished: the move it was
-      // waiting to make is the one being undone here.
-      dropScrim();
       if (!text || text.parentNode === comp) return;
 
       const t = text.getBoundingClientRect();
@@ -5591,30 +5582,6 @@
       readAt = 0;
       reading = -1;
       swap.dispatchEvent(new Event('swap:reset'));
-    };
-
-    /* The scrim is a pseudo on the statements, so it leaves with them —
-       and going back up they leave in one frame. Faded first, then moved,
-       so the gradient goes before the thing it belongs to does. */
-    let scrimTimer = null;
-
-    const dropScrim = () => {
-      clearTimeout(scrimTimer);
-      scrimTimer = null;
-      if (text) text.classList.remove('is-scrim-out');
-    };
-
-    const fadeScrimThen = (done) => {
-      clearTimeout(scrimTimer);
-      if (!text || text.parentNode !== comp || reducedMotion) { done(); return; }
-      text.classList.add('is-scrim-out');
-      scrimTimer = setTimeout(() => {
-        scrimTimer = null;
-        done();
-        // Removed after the move: on the way down the class would
-        // otherwise still be on it, holding the scrim at nothing.
-        text.classList.remove('is-scrim-out');
-      }, HERO_VIDEO.scrimOut * 1000);
     };
 
     const returnText = () => {
@@ -6024,7 +5991,7 @@
          stays inside the component: handed back to the stage it jumps to
          the middle of a screen-tall centred block. */
       onLeave: () => { settle(); placeText(); },
-      onLeaveBack: () => { fadeScrimThen(returnText); resetSwap(); },
+      onLeaveBack: () => { returnText(); resetSwap(); },
 
       // One statement per equal share of the pin, both directions.
       onUpdate: (self) => {
@@ -6094,12 +6061,40 @@
   // DOMContentLoaded, which fires once: without this they die on the
   // first swap.
 
+  /* window.MYL does not exist and never did — the video library puts
+     itself on window.videoLibrary, and form validation on a bare
+     initAdvancedFormValidation. So this module read an undefined global,
+     returned on the first line, and every swapped-in page got none of
+     base-lib back.
+
+     The cost was a hero video that played on a fresh load and not when
+     you navigated to the page: these scripts bind once, on
+     DOMContentLoaded, and a Barba swap replaces the elements they bound
+     to. Nothing was re-scanning the new container, so a video waiting on
+     data-video-scroll-in-play was waiting on an observer watching
+     elements that had left the document.
+
+     init(), not reinitialize(): reinitialize is destroy() then init(),
+     and destroy() walks this.eventListeners with forEach — which is a
+     WeakMap, and a WeakMap has no forEach. It throws every time, so the
+     tidy call is the one that cannot work. init() re-scans and re-observes,
+     which is the half that matters; the old observers are left pointing at
+     nodes that have gone, and go with them. */
   Modules.add('baseLib', function (root) {
-    const MYL = window.MYL;
-    if (!MYL) return;
-    MYL.video?.init?.(root);
-    MYL.formValidation?.init?.(root);
-    MYL.matchContainer?.init?.(root);
+    const video = window.videoLibrary;
+    if (video && typeof video.init === 'function') {
+      try { video.init(); } catch (err) { console.warn('[baseLib] video init failed', err); }
+    } else if (typeof window.initializeVideoLibrary === 'function') {
+      try { window.initializeVideoLibrary(); } catch (err) { console.warn('[baseLib] video init failed', err); }
+    }
+
+    // Takes no root: it finds its own fields across the document.
+    if (typeof window.initAdvancedFormValidation === 'function') {
+      try { window.initAdvancedFormValidation(); } catch (err) { console.warn('[baseLib] form validation failed', err); }
+    }
+
+    /* match-container exposes nothing to call, so a swapped-in page
+       cannot have it back. Left alone rather than guessed at. */
   });
 
 
