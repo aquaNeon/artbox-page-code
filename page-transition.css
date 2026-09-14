@@ -714,7 +714,7 @@ html.is-menu-open {
      attr() with a type is Chrome 133+; everywhere else takes the
      fallback, which is the number we would have written anyway. */
   [data-scale] {
-    --scale-to: attr(data-scale type(<number>), 1.1);
+    --scale-to: attr(data-scale type(<number>), 1.03);
   }
 
   [data-scale] :is(img, video),
@@ -727,7 +727,7 @@ html.is-menu-open {
   [data-scale]:hover :is(img, video),
   img[data-scale]:hover,
   video[data-scale]:hover {
-    transform: scale(var(--scale-to, 1.1));
+    transform: scale(var(--scale-to, 1.03));
   }
 }
 

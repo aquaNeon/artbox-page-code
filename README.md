@@ -1117,8 +1117,9 @@ sets that step's cue — and by `ruleReveal`.
 
 ### data-scale — hover lean
 
-`data-scale` on a picture, or on the wrapper around one, and it scales to 1.1
-under the pointer. `data-scale="1.04"` for a different number. Pure CSS in
+`data-scale` on a picture, or on the wrapper around one, and it leans to 1.03
+under the pointer — the slow duration is what sells it, not the distance.
+`data-scale="1.06"` for a different number. Pure CSS in
 `page-transition.css`, no module.
 
 Nothing it adds can take a click: no overlay, no pseudo-element, no
@@ -1134,7 +1135,7 @@ and a hover is not worth paying that on load.
 `attr()` is read on the element that carries the attribute and inherited down,
 because `attr()` only ever sees the element it runs on — a number written on a
 wrapper is invisible to a rule targeting the image inside it. Below Chrome 133
-every marked picture takes the 1.1 fallback.
+every marked picture takes the 1.03 fallback.
 
 Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 `prefers-reduced-motion`, since the lean is the whole effect.
@@ -1143,6 +1144,15 @@ Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 
 `data-fade` on a picture or its wrapper, opacity 0 to 1 when it comes into view,
 **qubic at 1s**. `data-fade="0.5"` sets its own duration.
+
+It fires the moment the picture's top edge crosses the bottom of the screen —
+`top bottom`, not the `top 85%` the clips use. A fade is meant to be over by the
+time you are looking at the thing: scroll slowly and it happened somewhere
+below, scroll fast and it catches up. Held to the later start it plays in the
+middle of the screen and turns into an event, which is exactly what it should
+not be. A run of nothing but fades takes that start; mixed with a clip in one
+group, the clip's start wins, since a picture that fades a screen below where it
+uncovers reads as two gestures. `data-fade-start` overrides either.
 
 Opacity and nothing else, so it stacks with anything writing a transform —
 `data-scale` being the one it will usually meet. It rides the same trigger,

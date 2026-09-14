@@ -1797,7 +1797,15 @@
      is the one it will usually meet. */
   const FADE_IN = {
     duration: 1,
-    ease: QUBIC.ease
+    ease: QUBIC.ease,
+
+    /* The moment the picture's top edge crosses the bottom of the screen,
+       not a sixth of the way up it like the clips. A fade is meant to be
+       over by the time you are looking at the thing: scroll slowly and it
+       should have happened somewhere below, scroll fast and it catches
+       up. Held to the later start it plays in the middle of the screen
+       and turns into an event. */
+    start: 'top bottom'
   };
 
   const GROW = {
@@ -1910,6 +1918,11 @@
     groups.forEach((list, trigger) => {
       const data = trigger.dataset || {};
       const rawStagger = parseFloat(data.maskStagger ?? data.growStagger);
+
+      /* A run of nothing but fades takes the fade's start. Mixed with a
+         clip, the clip's wins: they are one gesture then, and a picture
+         that fades in a screen below where it uncovers reads as two. */
+      const fadeOnly = list.every((item) => item.fades && !item.clips);
       const stagger = Number.isFinite(rawStagger) ? rawStagger : MASK.stagger;
 
       const tl = gsap.timeline({ paused: true });
@@ -1947,7 +1960,8 @@
 
       triggers.push(ScrollTrigger.create({
         trigger,
-        start: data.maskStart || data.growStart || MASK.start,
+        start: data.maskStart || data.growStart || data.fadeStart
+          || (fadeOnly ? FADE_IN.start : MASK.start),
         once: true,
         onEnter: () => tl.play()
       }));
