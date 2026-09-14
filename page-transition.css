@@ -1386,6 +1386,50 @@ html .work_smoothly_wrap {
   }
 }
 
+/* ===== TEXT HOLD — README ### textAnim ===== */
+
+/* Marked text is hidden by textAnim at mount, which is a frame or two
+   after the first paint — long enough to see every heading in the hero
+   drawn and then snatched away. This holds it from the stylesheet, which
+   the browser has before it paints anything.
+
+   from/to and no fill, the same shape the video's hold uses: the
+   animation expires by itself, so a page the bundle never reaches shows
+   its text a few seconds late rather than never. textAnim drops it at
+   mount and takes over the hiding with visibility.
+
+   A Webflow component carries its attribute everywhere it is placed and
+   arrives switched off as "false", which marks nothing — those are left
+   alone, or they would be held for three seconds and then appear.
+
+   html:not(.wf-design-mode) so the Designer canvas keeps its text: an
+   element parked at opacity 0 is invisible to design against. */
+@keyframes text-anim-hold {
+  from, to { opacity: 0; }
+}
+
+html:not(.wf-design-mode) :is(
+  [data-text-anim-heading]:not([data-text-anim-heading="false"]),
+  [data-text-anim-solo]:not([data-text-anim-solo="false"]),
+  [data-text-anim-body]:not([data-text-anim-body="false"]),
+  [data-text-anim-list]:not([data-text-anim-list="false"])
+) {
+  animation: text-anim-hold var(--text-anim-hold, 3s) linear;
+}
+
+/* Nothing is hidden and nothing is revealed under reduced motion, so
+   there is nothing to hold. */
+@media (prefers-reduced-motion: reduce) {
+  html :is(
+    [data-text-anim-heading],
+    [data-text-anim-solo],
+    [data-text-anim-body],
+    [data-text-anim-list]
+  ) {
+    animation: none;
+  }
+}
+
 /* ===== HERO VIDEO — README ### heroVideo ===== */
 
 /* is-travelling takes the component out of flow, so its transform is

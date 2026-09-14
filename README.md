@@ -245,7 +245,20 @@ Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
 `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
-### textAnim — `[data-text-anim]`
+### textAnim
+
+**Held from the stylesheet before the first paint.** Marked text is hidden by
+the module at mount, which is a frame or two after the page first draws — long
+enough to see a hero heading painted and then snatched away. `text-anim-hold`
+parks it at `opacity: 0` from CSS instead, and `textAnim` drops that hold at
+mount and carries the hiding with `visibility` from there.
+
+`from, to` and no fill, the same shape the video's hold uses: the animation
+expires by itself after `--text-anim-hold` (3s), so a page the bundle never
+reaches shows its text late rather than never. A component that arrives switched
+off as `"false"` marks nothing and is left alone, or it would be held for three
+seconds and then appear. The Designer canvas is excluded — an element parked at
+`opacity: 0` is invisible to design against. — `[data-text-anim]`
 
 Site-wide text reveal. [kugiri](https://github.com/edoardolunardi/kugiri) cuts
 the text into units, the Web Animations API moves them. **No gsap in this

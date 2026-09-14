@@ -1058,9 +1058,17 @@
     let resizeTimer = null;
     let dead = false;
 
-    // Hidden at mount, before anything is measured or split: the reveal
-    // that would hide them is two frames and a webfont away.
-    steps.forEach((step) => { step.el.style.visibility = 'hidden'; });
+    /* Hidden at mount, before anything is measured or split: the reveal
+       that would hide them is two frames and a webfont away.
+
+       The stylesheet has been holding them at opacity 0 since before the
+       first paint; that hold is dropped here, since visibility carries
+       the hiding from now on and a hold left running would swallow the
+       reveal when it expires. */
+    steps.forEach((step) => {
+      step.el.style.visibility = 'hidden';
+      step.el.style.animation = 'none';
+    });
 
     /* Split at the trigger, not at intro. A group far down the page can be
        unlaid-out when the page starts — a section behind an anti-flicker
