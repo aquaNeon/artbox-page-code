@@ -921,8 +921,12 @@ usually arrive — is put back into the flow at mount, since it can never take
 its turn otherwise. Teardown restores it, along with the transforms.
 
 The statements are **cut into lines and arrive line by line**, the way a heading
-does — `SWAP.lineStagger` between them, each parked `SWAP.linePark` below its
-own mask until its turn. The cut happens in `textSwap` rather than in `textAnim`,
+does — `SWAP.lineStagger` between them, each waiting below its own mask until
+its turn. Where it waits is `parkOffset`'s business, the same measurement
+`textAnim` uses: the mask window opens past the line box by the reach, so a line
+parked at a flat 110% still shows a few pixels of itself along the edge, which
+is the sliver of the next line appearing above and below the one that has
+arrived. The cut happens in `textSwap` rather than in `textAnim`,
 which skips everything inside a `[data-swap]`: both would be writing the same
 transform to the same statement. Where kugiri never landed, and under reduced
 motion, the statement moves whole as it did before.

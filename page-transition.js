@@ -3509,9 +3509,13 @@
     soloEase: E.qubic,
     soloShift: 30,      // yPercent
 
-    /* The statements arrive line by line, the way a heading does. */
+    /* The statements arrive line by line, the way a heading does. Where
+       a line waits is parkOffset's business, not a number here: the mask
+       window opens past the line box by the reach, so a line parked at a
+       flat 110% still shows a few pixels of itself along the edge — the
+       slivers of the next line you see above and below the one that has
+       arrived. */
     lineStagger: 0.08,  // between one line and the next
-    linePark: 110,      // yPercent a line waits at, clear of its mask
 
     start: 'top 70%',
     stack: '(max-width: 767px)'   // below this the statements go full width
@@ -3758,10 +3762,15 @@
         ? dur + Math.max(0, linesOf(el).length - 1) * SWAP.lineStagger
         : dur);
 
+      // Per line, measured: an em is the line's own font size, and the
+      // cushion is what keeps its tall ink out of the window.
+      const parkBelow = (i, target) => parkOffset(target);
+      const parkAbove = (i, target) => -parkOffset(target);
+
       const away = (els) => els.forEach((el) => {
         if (!lined()) { gsap.set(el, hiddenBelow); return; }
         gsap.set(el, { autoAlpha: 0 });
-        gsap.set(linesOf(el), { yPercent: SWAP.linePark });
+        gsap.set(linesOf(el), { yPercent: parkBelow });
       });
 
       const settle = (el) => {
@@ -3775,7 +3784,7 @@
           timeline.to(el, { ...hiddenAbove, duration: dur, ease }, at);
           return;
         }
-        timeline.to(linesOf(el), { yPercent: -SWAP.linePark, ...lineOpts() }, at);
+        timeline.to(linesOf(el), { yPercent: parkAbove, ...lineOpts() }, at);
         // Put away only once the last line has gone.
         timeline.set(el, { autoAlpha: 0 }, at + span(el));
       };
@@ -3787,7 +3796,7 @@
         }
         timeline.set(el, { autoAlpha: 1 }, at);
         timeline.fromTo(linesOf(el),
-          { yPercent: SWAP.linePark },
+          { yPercent: parkBelow },
           { yPercent: 0, ...lineOpts() },
           at
         );
