@@ -1079,12 +1079,18 @@ clip covers all three, where marking the `video` leaves the poster unwiped.
 Ungrouped, each marked element is its own trigger.
 
 `data-fade-rise="24"` and `data-fade-tilt="3"` add the movement — px up into
-place, degrees straightening out — on the element or on its group, so a row
+place, degrees of **rotationX** straightening out, positive leaning the top edge
+away — on the element or on its group, so a row
 carries one number rather than one per picture. Both are **off by default**:
 `data-fade` is opacity-only so it can sit inside a slider or a marquee without
 meeting the transform that library is already writing. Asked for, the transform
 lands on the marked element, which in those components is the picture and never
 the slide.
+
+The tilt is a 3D rotation, so it needs something to be seen through: the
+perspective rides on the element itself (`FADE_IN.perspective`, 900) rather than
+on a parent, since in a slider that parent belongs to the library. The origin is
+`center bottom`, which keeps the base planted while the top leans back.
 
 `[data-fade-group]` on a parent runs its fades as one staggered set off a single
 trigger — `data-fade-stagger` sets the gap, default 0.12s. That is how a drag

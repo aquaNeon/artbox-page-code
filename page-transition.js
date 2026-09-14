@@ -1805,7 +1805,16 @@
        Asked for, the transform goes on the marked element — which in
        those components is the picture, never the slide. */
     rise: 0,   // px it travels up into place
-    tilt: 0,   // deg it straightens out of
+
+    /* Degrees of rotationX, not Z: the top edge leans away and the
+       picture straightens as it arrives, rather than the whole frame
+       turning on the page. Positive is away.
+
+       A 3D rotation is flat without something to see it through, so the
+       perspective rides on the element itself — a parent would need the
+       property too, and in a slider that parent belongs to the library. */
+    tilt: 0,
+    perspective: 900,
 
     /* Fired as the picture begins to enter, not scrubbed to how far it
        has come. Scrubbing looked right on paper and wrong in the hand:
@@ -1922,7 +1931,12 @@
       if (fades) {
         el.style.opacity = '0';
         if (fadeRise || fadeTilt) {
-          gsap.set(el, { y: fadeRise, rotation: fadeTilt });
+          gsap.set(el, {
+            y: fadeRise,
+            rotationX: fadeTilt,
+            transformPerspective: FADE_IN.perspective,
+            transformOrigin: 'center bottom'
+          });
         }
       }
       if (scaleFrom !== 1) media.style.transform = `scale(${scaleFrom})`;
@@ -1981,7 +1995,7 @@
             clearProps: item.fadeRise || item.fadeTilt ? 'opacity,transform' : 'opacity'
           };
           if (item.fadeRise) to.y = 0;
-          if (item.fadeTilt) to.rotation = 0;
+          if (item.fadeTilt) to.rotationX = 0;
           tl.to(item.el, to, cue);
         }
 
