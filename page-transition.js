@@ -455,7 +455,13 @@
        transform never touches layout — and the hole fills once the words
        have settled. */
     imgFrom: 0,             // scale it starts at; false turns the reveal off
-    imgClip: 'inset(50%)',  // the iris it opens from; '' for no clip
+
+    /* No clip: growing from nothing already opens from the middle, and
+       running an iris over the same element at the same time gives two
+       descriptions of one motion — at scale 0 the box is a point, and
+       clipping a point is where the flicker in the centre came from.
+       Set it to an inset if a picture ever needs the iris instead. */
+    imgClip: '',
     imgDuration: 0.8,
     imgEase: INOUT_MASK.css,
     imgAfterLine: true,     // wait for its line to land before arriving
