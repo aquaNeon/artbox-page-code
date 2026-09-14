@@ -1143,8 +1143,9 @@ Knobs: `--scale-ms` (500ms) and the value itself. Off entirely under
 ### data-fade — the picture arrives out of nothing
 
 `data-fade` on a picture or its wrapper: opacity 0 to 1, **scrubbed to the
-scroll**, spread over 320px starting where the picture's top edge touches the
-bottom of the screen. `data-fade="600"` gives one its own stretch;
+scroll**, spread over 220px starting where the picture's top edge touches the
+bottom of the screen — a shorter stretch of road means more of the change per
+pixel, which is the knob for how noticeable it is. `data-fade="600"` gives one its own stretch;
 `data-fade-start` its own line.
 
 **The value is px of scroll, not seconds** — the fade has no duration of its

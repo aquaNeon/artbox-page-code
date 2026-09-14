@@ -1806,7 +1806,7 @@
        The range runs from the picture's top edge touching the bottom of
        the screen to `distance` pixels further on, so it is over well
        before the picture clears the fold. */
-    distance: 320,   // px of scroll the fade is spread across
+    distance: 220,   // px of scroll the fade is spread across
     start: 'top bottom'
   };
 
