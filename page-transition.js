@@ -1912,7 +1912,7 @@
        otherwise fires as one event and reads as a flicker. */
     const groups = new Map();
     plan.forEach((item) => {
-      const group = item.el.closest('[data-mask-group], [data-grow-group]');
+      const group = item.el.closest('[data-mask-group], [data-grow-group], [data-fade-group]');
       const list = groups.get(group || item.el) || [];
       list.push(item);
       groups.set(group || item.el, list);
@@ -1920,7 +1920,7 @@
 
     groups.forEach((list, trigger) => {
       const data = trigger.dataset || {};
-      const rawStagger = parseFloat(data.maskStagger ?? data.growStagger);
+      const rawStagger = parseFloat(data.maskStagger ?? data.growStagger ?? data.fadeStagger);
 
       /* A run of nothing but fades takes the fade's start. Mixed with a
          clip, the clip's wins: they are one gesture then, and a picture
