@@ -1304,9 +1304,19 @@ nothing, which is the flash the entrance was there to replace.
 Prefer one fade on the wrapper over a stagger that waits. `data-fade-after`
 listens for `[data-text-anim]` groups **in its own section**: point it at a
 section whose heading is switched off and there is nothing to hear, so it sits
-out the five-second give-up before playing. Nothing crosses a section boundary —
-to follow the section above, use the scroll: `data-fade-start="top 80%"` starts
-once the section is properly in view rather than the moment it peeks.
+out the five-second give-up before playing.
+
+`data-fade-follows="<selector>"` is the one wait that crosses a section
+boundary — it holds the run until the run on the named element has finished,
+anywhere on the page. Every group now says `maskreveal:done` on its trigger when
+its timeline ends, and this listens for it. The scroll alone cannot express
+this: reaching the second section says nothing about whether the first has
+played. Both still have to be true, so the section also waits to be reached —
+`data-fade-start="top 80%"` starts it once properly in view rather than the
+moment it peeks. A leader that never plays releases the follower after
+`MASK.afterWait`, the same give-up that covers the text handshake, and a
+follower mounting behind a leader that has already finished does not wait at
+all.
 
 `[data-fade-group]` on a parent runs its fades as one staggered set off a single
 trigger — `data-fade-stagger` sets the gap, default 0.12s. That is how a drag

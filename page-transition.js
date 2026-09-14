@@ -2026,7 +2026,8 @@
        actually wanted, and the paragraph still plays its own lines
        inside it. */
     ['[data-barba-namespace="contact"] .reach_out_wrap',
-      { 'data-fade': '', 'data-fade-start': 'top 80%' }]
+      { 'data-fade': '', 'data-fade-start': 'top 80%',
+        'data-fade-follows': '.contact_wrap' }]
   ];
 
   function adoptOneOffs(root) {
@@ -2208,6 +2209,11 @@
       groups.set(group || item.el, list);
     });
 
+    /* Which runs have already played. A follower that mounts after its
+       leader has finished would otherwise wait for an event that has
+       been and gone. */
+    const finished = new Set();
+
     groups.forEach((list, trigger) => {
       const data = trigger.dataset || {};
       const rawStagger = parseFloat(data.maskStagger ?? data.growStagger ?? data.fadeStagger);
@@ -2243,7 +2249,18 @@
       const fadeOnly = list.every((item) => item.fades && !item.clips);
       const stagger = Number.isFinite(rawStagger) ? rawStagger : MASK.stagger;
 
-      const tl = gsap.timeline({ paused: true });
+      /* Said out loud so another run can follow this one. Nothing else
+         crosses a section boundary: data-*-after listens for the text
+         inside its own section, which is the right scope for pictures
+         answering their own heading and no use at all to a section that
+         wants to come after the section above it. */
+      const tl = gsap.timeline({
+        paused: true,
+        onComplete: () => {
+          finished.add(trigger);
+          trigger.dispatchEvent(new CustomEvent('maskreveal:done', { bubbles: true }));
+        }
+      });
 
       list.forEach((item, i) => {
         const at = hold + i * stagger;
@@ -2294,14 +2311,34 @@
          and the text it follows has to have finished. Whichever is last
          starts the run. */
       let entered = false;
-      let pending = null;
+      const pending = new Set();
       let giveUp = null;
 
       const start = () => {
-        if (!entered || (pending && pending.size)) return;
+        if (!entered || pending.size) return;
         clearTimeout(giveUp);
         tl.play();
       };
+
+      /* data-fade-follows="<selector>": wait for another run to finish,
+         anywhere on the page. A section that should arrive after the one
+         above it has no other way to say so — the scroll alone cannot,
+         since reaching the second section says nothing about whether the
+         first has played. */
+      const followsRaw = data.maskFollows ?? data.growFollows ?? data.fadeFollows;
+      if (followsRaw) {
+        const leaders = Array.from(document.querySelectorAll(String(followsRaw).trim()))
+          .filter((el) => el !== trigger && !finished.has(el));
+        leaders.forEach((el) => pending.add(el));
+
+        const onDone = (e) => {
+          if (!pending.has(e.target)) return;
+          pending.delete(e.target);
+          start();
+        };
+        document.addEventListener('maskreveal:done', onDone);
+        listeners.push(() => document.removeEventListener('maskreveal:done', onDone));
+      }
 
       if (waits) {
         const sel = (String(afterRaw).trim() && String(afterRaw).trim() !== 'true')
@@ -2316,7 +2353,7 @@
            group that was never in the list. */
         const sources = Array.from(scope.querySelectorAll(sel));
         if (scope.matches && scope.matches(sel)) sources.unshift(scope);
-        pending = new Set(sources);
+        sources.forEach((el) => pending.add(el));
 
         /* Read across the three families like every other key here: a
            fade group asking for the strict cue writes
@@ -2341,7 +2378,7 @@
           entered = true;
           /* Text that never plays must not strand the pictures: a group
              below the fold, one switched off, a reveal that threw. */
-          if (pending && pending.size) {
+          if (pending.size) {
             giveUp = setTimeout(() => { pending.clear(); start(); }, MASK.afterWait * 1000);
           }
           start();
