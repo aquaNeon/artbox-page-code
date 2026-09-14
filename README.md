@@ -247,6 +247,14 @@ Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
 
 ### textAnim
 
+A step carrying `data-text-anim-fade` is opacity and nothing else — no travel, no
+clip — and it runs on its own clock rather than its role's: `TEXT.fadeDuration`
+(0.45s) on inOutQuart, since a fade has no distance to cover and a travel's
+timing reads as slow on it. A button at the end of a block is the usual case:
+give it `data-text-anim-solo="true"` to make it a step, `-fade="true"` so it
+only fades, and `-split="none"` to keep its label whole. It holds its place in
+the chain either way — `fade` changes what a step does, never when.
+
 **Held from the stylesheet before the first paint.** Marked text is hidden by
 the module at mount, which is a frame or two after the page first draws — long
 enough to see a hero heading painted and then snatched away. `text-anim-hold`

@@ -482,6 +482,16 @@
     blockFromY: 30,         // % of its own height
     soloFromY: 14,          // -solo is one line, where 30% is a big move
 
+    /* A fade has no distance to cover, so it does not borrow the clock a
+       travel needs: -fade steps run on these instead of their role's.
+
+       The curve is written out rather than taken from INOUT_MASK, which
+       is registered in this file with qubic's control points — the two
+       names disagree at the moment, and a button quietly following that
+       disagreement is not worth the tidiness. */
+    fadeDuration: 0.45,
+    fadeEase: 'cubic-bezier(0.77, 0, 0.175, 1)',   // inOutQuart
+
     blur: false,            // layers onto the existing keyframes, not a mode
     headingBlur: 10,        // px per line
     bodyBlur: 8,            // px
@@ -835,6 +845,10 @@
       step.duration = timing.duration / speed;
       step.stagger = levelStagger(step.level, timing.stagger) / speed;
       step.fade = fadeOn(step.el, group.wrap);
+      if (step.fade) {
+        step.duration = TEXT.fadeDuration / speed;
+        step.ease = TEXT.fadeEase;
+      }
       // Parking is a layout read per unit, and a fade never leaves home.
       step.park = step.fade ? [] : step.units.map(parkOffset);
 
