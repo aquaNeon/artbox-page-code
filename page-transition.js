@@ -79,6 +79,9 @@
     hoverOut: 'power3.inOut', // the follower scaling away
     label: 'power1.out',      // text swapping under a button
     qubic: QUBIC.ease,        // the named curve, whatever speed the caller wants
+    /* inOutQuart, the curve the text sections fade their buttons on.
+       gsap counts from Quad, so the quartic is power3 — not power4. */
+    quart: 'power3.inOut',
     page: EASE.page,
     menuSheet: EASE.menu
   };
@@ -6277,6 +6280,13 @@
     buttonOverlap: 0.45,     // of the last row's rise: 1 waits it out,
                              // 0 leaves with it
 
+    /* Opacity and nothing else, on the text sections' own fade — the
+       same button doing the same arrival wherever it is asked to. It
+       still keeps its place at the end of the stagger; it just does not
+       travel to get there. */
+    buttonFade: TEXT.fadeDuration,
+    buttonFadeEase: E.quart,
+
     // Fraction of the close where the bar takes its colours back: the
     // sheet clips upward, so the strip behind it goes last.
     restore: 0.72,
@@ -6470,12 +6480,14 @@
           const own = parseFloat(el.dataset.navDelay);
 
           tl.fromTo(el,
-            { y: MENU.contentShift, opacity: 0 },
-            {
-              y: 0, opacity: 1,
-              duration: MENU.contentDuration,
-              ease: MENU.contentEase
-            },
+            isButton(el) ? { opacity: 0 } : { y: MENU.contentShift, opacity: 0 },
+            isButton(el)
+              ? { opacity: 1, duration: MENU.buttonFade, ease: MENU.buttonFadeEase }
+              : {
+                  y: 0, opacity: 1,
+                  duration: MENU.contentDuration,
+                  ease: MENU.contentEase
+                },
             at + (Number.isFinite(own) ? own : 0)
           );
         });

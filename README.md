@@ -1821,7 +1821,7 @@ navigation while `sync: true` keeps the outgoing page alive.
 | `.meganav_feature_wrap` | the left column. Full height above 992px — that is what holds the panel's height — but its CTA sits under its own sentence, where it reads as belonging to it. `--meganav-cta-push: auto` puts it back on the floor of the panel; `--meganav-cta-align` (default `start`) sets whether it hugs the left edge or stretches. Below 992px the floor is the point: a different element, `.meganav_mobile_btn_wrap`, is pinned there through the column |
 | `[data-nav-panel]` / `.meganav_panel` | the sheet |
 | `[data-nav-toggle]`, `.meganav_button_nav_open-wrap`, `.meganav_mobile_open` | anything that opens it. The click is caught on the wrapper, so the `href="#"` anchor inside never jumps the page |
-| `.meganav_feature_text`, `.button_main_wrap`, `.meganav_heading`, `.footer_link_wrap`, `[data-nav-content]` | the rows that stagger in, in DOM order |
+| `.meganav_feature_text`, `.button_main_wrap`, `.meganav_heading`, `.footer_link_wrap`, `[data-nav-content]` | the rows that stagger in, in DOM order. `.button_main_wrap` is opacity only, on the text sections' own fade — it keeps its place at the end of the stagger without travelling to get there. These rows are the meganav's own reveal, not textAnim's: `data-text-anim-*` on anything in the sheet is read by nobody |
 
 Escape closes it, so does a click on any link inside, and `beforeLeave`
 closes it instantly at the start of a navigation — `syncNavFrom` drops the
