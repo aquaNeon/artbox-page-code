@@ -1080,7 +1080,43 @@
     ]);
   }
 
+  /* The stylesheet holds anything wearing a step attribute at opacity 0
+     from before the first paint, and textAnim drops that hold as it takes
+     the element over. A step with no [data-text-anim] root above it is
+     never taken over by anybody — so the hold ran its full three seconds
+     and the text plopped in when it expired, unannounced and unanimated.
+     Blank then sudden is worse than never animating at all.
+
+     Released here, so a forgotten root costs the animation and nothing
+     else. Document-wide because the nav and the footer live outside the
+     swapped container, and their own reveals write opacity too — a hold
+     still running would swallow those the same way. */
+  const HOLD_STEPS = [
+    'heading', 'solo', 'body', 'list'
+  ].map((k) => `[data-text-anim-${k}]:not([data-text-anim-${k}="false"])`).join(',');
+
+  let warnedOrphans = false;
+
+  function releaseOrphanHolds() {
+    const orphans = Array.from(document.querySelectorAll(HOLD_STEPS))
+      .filter((el) => !el.closest('[data-text-anim]'));
+    if (!orphans.length) return;
+
+    orphans.forEach((el) => { el.style.animation = 'none'; });
+
+    if (!warnedOrphans) {
+      warnedOrphans = true;
+      console.warn(
+        `[textAnim] ${orphans.length} marked element(s) have no [data-text-anim] ` +
+        'root above them, so nothing animates them — add the root to the wrapper, ' +
+        'or drop the attribute. First one:', orphans[0]
+      );
+    }
+  }
+
   Modules.add('textAnim', function (root) {
+    releaseOrphanHolds();
+
     const staggerWraps = Array.from(root.querySelectorAll('[data-text-anim-stagger]'));
     const allGroups = Array.from(root.querySelectorAll('[data-text-anim]'));
     if (!staggerWraps.length && !allGroups.length) return;

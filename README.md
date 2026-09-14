@@ -338,6 +338,13 @@ two cells sharing a grid row read as one move while staying separate elements �
 which they have to be when each carries its own border. A step carrying both
 `-with` and a delay starts that many seconds after the step it joins.
 
+A step attribute with no `[data-text-anim]` root above it animates nothing —
+textAnim only ever looks inside a root. The stylesheet still held it at opacity
+0 for three seconds, though, so the text sat blank and then plopped in when the
+hold expired, which reads worse than never animating. Those holds are released
+at mount now, document-wide, with one console warning naming the first offender:
+a forgotten root costs the animation and nothing else.
+
 `data-text-anim-fade` swaps that step's keyframes for opacity alone. It keeps
 the split, so lines or words still come in one after another on the usual
 stagger — they just do not move — and it drops the mask clip up front, since a
