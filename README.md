@@ -245,6 +245,35 @@ Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
 `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
+### buttonChars — `.button_main_text`, `[data-button-animate-chars]`
+
+The label climbs a character at a time under the pointer, each one a hair behind
+the last. There is no second copy of the text: a `text-shadow` one rise below
+each character is what arrives as the character itself leaves, so the whole
+effect is one transform per span and it follows `currentColor` through every
+button theme on its own.
+
+The site's own label is picked up by class, so nothing needs marking; the
+attribute is there for a link or a one-off. Only the split needs a script —
+distance, clock and curve are all in the stylesheet
+(`--btn-chars-rise` 1.3em, `--btn-chars-ms` 600ms, `--btn-chars-ease`), so a
+button the bundle never reaches still reads and still clicks.
+
+It marks the **document**, not the mounted container: a mount is scoped to the
+page Barba swapped in, and the nav and footer sit outside it. Only labels inside
+the container are restored on teardown, since the others outlive the swap.
+
+A split label spells itself out to a screen reader, so the pieces are hidden
+from the tree and the name is put back on whatever is being clicked — unless it
+already carries one.
+
+| Variable | Default | |
+| --- | --- | --- |
+| `--btn-chars-rise` | `1.3em` | how far a character climbs, and where its shadow waits |
+| `--btn-chars-ms` | `600ms` | |
+| `--btn-chars-ease` | `cubic-bezier(0.625, 0.05, 0, 1)` | |
+| `BUTTON_CHARS.step` | `0.012` | s between one character and the next |
+
 ### textAnim
 
 A step carrying `data-text-anim-fade` is opacity and nothing else — no travel, no

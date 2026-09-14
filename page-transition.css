@@ -734,6 +734,50 @@ html.is-menu-open {
   }
 }
 
+/* ===== BUTTON CHARACTERS — [data-button-animate-chars] — README ### buttonChars ===== */
+
+/* Each character climbs out of the box while its own text-shadow, sitting
+   one rise below it, climbs into the place it left. One transform per
+   character and no second copy of the label in the markup.
+
+   The delays are written per character by buttonChars; everything else is
+   here, so a page whose script never lands still shows a button that
+   reads and clicks. */
+[data-button-animate-chars] {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-button-animate-chars] > span {
+  display: inline-block;
+  position: relative;
+  /* The character that arrives. currentColor, so it follows the button
+     through every theme and hover state it already has. */
+  text-shadow: 0 var(--btn-chars-rise, 1.3em) currentColor;
+  /* The hundredth of a degree keeps the glyph on the same rasterisation
+     path through the move; without it the text reflows its antialiasing
+     as the transform starts and the label appears to flicker. */
+  transform: translateY(0) rotate(0.001deg);
+  transition: transform var(--btn-chars-ms, 600ms)
+    var(--btn-chars-ease, cubic-bezier(0.625, 0.05, 0, 1));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(a, button, .w-button):hover [data-button-animate-chars] > span,
+  [data-button-animate-chars]:hover > span {
+    transform: translateY(calc(var(--btn-chars-rise, 1.3em) * -1)) rotate(0.001deg);
+  }
+}
+
+/* The label is the whole effect, so there is nothing to soften. */
+@media (prefers-reduced-motion: reduce) {
+  [data-button-animate-chars] > span {
+    transition: none;
+    transform: none;
+  }
+}
+
 /* ===== SMOOTHLY ROW — .work_smoothly_wrap ===== */
 
 /* The row has to clip: it is a rail of pictures wider than the screen.

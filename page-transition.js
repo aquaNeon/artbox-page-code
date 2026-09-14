@@ -2353,6 +2353,99 @@
   });
 
 
+  /* ===== BUTTON CHARACTERS — [data-button-animate-chars] — README ### buttonChars ===== */
+
+  /* The label climbs a character at a time under the pointer, each one a
+     hair behind the last. There is no second copy of the text: a
+     text-shadow one line-height below each character is what arrives as
+     the character itself leaves, which is why the whole thing is one
+     transform per span and costs nothing to run.
+
+     The split is the only part that needs a script. Everything about the
+     movement — distance, clock, curve — is in the stylesheet, so a button
+     that never meets this module still reads and still clicks. */
+
+  const BUTTON_CHARS = {
+    step: 0.012,        // s between one character and the next
+    max: 60,            // characters past which the stagger stops growing
+    selector: '.button_main_text'   // marked without an attribute
+  };
+
+  Modules.add('buttonChars', function (root) {
+    /* The site's own button label carries it without being asked: it is
+       one component in one class, and an attribute on every instance is
+       a thing to forget. The attribute stays for anything that is not
+       that button — a link, a one-off — and marking the class with it
+       here means the stylesheet only ever has one selector to know.
+
+       The document, not the container: a mount is scoped to the page
+       Barba swapped in, and the nav and the footer sit outside it. They
+       were the three buttons on this site that never split. */
+    document.querySelectorAll(BUTTON_CHARS.selector).forEach((el) => {
+      el.setAttribute('data-button-animate-chars', '');
+    });
+
+    const labels = Array.from(document.querySelectorAll('[data-button-animate-chars]'));
+    if (!labels.length) return;
+
+    const cut = [];
+
+    labels.forEach((label) => {
+      // Mounted twice — a Barba swap, a re-entry — the second pass would
+      // otherwise split the spans it made the first time, character by
+      // character, until there is nothing left to split.
+      if (label.dataset.charsSplit === 'true') return;
+
+      const text = label.textContent;
+      if (!text.trim()) return;
+
+      label.dataset.charsSplit = 'true';
+      /* Only what this page brought with it is put back on teardown. The
+         nav and the footer outlive the swap, and a label restored under
+         them would be split again by the next mount — and carry the last
+         page's teardown in its history. */
+      if (root === document || root.contains(label)) cut.push({ label, text });
+
+      /* Read as one word, not as a column of letters. A screen reader
+         announcing a split label spells it out, so the pieces are hidden
+         from the tree and the name is put back on whatever is being
+         clicked — unless that already carries one of its own. */
+      const host = label.closest('a, button') || label;
+      if (!host.getAttribute('aria-label')) {
+        host.setAttribute('aria-label', text.trim());
+        host.dataset.charsNamed = 'true';
+      }
+      label.setAttribute('aria-hidden', 'true');
+
+      const frag = document.createDocumentFragment();
+      Array.from(text).forEach((char, i) => {
+        const span = document.createElement('span');
+        span.textContent = char;
+        span.style.transitionDelay = `${Math.min(i, BUTTON_CHARS.max) * BUTTON_CHARS.step}s`;
+        // A space in an inline-block collapses to nothing without this.
+        if (char === ' ') span.style.whiteSpace = 'pre';
+        frag.appendChild(span);
+      });
+
+      label.replaceChildren(frag);
+    });
+
+    return () => {
+      cut.forEach(({ label, text }) => {
+        label.replaceChildren(document.createTextNode(text));
+        label.removeAttribute('aria-hidden');
+        delete label.dataset.charsSplit;
+
+        const host = label.closest('a, button') || label;
+        if (host.dataset.charsNamed === 'true') {
+          host.removeAttribute('aria-label');
+          delete host.dataset.charsNamed;
+        }
+      });
+    };
+  });
+
+
   /* ===== STICKY CARD STACK — [data-sticky-stack] — README ### stickyStack ===== */
 
   // The pinning is CSS. This owns the stacking order and the lift of the
