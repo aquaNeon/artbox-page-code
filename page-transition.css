@@ -1554,9 +1554,28 @@ html.is-menu-open [data-video="component"].is-travelling,
     cubic-bezier(0.22, 1, 0.36, 1) var(--hero-video-scrim-delay, 120ms) both;
 }
 
+/* Going back up, the statements leave the component and this selector
+   stops matching — the scrim would simply be gone between one frame and
+   the next. So heroVideo marks it on the way out and waits for the fade
+   before it moves them.
+
+   animation: none is what lets the fade happen at all: the entrance
+   keyframe fills both ways, and a filled animation outranks any opacity
+   written here. Dropped, the property is transitionable again and the
+   transition runs from the value the animation was holding. */
+.home_video_contain.is-scrim-out::before {
+  animation: none;
+  opacity: 0;
+  transition: opacity var(--hero-video-scrim-out, 260ms) ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-video="component"] > .home_video_contain::before {
     animation: none;
+  }
+
+  .home_video_contain.is-scrim-out::before {
+    transition: none;
   }
 }
 

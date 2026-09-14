@@ -4783,6 +4783,12 @@
 
     dwell: 1300,       // ms a statement holds, however fast the pin runs
 
+    /* s the scrim takes to go on the way back up, before the statements
+       are handed back to the stage. Matches --hero-video-scrim-out in the
+       stylesheet; the pair only has to agree well enough that the move
+       happens after the gradient has gone. */
+    scrimOut: 0.26,
+
     // Fallback only: the real delay is this cell's slot in the entrance
     // order, read off --hero-in-* in the CSS.
     from: 0.6,
@@ -4922,6 +4928,9 @@
     };
 
     const bringText = () => {
+      // Coming back down before the fade has finished: the move it was
+      // waiting to make is the one being undone here.
+      dropScrim();
       if (!text || text.parentNode === comp) return;
 
       const t = text.getBoundingClientRect();
@@ -4952,6 +4961,30 @@
       readAt = 0;
       reading = -1;
       swap.dispatchEvent(new Event('swap:reset'));
+    };
+
+    /* The scrim is a pseudo on the statements, so it leaves with them —
+       and going back up they leave in one frame. Faded first, then moved,
+       so the gradient goes before the thing it belongs to does. */
+    let scrimTimer = null;
+
+    const dropScrim = () => {
+      clearTimeout(scrimTimer);
+      scrimTimer = null;
+      if (text) text.classList.remove('is-scrim-out');
+    };
+
+    const fadeScrimThen = (done) => {
+      clearTimeout(scrimTimer);
+      if (!text || text.parentNode !== comp || reducedMotion) { done(); return; }
+      text.classList.add('is-scrim-out');
+      scrimTimer = setTimeout(() => {
+        scrimTimer = null;
+        done();
+        // Removed after the move: on the way down the class would
+        // otherwise still be on it, holding the scrim at nothing.
+        text.classList.remove('is-scrim-out');
+      }, HERO_VIDEO.scrimOut * 1000);
     };
 
     const returnText = () => {
@@ -5361,7 +5394,7 @@
          stays inside the component: handed back to the stage it jumps to
          the middle of a screen-tall centred block. */
       onLeave: () => { settle(); placeText(); },
-      onLeaveBack: () => { returnText(); resetSwap(); },
+      onLeaveBack: () => { fadeScrimThen(returnText); resetSwap(); },
 
       // One statement per equal share of the pin, both directions.
       onUpdate: (self) => {

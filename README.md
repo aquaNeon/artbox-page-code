@@ -1380,8 +1380,16 @@ straight ramp over that height reads as a grey band with a visible top edge. It 
 the frame — the frame is scaled to cover and its bottom edge is below the
 screen, so a gradient anchored there would arrive half spent — and it exists
 only while the statements are inside the component, which is exactly the pin.
+Going back up it fades before it goes. The scrim is a pseudo on the statements,
+so it leaves with them — and on the way up they leave in a single frame, taking
+the gradient with them. `heroVideo` marks the statements on the way out, waits
+`HERO_VIDEO.scrimOut` for the fade, and only then hands them back to the stage.
+Coming back down inside that window cancels it, since the move it was waiting to
+make is the one being undone.
+
 `--hero-video-scrim` (0.55) is its strength, `--hero-video-scrim-ms` (900ms) and
-`--hero-video-scrim-delay` (120ms) its fade — held off the first beat so it does
+`--hero-video-scrim-delay` (120ms) its fade in, `--hero-video-scrim-out` (260ms)
+its fade out — held off the first beat so it does
 not compete with the statement's own entrance.
 
 The first statement enters through a `fromTo`, not a `to`. Whoever sends
