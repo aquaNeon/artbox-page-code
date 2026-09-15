@@ -1,0 +1,111 @@
+<!doctype html>
+<!-- Local fixture for the investor hero. Not part of the site: run
+     `node dev-server.js` and open http://localhost:5180/_fixture-investor.html
+     Reload to replay. Wider than 991px — below it the inline pictures are
+     hidden and the mobile stack takes over, as on the site. -->
+<html lang="en" data-barba="wrapper">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>investor hero fixture</title>
+<link rel="stylesheet" href="/page-transition.css">
+<style>
+  body { margin: 0; font-family: Georgia, serif; background: #f6f5f2; color: #14110f; }
+  .page_wrap { padding: 6rem 6vw 40vh; }
+  .note { font: 13px/1.4 system-ui, sans-serif; opacity: .6; margin: 0 0 2rem; }
+  .corporate_contain { max-width: 1100px; margin: 0 auto 16vh; text-align: center; }
+  .corporate_heading { font-size: clamp(2.5rem, 5.5vw, 5rem); line-height: 1.1; }
+  .corporate_heading h1 { font: inherit; margin: 0; }
+  .corporate_images_mobile_wrap { display: flex; gap: 1rem; justify-content: center; }
+  .corporate_images_mobile_img_wrap { width: 30%; aspect-ratio: 1; }
+  .corporate_images_mobile_img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  @media (min-width: 992px) {
+    .corporate_heading.is-mobile, .corporate_images_mobile_wrap { display: none; }
+  }
+
+  /* Home hero reference, so the two gestures can be compared side by side. */
+  .ref_row { display: grid; grid-template-columns: repeat(3, 160px); gap: 1rem; justify-content: center; }
+  .ref_row > div { aspect-ratio: 1; overflow: clip; }
+  .ref_row img { width: 100%; height: 100%; object-fit: cover; display: block; }
+</style>
+</head>
+<body>
+
+<main class="page_wrap" data-barba="container" data-barba-namespace="corporate-design">
+
+  <p class="note">Investor / corporate hero. The heading fades in whole, slowed so it
+    lands with the pictures, which open with the home hero's iris and scale from the
+    same moment — all from <code>TEXT.fadeWhole</code>, no attributes.</p>
+
+  <!-- Copied from artbox-dev.webflow.io/investor-design unchanged, section
+       embed included. /corporate-design is the same markup. -->
+  <section data-text-anim="true" class="corporate_wrap">
+    <div class="u-embed-css w-embed">
+      <style>
+      .hero-h1__img {
+        display: inline-block;
+        vertical-align: middle;
+        height: 2em;
+        aspect-ratio: 1;
+        margin: -0.15em;
+        overflow: hidden;
+      }
+      .hero-h1__img img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        will-change: transform;
+      }
+      @media (max-width: 767px) {
+        .hero-h1__img { display: none; }
+      }
+      </style>
+    </div>
+    <div class="corporate_contain">
+      <div data-text-anim-heading="true" class="corporate_heading u-text-style-display-s is-hero w-embed">
+        <h1 class="hero-h1">
+          Designstøtte
+          <span class="hero-h1__img"><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a85c4d7930e02b5d02161bc_corp-hero-1.webp" alt="" loading="eager" fetchpriority="high"></span>
+          skreddersydd til ditt
+          <span class="hero-h1__img"><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a85c5699558b3bc167f2c00_cap-hero-2.webp" alt="" loading="eager" fetchpriority="high"></span>
+          kommunikasjonsteam
+          <span class="hero-h1__img"><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a85c54ccec2171b148b5686_cap-hero-3.webp" alt="" loading="eager"></span>
+        </h1>
+      </div>
+      <h1 data-text-anim-heading="true" class="corporate_heading u-text-style-display-s is-mobile">Designstøtte skreddersydd til ditt kommunikasjonsteam</h1>
+      <div data-hero-in-group="" class="corporate_images_mobile_wrap">
+        <div data-hero-in="" class="corporate_images_mobile_img_wrap is-1"><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a846dff7516aa79e5fd50c7_Frame%201000011727%20(1).webp" alt="" class="corporate_images_mobile_img"></div>
+        <div data-hero-in="" class="corporate_images_mobile_img_wrap is-2"><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a9aca11f7de2af021a38581_Frame%201000011796.webp" alt="" class="corporate_images_mobile_img"></div>
+        <div data-hero-in="" class="corporate_images_mobile_img_wrap is-3"><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a84822166a7bdbc3ccb7409_Frame%201000011898.webp" alt="" class="corporate_images_mobile_img"></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="note">Reference: the home hero's entrance, <code>[data-hero-in]</code>, the gesture the pictures above should match.</p>
+  <div class="ref_row" data-hero-in-group>
+    <div data-hero-in><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a85c4d7930e02b5d02161bc_corp-hero-1.webp" alt=""></div>
+    <div data-hero-in><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a85c5699558b3bc167f2c00_cap-hero-2.webp" alt=""></div>
+    <div data-hero-in><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a85c54ccec2171b148b5686_cap-hero-3.webp" alt=""></div>
+  </div>
+
+</main>
+
+<footer class="footer_wrap">
+  <p>footer_wrap — page-transition.js queries this on parse.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/CustomEase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15/dist/ScrollTrigger.min.js"></script>
+<script>
+  // ?noio=1 — take the observer away so every group plays at once. A
+  // background tab paints no frames, so observer entries never arrive.
+  if (new URLSearchParams(location.search).get('noio') === '1') delete window.IntersectionObserver;
+</script>
+<script src="/kugiri.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@barba/core@2.10.3/dist/barba.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.17/dist/lenis.min.js"></script>
+<script src="/page-transition.js"></script>
+</body>
+</html>

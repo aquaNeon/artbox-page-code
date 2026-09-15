@@ -447,8 +447,11 @@
     wordStagger: 0.03,
     charStagger: 0.012,
 
-    /* A picture set into a heading arrives the way the hero cells do: an
-       iris opening from its middle while it grows out of nothing.
+    /* A picture set into a heading arrives exactly the way the home hero
+       cells do — the numbers of hero-in / hero-scale in the CSS: an iris
+       opening from its middle over 1s while it grows out of nothing over
+       0.8s. Two animations on two clocks, as there, since the clip landing
+       a beat after the scale is what stops the edge arriving at full size.
 
        It waits for its own line to land rather than riding up with it.
        The line's mask carries the type; the picture sitting in the middle
@@ -458,15 +461,13 @@
        transform never touches layout — and the hole fills once the words
        have settled. */
     imgFrom: 0,             // scale it starts at; false turns the reveal off
+    imgClip: 'inset(50% 50% 50% 50%)',   // '' for the scale alone
+    imgClipDuration: 1.0,   // --hero-in-open
+    imgDuration: 0.8,       // --hero-in-grow
 
-    /* No clip: growing from nothing already opens from the middle, and
-       running an iris over the same element at the same time gives two
-       descriptions of one motion — at scale 0 the box is a point, and
-       clipping a point is where the flicker in the centre came from.
-       Set it to an inset if a picture ever needs the iris instead. */
-    imgClip: '',
-    imgDuration: 0.5,
-    imgEase: INOUT_MASK.css,
+    /* --ease-inout-mask, written out: INOUT_MASK is registered with
+       qubic's control points, and the hero it has to match is not. */
+    imgEase: 'cubic-bezier(0.77, 0, 0.175, 1)',
 
     /* How much of its line's rise the picture waits out: 1 lets the line
        land first, 0 leaves with it, and a fraction starts partway up.
@@ -474,6 +475,11 @@
        easing is most of the way home, so the picture opens into a line
        that is nearly settled rather than one still travelling. */
     imgAfterLine: 0.5,
+
+    /* The same share for a heading that fades whole (-split="none"),
+       which has no lines to wait on. Lower: a fade does not travel, so
+       there is nothing to let settle, and the picture belongs to it. */
+    imgAfterFade: 0,
     imgOffset: 0,           // after that
     imgStagger: 0.08,       // between images sharing a line
 
@@ -493,6 +499,14 @@
        to the one section that wants the pop, leave the rest alone.
        Add a selector per one-off; an empty string is none. */
     iconAlso: '.insight_item_wrap .icon_eyebrow_item',
+
+    /* Headings that fade in whole instead of line by line, their pictures
+       opening with the fade: the corporate and investor heroes. A class
+       rather than the three attributes, so both pages have it without a
+       trip to the Designer — the attributes still do the same anywhere
+       else, and win where they are written. */
+    fadeWhole: '.corporate_heading.is-hero',
+    fadeWholeSpeed: 0.55,   // the 0.45s fade to ~0.82s, landing with the first picture's scale
 
     // Unsplit fallback: -split="none", and every role with no kugiri.
     blockFromY: 30,         // % of its own height
@@ -521,6 +535,8 @@
      revealIcons gives them the step's cue. */
   const ICONS = ['[data-text-anim-icon]', TEXT.iconAlso]
     .filter(Boolean).join(', ');
+
+  const fadesWhole = (el) => Boolean(TEXT.fadeWhole) && el.matches(TEXT.fadeWhole);
 
   /* ===== SEQUENCE — the cadence of a composed item ===== */
 
@@ -650,7 +666,8 @@
   function splitLevel(el) {
     if (!hasKugiri) return 'none';
     const raw = (el.dataset.textAnimSplit || '').trim();
-    return LEVELS.includes(raw) ? raw : 'lines';
+    if (LEVELS.includes(raw)) return raw;
+    return fadesWhole(el) ? 'none' : 'lines';
   }
 
   const levelStagger = (level, base) => (
@@ -668,7 +685,8 @@
   // reads the same way as the group root's number.
   function stepSpeed(el) {
     const v = parseFloat(el.dataset.textAnimSpeed);
-    return Number.isFinite(v) && v > 0 ? v : 1;
+    if (Number.isFinite(v) && v > 0) return v;
+    return fadesWhole(el) ? TEXT.fadeWholeSpeed : 1;
   }
 
   function stepDelay(el, wrap) {
@@ -692,6 +710,8 @@
       const raw = node.getAttribute('data-text-anim-fade');
       return raw !== null && raw.trim().toLowerCase() !== 'false';
     };
+    const own = el.getAttribute('data-text-anim-fade');
+    if (own === null && fadesWhole(el)) return true;
     return on(el) || (el !== wrap && on(wrap));
   }
 
@@ -925,7 +945,8 @@
   function revealImages(step, base) {
     if (TEXT.imgFrom === false) return [];
     const anims = [];
-    step.units.forEach((unit, i) => {
+    const units = step.units.length ? step.units : [step.el];
+    units.forEach((unit, i) => {
       const imgs = Array.from(unit.querySelectorAll('img'));
       if (!imgs.length) return;
       const targets = imgs.map((img) => (
@@ -937,27 +958,26 @@
         const lineAt = base + step.start + i * step.stagger;
         /* true and false still mean all of it and none of it, so a
            number is the only new spelling. */
-        const share = TEXT.imgAfterLine === true ? 1
-          : TEXT.imgAfterLine === false ? 0
-          : Number(TEXT.imgAfterLine) || 0;
+        const wait = step.units.length ? TEXT.imgAfterLine : TEXT.imgAfterFade;
+        const share = wait === true ? 1
+          : wait === false ? 0
+          : Number(wait) || 0;
         const cue = lineAt + step.duration * share
           + TEXT.imgOffset + j * TEXT.imgStagger;
+        const timing = { delay: cue * 1000, easing: TEXT.imgEase, fill: 'backwards' };
 
-        const from = { transform: `scale(${TEXT.imgFrom})` };
-        const to = { transform: 'none' };
+        anims.push(target.animate(
+          [{ transform: `scale(${TEXT.imgFrom})` }, { transform: 'none' }],
+          { ...timing, duration: TEXT.imgDuration * 1000 }
+        ));
         if (TEXT.imgClip) {
-          // Both ends one inset of one value, or there is no shape to
-          // interpolate between and it snaps at the end.
-          from.clipPath = TEXT.imgClip;
-          to.clipPath = 'inset(0%)';
+          // Both ends four values, or there is no shape to interpolate
+          // between and it snaps at the end.
+          anims.push(target.animate(
+            [{ opacity: 0, clipPath: TEXT.imgClip }, { opacity: 1, clipPath: 'inset(0% 0% 0% 0%)' }],
+            { ...timing, duration: TEXT.imgClipDuration * 1000 }
+          ));
         }
-
-        anims.push(target.animate([from, to], {
-          duration: TEXT.imgDuration * 1000,
-          delay: cue * 1000,
-          easing: TEXT.imgEase,
-          fill: 'backwards'
-        }));
       });
     });
     return anims;
@@ -1031,6 +1051,7 @@
 
       if (!step.units.length) {
         anims.push(...blockRise(step, base));
+        if (step.role === 'heading') anims.push(...revealImages(step, base));
         return;
       }
 

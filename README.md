@@ -1052,18 +1052,25 @@ width the moment the masks are released. Slack costs nothing, since lines are
 stacked and there is nothing out there to show through, and the vertical value
 is left exactly as kugiri wrote it.
 
-One motion, not two: growing from nothing already opens from the middle, and
-running an iris over the same element at the same time is two descriptions of
-one gesture — at `scale(0)` the box is a point, and clipping a point flickers.
-`TEXT.imgClip` takes an inset if a picture ever wants the iris instead, and
+The gesture is the home hero's, number for number: an iris from the middle over
+`imgClipDuration` (1s, `--hero-in-open`) and a scale from `imgFrom` over
+`imgDuration` (0.8s, `--hero-in-grow`), as two animations on the hero's
+`--ease-inout-mask` curve. `TEXT.imgClip: ''` leaves the scale alone, and
 `imgFrom: false` turns the whole thing off.
 
 `imgAfterLine` is how much of its line's rise the picture waits out — `1` lets
 the line land first, `0` leaves with it, and a fraction starts partway up. It
 sits at `0.5`: half the line's time, which on the heading's easing is most of
 the way home, so the picture opens into a line that has nearly settled rather
-than one still travelling. `imgOffset` is dead air added after that, and
-`imgDuration` (0.5s) the scale itself.
+than one still travelling. `imgOffset` is dead air added after that.
+
+A heading can skip the lines and fade in whole —
+`data-text-anim-fade="true"` with `data-text-anim-split="none"`. The corporate
+and investor heroes get this without attributes: `TEXT.fadeWhole`
+(`.corporate_heading.is-hero`) turns on both, plus `fadeWholeSpeed` (0.55), which
+stretches the fade to about 0.82s so the text lands with the first picture's
+scale. An attribute written on the element still wins. The pictures still arrive, waiting out `imgAfterFade` (0, so they start with it) of the fade
+instead of `imgAfterLine` — a fade has nothing to let settle. `_fixture-investor.html` is that hero with the home entrance beside it.
 The grid overlaps its own cells at some widths, so the stacking is pinned in
 `page-transition.css`: `.home_img_wrap` takes an explicit `z-index: 0` and the
 `h1` a `2`. The cells need the 0 — the parallax transform makes each one a
