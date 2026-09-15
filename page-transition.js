@@ -6476,15 +6476,24 @@
        been there all along. data-nav-delay adds to a row's position. */
     buttonGap: 0.02,
 
-    buttonOverlap: 0.45,     // of the last row's rise: 1 waits it out,
-                             // 0 leaves with it
+    /* Of the feature sentence's rise, the text the button sits under: 1
+       waits it out, 0 leaves with it. Where that sentence is not on
+       screen, of the last row's rise, after the swipe. */
+    buttonOverlap: 0.45,
 
-    /* Opacity and nothing else, on the text sections' own fade — the
-       same button doing the same arrival wherever it is asked to. It
-       still keeps its place at the end of the stagger; it just does not
-       travel to get there. */
-    buttonFade: TEXT.fadeDuration,
+    /* Opacity and nothing else — the button does not travel to get
+       there. Shorter than the text sections' 0.45s: it follows a sentence
+       already on its way, and a slow fade read as the button lagging. */
+    buttonFade: 0.3,
     buttonFadeEase: E.quart,
+
+    /* The feature sentence rises line by line out of its masks, the way
+       a heading does on the page — on the heading's curve, but a menu's
+       clock: 1.2s a line is paced for a page, not a sheet that is open
+       for seconds. */
+    featureDuration: QUBIC.l,   // 0.8
+    featureStagger: 0.08,
+    featureEase: QUBIC.ease,
 
     // Fraction of the close where the bar takes its colours back: the
     // sheet clips upward, so the strip behind it goes last.
@@ -6526,6 +6535,17 @@
       '.meganav_feature_text, .button_main_wrap, ' +
       '.meganav_heading, .meganav_links_wrap .footer_link_wrap, [data-nav-content]'
     ));
+
+    /* Cut on every open and put back on every close: the sheet opens at
+       whatever width the window has now, and a split is one layout's
+       lines. It rides in content all the same, for its place in the
+       stagger and for the close's fade. */
+    const feature = panel.querySelector('.meganav_feature_text');
+    let featureStep = null;
+    const unsplitFeature = () => {
+      featureStep?.split?.revert();
+      featureStep = null;
+    };
 
     /* The panel has to be full-bleed for the black to reach the edges,
        which costs the content its container margins — so the class moves
@@ -6667,16 +6687,47 @@
       );
       if (content.length) {
         const isButton = (el) => el.classList.contains('button_main_wrap');
+        const rowAt = (i) => MENU.contentDelay + i * MENU.contentStagger;
+
+        unsplitFeature();
+        const featureShown = Boolean(feature) && content.includes(feature)
+          && feature.getClientRects().length > 0;
+        if (featureShown && hasKugiri) {
+          featureStep = { el: feature, level: 'lines', split: null, units: [] };
+          splitSteps([featureStep]);
+          widenMasks(featureStep.split);
+          if (!featureStep.units.length) unsplitFeature();
+        }
+        const lines = featureStep ? featureStep.units : [];
+        const featureRise = lines.length
+          ? (lines.length - 1) * MENU.featureStagger + MENU.featureDuration
+          : MENU.contentDuration;
+
         const rowsEnd = content.reduce((end, el, i) => isButton(el) ? end
-          : Math.max(end, MENU.contentDelay + i * MENU.contentStagger
-              + MENU.contentDuration * MENU.buttonOverlap), 0);
-        const buttonAt = Math.max(MENU.duration, rowsEnd) + MENU.buttonGap;
+          : Math.max(end, rowAt(i) + MENU.contentDuration * MENU.buttonOverlap), 0);
+        const buttonAt = featureShown
+          ? rowAt(content.indexOf(feature)) + featureRise * MENU.buttonOverlap + MENU.buttonGap
+          : Math.max(MENU.duration, rowsEnd) + MENU.buttonGap;
 
         content.forEach((el, i) => {
-          const at = isButton(el)
-            ? buttonAt
-            : MENU.contentDelay + i * MENU.contentStagger;
+          const at = isButton(el) ? buttonAt : rowAt(i);
           const own = parseFloat(el.dataset.navDelay);
+
+          if (el === feature && lines.length) {
+            const from = at + (Number.isFinite(own) ? own : 0);
+            // The lines travel inside their masks; the block only has to show.
+            tl.set(el, { y: 0, opacity: 1 }, 0);
+            lines.forEach((line, k) => {
+              tl.fromTo(line,
+                { yPercent: parkOffset(line) },
+                { yPercent: 0, duration: MENU.featureDuration, ease: MENU.featureEase },
+                from + k * MENU.featureStagger
+              );
+            });
+            // A mask cuts descenders at rest, so it comes off once they land.
+            tl.call(() => { if (featureStep) unclipStep(featureStep); }, null, from + featureRise);
+            return;
+          }
 
           tl.fromTo(el,
             isButton(el) ? { opacity: 0 } : { y: MENU.contentShift, opacity: 0 },
@@ -6720,6 +6771,7 @@
         // stale inline clip-path.
         gsap.set(panel, { clearProps: 'clipPath,pointerEvents' });
         gsap.set(content, { clearProps: 'transform,opacity' });
+        unsplitFeature();
       };
 
       if (instant || reducedMotion) { done(); return; }
@@ -6766,6 +6818,7 @@
     return () => {
       controller.abort();
       closeMeganav = () => {};
+      unsplitFeature();
       labels.forEach(({ el, closed }) => {
         gsap.killTweensOf(el);
         gsap.set(el, { clearProps: 'opacity' });
