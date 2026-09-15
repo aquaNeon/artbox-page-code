@@ -1764,6 +1764,15 @@ html.is-menu-open [data-video="component"].is-travelling,
   display: block;
 }
 
+/* The section embed promotes the picture with will-change: transform.
+   Nothing needs it — the reveal moves the wrapper, not the img — and a
+   promoted picture under a clip is what put the slider's photo over its
+   own colour panel in Safari. html in front, because the embed sits
+   later in the document and would win a tie. */
+html .hero-h1__img img {
+  will-change: auto;
+}
+
 /* ===== HERO ENTRANCE — [data-hero-in] — README ### hero entrance ===== */
 
 /* The home hero's arrival, lifted out of its embed so any hero can wear
