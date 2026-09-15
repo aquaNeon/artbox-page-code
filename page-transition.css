@@ -889,10 +889,16 @@ html .work_smoothly_wrap {
      how a data-scale written on a wrapper quietly came out at the
      fallback instead.
 
-     attr() with a type is Chrome 133+; everywhere else takes the
-     fallback, which is the number we would have written anyway. */
-  [data-scale] {
-    --scale-to: attr(data-scale type(<number>), 1.04);
+     Behind @supports, not left to the fallback. A browser without typed
+     attr() does not drop the declaration: a custom property takes any
+     tokens, so --scale-to holds the attr() text verbatim, var() hands
+     that to scale(), and the whole transform is thrown out at computed
+     time. That is why Safari never leaned — the 1.04 in var() is only
+     for a property that is unset, and this one was set to nonsense. */
+  @supports (width: attr(data-scale type(<length>), 1px)) {
+    [data-scale] {
+      --scale-to: attr(data-scale type(<number>), 1.04);
+    }
   }
 
   [data-scale] :is(img, video),
