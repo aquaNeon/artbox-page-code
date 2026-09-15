@@ -1466,11 +1466,8 @@ and a hover is not worth paying that on load.
 
 `attr()` is read on the element that carries the attribute and inherited down,
 because `attr()` only ever sees the element it runs on — a number written on a
-wrapper is invisible to a rule targeting the image inside it. That line sits
-behind `@supports`: without typed `attr()` (Safari, Firefox) a custom property
-still accepts the `attr()` text as-is, `scale()` receives it and the transform
-is dropped, so the lean never happened there. Gated, those browsers leave
-`--scale-to` unset and every marked picture takes 1.04.
+wrapper is invisible to a rule targeting the image inside it. Below Chrome 133
+every marked picture takes the 1.04 fallback.
 
 Knobs: `--scale-ms` (500ms) and the value itself. The curve is `ease-in-out`
 rather than the site's own: a lean this small wants to ease in and out of
