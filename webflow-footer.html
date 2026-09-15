@@ -18,7 +18,7 @@
      page-transition.js is a classic script, so the tag below is the
      library with its one export hung off window.kugiri. It replaces
      SplitText — remove that tag, nothing reads it any more. -->
-<script src="https://raw.githack.com/aquaNeon/artbox-page-code/main/kugiri.global.js"></script>
+<script src="https://rawcdn.githack.com/aquaNeon/artbox-page-code/d02060123a716fe2fd1beeea208813734ed213c7/kugiri.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@barba/core@2.10.3/dist/barba.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.3.17/dist/lenis.min.js"></script>
 
@@ -41,22 +41,19 @@
 <script src="https://cdn.jsdelivr.net/gh/MadeYouLookAB/base-lib@main/code-base/match-container.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/MadeYouLookAB/base-lib@main/code-base/video-min.js"></script>
 
-<!-- DEV url. githack resolves the branch on every request, so a push is
-     live immediately and no purge is involved. jsDelivr is not usable
-     here: its @main alias froze several commits back and kept serving a
-     stale build through repeated successful purges.
+<!-- page-transition.js, through the dev switch in the head embed:
+     localhost for a browser that opened ?dev=1, the pinned CDN build
+     for everyone else.
 
-     Before launch, swap to a commit-pinned production url, which is
-     immutable and properly cached:
-     https://rawcdn.githack.com/aquaNeon/artbox-page-code/<full-sha>/page-transition.js -->
-<script src="https://raw.githack.com/aquaNeon/artbox-page-code/main/page-transition.js"></script>
-
-<!-- LOCAL DEV. Run `node dev-server.js` in the repo, comment out the tag
-     above and uncomment this one, then reload the published site or the
-     Designer preview: every save is live on the next reload, no push, no
-     CDN. Chrome only — Safari and Firefox block http:// subresources on
-     an https page even from localhost. Never publish with this active,
-     it is a dead tag for everyone but you.
-
-<script src="http://localhost:5173/page-transition.js"></script>
--->
+     Written, not appended, so it still runs in place as a parser-blocking
+     script — after the libraries above, before anything below. A
+     fallback after a failed localhost load can only append, so that one
+     path runs a moment later than usual. -->
+<script>
+  (function () {
+    var dev = window.ARTBOX_DEV;
+    document.write('<script data-file="page-transition.js" src="' +
+      (dev ? window.ARTBOX_LOCAL : window.ARTBOX_CDN) + 'page-transition.js"' +
+      (dev ? ' onerror="artboxFallback(this)"' : '') + '><\/script>');
+  })();
+</script>

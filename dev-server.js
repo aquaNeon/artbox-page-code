@@ -1,12 +1,16 @@
 /* ============================================================
    Dev server for page-transition.js / .css
 
-     node dev-server.js            → http://localhost:5173
+     node dev-server.js            → http://localhost:5180
      node dev-server.js 4000       → another port
 
-   Point the Webflow footer/head embeds at this instead of
-   raw.githack.com while working, see the block at the bottom of
-   webflow-footer.html. Saves the push-wait-reload loop entirely:
+   5180, not Vite's 5173: another project's Vite already sits there,
+   and the dev switch in webflow-head.html has this port written in.
+   Change ARTBOX_LOCAL with it.
+
+   Open the published site with ?dev=1 and the embeds load from here,
+   see the dev switch in webflow-head.html. Saves the push-wait-reload
+   loop entirely:
    every response is no-store, so a plain browser reload always
    runs the file currently on disk.
 
@@ -26,7 +30,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = Number(process.argv[2]) || 5173;
+const PORT = Number(process.argv[2]) || 5180;
 const ROOT = __dirname;
 
 const TYPES = {

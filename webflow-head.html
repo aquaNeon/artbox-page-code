@@ -4,7 +4,8 @@
      Paste into: Webflow → Site Settings → Custom Code → HEAD CODE
      The other half goes in FOOTER CODE, see webflow-footer.html
 
-     Stylesheets only. Nothing here touches the DOM, so head is safe.
+     Stylesheets, plus the dev switch the footer reads. Nothing here
+     touches the page's DOM, so head is safe.
      ============================================================ -->
 
 <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.17/dist/lenis.css">
@@ -13,9 +14,55 @@
      blocking on every page, and it was costing ~820ms to deliver 5 KiB
      for a slider most pages do not have. page-transition.js fetches it
      alongside the library, for containers that actually hold one. -->
-<!-- DEV url, see the note in webflow-footer.html for why this is not jsDelivr -->
-<link rel="stylesheet" href="https://raw.githack.com/aquaNeon/artbox-page-code/main/page-transition.css">
 
-<!-- LOCAL DEV, pairs with the localhost script tag in the footer embed:
-<link rel="stylesheet" href="http://localhost:5173/page-transition.css">
--->
+<!-- DEV SWITCH. Open any page with ?dev=1 and this browser loads
+     page-transition.css and .js from `node dev-server.js` until ?dev=0.
+     Everyone else gets ARTBOX_CDN, so the site can stay published with
+     this in place.
+
+     Bump the sha in ARTBOX_CDN to ship a new build; the footer reads it
+     from here.
+
+     document.write, not an appended <link>: a script-inserted
+     stylesheet does not block render, and the page would paint
+     unstyled first. If localhost does not answer — server not running,
+     or Safari refusing http on an https page — it falls back to the CDN
+     rather than leaving the page bare. -->
+<script>
+  /* The build everyone gets. Swap this link to ship. */
+  window.ARTBOX_CDN = 'https://rawcdn.githack.com/aquaNeon/artbox-page-code/d02060123a716fe2fd1beeea208813734ed213c7/';
+  window.ARTBOX_LOCAL = 'http://localhost:5180/';
+
+  (function () {
+    var KEY = 'artbox-dev';
+    var flag = new URLSearchParams(location.search).get('dev');
+    var dev = flag === '1';
+    try {
+      if (flag === '1') localStorage.setItem(KEY, '1');
+      if (flag === '0') localStorage.removeItem(KEY);
+      dev = localStorage.getItem(KEY) === '1';
+    } catch (e) {}
+
+    window.ARTBOX_DEV = dev;
+
+    window.artboxFallback = function (el) {
+      el.onerror = null;
+      var file = el.getAttribute('data-file');
+      console.warn('[artbox] localhost did not answer for ' + file + ', using the CDN');
+      if (el.tagName === 'LINK') {
+        el.href = window.ARTBOX_CDN + file;
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = window.ARTBOX_CDN + file;
+      s.async = false;
+      el.parentNode.insertBefore(s, el.nextSibling);
+    };
+
+    if (dev) console.info('[artbox] dev switch on — loading from ' + window.ARTBOX_LOCAL + ' (?dev=0 to turn off)');
+
+    document.write('<link rel="stylesheet" data-file="page-transition.css" href="' +
+      (dev ? window.ARTBOX_LOCAL : window.ARTBOX_CDN) + 'page-transition.css"' +
+      (dev ? ' onerror="artboxFallback(this)"' : '') + '>');
+  })();
+</script>

@@ -54,36 +54,32 @@ switch.
 ## Local development
 
 ```bash
-node dev-server.js          # http://localhost:5173, no npm install
-node dev-server.js 4000     # if 5173 is taken
+node dev-server.js          # http://localhost:5180, no npm install
+node dev-server.js 4000     # if 5180 is taken — change ARTBOX_LOCAL in webflow-head.html to match
 ```
 
-Then swap the two embeds over to localhost — both files have the dev tag
-commented out in place, ready to uncomment:
+Then open any page of the published site with `?dev=1`. The embeds carry a
+switch: that browser now loads `page-transition.css` and `.js` from
+localhost, and keeps doing so on every page until `?dev=0`. The console says
+`[artbox] dev switch on` while it is. Every response is `no-store`, so a plain
+reload runs the file on disk — no push, no CDN, no build stamp to check.
 
-```html
-<script src="http://localhost:5173/page-transition.js"></script>
-<link rel="stylesheet" href="http://localhost:5173/page-transition.css">
-```
-
-Reload the published site or the Designer preview and it runs the file on
-disk. Every response is `no-store`, so a plain reload is enough — no push,
-no CDN, no build stamp to check.
+Nobody else is affected, so the embeds stay published as they are. Visitors
+get `ARTBOX_CDN`, the pinned build set in `webflow-head.html`; bump the sha
+there to ship.
 
 **Chrome only.** It treats `http://localhost` as a trustworthy origin, so an
-https Webflow page loads it. Safari and Firefox block it as mixed content
-and the site just runs without the script.
-
-**Swap the tags back before publishing.** A localhost tag on the live site
-is a dead script for every visitor: no transitions, no modules, no error
-anyone can see.
+https Webflow page loads it — it may ask once to allow access to the local
+network. Safari and Firefox block it as mixed content. If localhost does not
+answer, for that reason or because the server is not running, the switch
+falls back to the CDN and warns in the console, so the page is never bare.
 
 `_fixture-text-anim.html` is a standalone page for the text reveal — every
 role, every split level, a stagger row, an inline heading image — served by the
 same dev server:
 
 ```
-http://localhost:5173/_fixture-text-anim.html?textdebug=1
+http://localhost:5180/_fixture-text-anim.html?textdebug=1
 ```
 
 It is plain http end to end, with no Webflow around it, so it is also the one
@@ -1386,7 +1382,7 @@ measured: the trigger is a frame away at best, and an unclipped first paint is
 the whole picture flashing in ahead of its own reveal.
 
 Fixture: `node dev-server.js`, then
-`http://localhost:5173/_fixture-mask-reveal.html`.
+`http://localhost:5180/_fixture-mask-reveal.html`.
 
 ### Sequence — `[data-slot]`
 
