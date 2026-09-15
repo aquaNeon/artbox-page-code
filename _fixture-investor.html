@@ -27,6 +27,19 @@
   .ref_row { display: grid; grid-template-columns: repeat(3, 160px); gap: 1rem; justify-content: center; }
   .ref_row > div { aspect-ratio: 1; overflow: clip; }
   .ref_row img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* Challenges: the site's grid, stacked below 992 — or at any width with ?stack=1. */
+  .challenges_wrap { padding-block: 20vh 30vh; }
+  .challenges_contain { max-width: 1100px; margin: 0 auto; }
+  .challenges_points_wrap { display: grid; grid-template-columns: 1fr 1fr; column-gap: 3rem; row-gap: 4rem; margin-top: 3rem; }
+  .challenges_points_cell { padding-block: 2rem; border-top: 1px solid #14110f; }
+  .challenges_points_inner { display: flex; gap: 2rem; align-items: flex-start; }
+  .challenges_points_check { flex: none; width: 1.25rem; aspect-ratio: 1; border: 2px solid #14110f; margin-top: -2px; }
+  .challenges_points_text_wrap { font-size: 1.5rem; line-height: 1.3; }
+  .u-color-secondary { color: #14110f99; }
+  .challenges_points_bold_black { color: #14110f; }
+  @media (max-width: 991px) { .challenges_points_wrap { display: flex; flex-direction: column; row-gap: 1.5rem; } }
+  html.stack .challenges_points_wrap { display: flex; flex-direction: column; row-gap: 1.5rem; }
 </style>
 </head>
 <body>
@@ -88,6 +101,43 @@
     <div data-hero-in><img src="https://cdn.prod.website-files.com/6978bcf401c78c6e81b71ed3/6a85c54ccec2171b148b5686_cap-hero-3.webp" alt=""></div>
   </div>
 
+  <!-- Copied from the same page, before the split. Each cell's top border
+       draws with its text (TEXT.ruleWith); a row's two cells start together
+       side by side and one after another when stacked (TEXT.withRow). -->
+  <section data-text-anim="true" class="challenges_wrap">
+    <div class="challenges_contain">
+      <h2 data-text-anim-heading="false" class="g_heading">Kjenner du deg igjen i noen av disse utfordringene?</h2>
+      <div class="challenges_content">
+        <div class="challenges_points_wrap u-grid-custom">
+          <div class="challenges_points_cell">
+            <div data-text-anim-solo="true" class="challenges_points_inner">
+              <div data-text-anim-icon="center" class="challenges_points_check"></div>
+              <div class="challenges_points_text_wrap u-text-style-h3-secondary"><div class="challenges_points_text u-color-secondary"><span class="challenges_points_bold_black">Interne designere</span> har ikke alltid den rette kompetansen eller kapasiteten til å håndtere alle selskapets løpende designbehov.</div></div>
+            </div>
+          </div>
+          <div class="challenges_points_cell">
+            <div data-text-anim-with="" data-text-anim-solo="true" class="challenges_points_inner">
+              <div data-text-anim-icon="center" class="challenges_points_check"></div>
+              <div class="challenges_points_text_wrap u-text-style-h3-secondary"><div class="challenges_points_text u-color-secondary"><span class="challenges_points_bold_black">Tradisjonelle byråer</span> er ofte kostbare og bygget rundt tunge prosesser – noe som gjør dem mindre fleksible og effektive for løpende leveranser.</div></div>
+            </div>
+          </div>
+          <div class="challenges_points_cell">
+            <div data-text-anim-solo="true" class="challenges_points_inner">
+              <div data-text-anim-icon="center" class="challenges_points_check"></div>
+              <div class="challenges_points_text_wrap u-text-style-h3-secondary"><div class="challenges_points_text u-color-secondary"><span class="challenges_points_bold_black">En frilanser</span> jobber alene, noe som kan gi sårbarhet på kritiske leveranser og begrenset mulighet til å skalere når behovet øker</div></div>
+            </div>
+          </div>
+          <div class="challenges_points_cell">
+            <div data-text-anim-with="" data-text-anim-solo="true" class="challenges_points_inner">
+              <div data-text-anim-icon="center" class="challenges_points_check"></div>
+              <div class="challenges_points_text_wrap u-text-style-h3-secondary"><div class="challenges_points_text u-color-secondary"><span class="challenges_points_bold_black">KI</span> kan øke hastighet og effektivitet, men mangler menneskelig vurdering og den merkevareforståelsen som kreves for konsistent, profesjonell kommunikasjon.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <footer class="footer_wrap">
@@ -101,6 +151,8 @@
   // ?noio=1 — take the observer away so every group plays at once. A
   // background tab paints no frames, so observer entries never arrive.
   if (new URLSearchParams(location.search).get('noio') === '1') delete window.IntersectionObserver;
+  // ?stack=1 — the stacked layout at any width, for a window that cannot be narrowed.
+  if (new URLSearchParams(location.search).get('stack') === '1') document.documentElement.classList.add('stack');
 </script>
 <script src="/kugiri.global.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@barba/core@2.10.3/dist/barba.umd.min.js"></script>

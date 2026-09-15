@@ -495,6 +495,17 @@
        Add a selector per one-off; an empty string is none. */
     iconAlso: '.insight_item_wrap .icon_eyebrow_item',
 
+    /* Cells whose top border is drawn with the text inside them rather
+       than on a trigger of its own: the line sets off with the first step
+       in the cell, so cells whose text starts together draw together.
+       The drawing is [data-rule]'s — see RULE. */
+    ruleWith: '.challenges_points_cell',
+
+    /* -with holds here only while the two cells are side by side. These
+       layouts stack at a breakpoint, and stacked, each cell waits its
+       turn. Everywhere else -with pairs as written. */
+    withRow: '.challenges_points_inner',
+
     // Unsplit fallback: -split="none", and every role with no kugiri.
     blockFromY: 30,         // % of its own height
     soloFromY: 14,          // -solo is one line, where 30% is a big move
@@ -849,12 +860,21 @@
     };
   }
 
+  // TEXT.withRow: sharing a row is sharing some of the same height.
+  function besideLast(el, last) {
+    if (!last || !TEXT.withRow || !el.matches(TEXT.withRow)) return true;
+    const a = el.getBoundingClientRect();
+    const b = last.getBoundingClientRect();
+    return a.top < b.bottom && b.top < a.bottom;
+  }
+
   /* Cues for one group, in group-local seconds. Read after the split and
      before any keyframe: parking a unit needs its height, and measuring
      them all here keeps the play pass free of layout reads. */
   function scheduleGroup(group) {
     let cursor = 0;      // where the last step ends
     let lastStart = 0;   // where it began, for -with to line up against
+    let lastEl = null;   // and what it was, for TEXT.withRow
     let first = true;
 
     group.steps.forEach((step) => {
@@ -885,7 +905,7 @@
       } else if (first) {
         step.start = delay;
         first = false;
-      } else if (step.el.hasAttribute('data-text-anim-with')) {
+      } else if (step.el.hasAttribute('data-text-anim-with') && besideLast(step.el, lastEl)) {
         // -with runs alongside the step before it, from that step's own
         // start rather than from the end of everything so far.
         step.start = lastStart + delay;
@@ -894,6 +914,7 @@
       }
 
       lastStart = step.start;
+      lastEl = step.el;
       const spread = Math.max(0, step.units.length - 1) * step.stagger;
       cursor = step.start + spread + step.duration;
     });
@@ -1023,6 +1044,7 @@
     group.steps.forEach((step) => {
       // Hidden since mount, so nothing shows before its keyframes exist.
       step.el.style.visibility = '';
+      if (step.rule) drawRule(step.rule, base + step.start);
 
       /* A fade has nothing to hide, and a clip left on for its length
          still shears the descenders it was padded to clear. */
@@ -1195,6 +1217,18 @@
       step.el.style.animation = 'none';
     });
 
+    // TEXT.ruleWith: each cell's line belongs to the first step inside it.
+    const rules = [];
+    if (TEXT.ruleWith) {
+      groups.forEach((group) => group.steps.forEach((step) => {
+        const cell = step.el.closest(TEXT.ruleWith);
+        if (!cell || !group.wrap.contains(cell) || rules.includes(cell)) return;
+        if (!armRule(cell, 'top')) return;
+        rules.push(cell);
+        step.rule = cell;
+      }));
+    }
+
     /* Split at the trigger, not at intro. A group far down the page can be
        unlaid-out when the page starts — a section behind an anti-flicker
        rule, a component variant still display:none — and kugiri reads the
@@ -1333,6 +1367,9 @@
       if (inst.played || dead) return;
       inst.played = true;
       inst.groups.forEach(showAtRest);
+      inst.groups.forEach((group) => group.steps.forEach((step) => {
+        if (step.rule) step.rule.style.setProperty('--rule-scale', '1');
+      }));
     };
 
     const observe = () => {
@@ -1429,6 +1466,7 @@
         if (step.wrapped) step.el.style.removeProperty('flex-wrap');
         step.el.style.visibility = '';
       });
+      rules.forEach(disarmRule);
     };
   });
 
@@ -2439,6 +2477,40 @@
     slot: 'rule'
   };
 
+  /* Shared with textAnim, which draws TEXT.ruleWith cells on its own
+     clock. Declarations, so the module above this one can reach them. */
+  function armRule(el, edge) {
+    const cs = getComputedStyle(el);
+    const width = edge === 'bottom' ? cs.borderBottomWidth : cs.borderTopWidth;
+    const colour = edge === 'bottom' ? cs.borderBottomColor : cs.borderTopColor;
+
+    // Nothing drawn on that edge is nothing to draw on.
+    if (!parseFloat(width)) return false;
+
+    el.style.setProperty('--rule-h', width);
+    el.style.setProperty('--rule-color', colour);
+    el.style.setProperty('--rule-scale', '0');
+    el.style.setProperty(`border-${edge}-color`, 'transparent');
+
+    /* The class is what turns the pseudo on, so a page where this never
+       runs — no ScrollTrigger, reduced motion, a throw above here —
+       keeps its real border rather than losing the line entirely. */
+    el.classList.add('is-rule');
+    return true;
+  }
+
+  function drawRule(el, delay) {
+    return gsap.to(el, { '--rule-scale': 1, duration: RULE.duration, ease: RULE.ease, delay });
+  }
+
+  function disarmRule(el) {
+    gsap.killTweensOf(el);
+    el.classList.remove('is-rule');
+    ['--rule-h', '--rule-color', '--rule-scale'].forEach((v) => el.style.removeProperty(v));
+    el.style.removeProperty('border-top-color');
+    el.style.removeProperty('border-bottom-color');
+  }
+
   Modules.add('ruleReveal', function (root) {
     const items = Array.from(root.querySelectorAll('[data-rule]'));
     if (!items.length || !hasScrollTrigger || reducedMotion) return;
@@ -2450,22 +2522,7 @@
       const edge = (el.dataset.rule || '').trim().toLowerCase() === 'bottom'
         ? 'bottom'
         : 'top';
-      const cs = getComputedStyle(el);
-      const width = edge === 'bottom' ? cs.borderBottomWidth : cs.borderTopWidth;
-      const colour = edge === 'bottom' ? cs.borderBottomColor : cs.borderTopColor;
-
-      // Nothing drawn on that edge is nothing to draw on.
-      if (!parseFloat(width)) return;
-
-      el.style.setProperty('--rule-h', width);
-      el.style.setProperty('--rule-color', colour);
-      el.style.setProperty('--rule-scale', '0');
-      el.style.setProperty(`border-${edge}-color`, 'transparent');
-
-      /* The class is what turns the pseudo on, so a page where this never
-         runs — no ScrollTrigger, reduced motion, a throw above here —
-         keeps its real border rather than losing the line entirely. */
-      el.classList.add('is-rule');
+      if (!armRule(el, edge)) return;
       touched.push(el);
 
       const own = slotCue(el);
@@ -2478,26 +2535,13 @@
         trigger: seqList(el) || el,
         start: el.dataset.ruleStart || RULE.start,
         once: true,
-        onEnter: () => {
-          gsap.to(el, {
-            '--rule-scale': 1,
-            duration: RULE.duration,
-            ease: RULE.ease,
-            delay
-          });
-        }
+        onEnter: () => drawRule(el, delay)
       }));
     });
 
     return () => {
       triggers.forEach((t) => t.kill());
-      touched.forEach((el) => {
-        gsap.killTweensOf(el);
-        el.classList.remove('is-rule');
-        ['--rule-h', '--rule-color', '--rule-scale'].forEach((v) => el.style.removeProperty(v));
-        el.style.removeProperty('border-top-color');
-        el.style.removeProperty('border-bottom-color');
-      });
+      touched.forEach(disarmRule);
     };
   });
 

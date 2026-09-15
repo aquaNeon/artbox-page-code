@@ -1558,6 +1558,15 @@ The pseudo is gated on the `.is-rule` class the module adds. A page the script
 never reaches — no ScrollTrigger, reduced motion, a throw above it — keeps its
 real border rather than losing the line.
 
+`textAnim` draws the same line on cells named in `TEXT.ruleWith`
+(`.challenges_points_cell`), with no attribute and no trigger of its own: the
+line sets off with the first text step inside the cell, so cells whose text
+starts together draw together. `TEXT.withRow` (`.challenges_points_inner`) makes
+`-with` hold there only while two cells share a row — side by side, a row's
+line and text start as one; stacked below 992, each cell's line and text wait
+their turn. `_fixture-investor.html` has the section; `?stack=1` stacks it at
+any width.
+
 ### heroVideo
 
 The last cell of the hero grid is a video. It leaves the grid, travels to the
