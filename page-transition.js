@@ -475,11 +475,6 @@
        easing is most of the way home, so the picture opens into a line
        that is nearly settled rather than one still travelling. */
     imgAfterLine: 0.5,
-
-    /* The same share for a heading that fades whole (-split="none"),
-       which has no lines to wait on. Lower: a fade does not travel, so
-       there is nothing to let settle, and the picture belongs to it. */
-    imgAfterFade: 0,
     imgOffset: 0,           // after that
     imgStagger: 0.08,       // between images sharing a line
 
@@ -499,14 +494,6 @@
        to the one section that wants the pop, leave the rest alone.
        Add a selector per one-off; an empty string is none. */
     iconAlso: '.insight_item_wrap .icon_eyebrow_item',
-
-    /* Headings that fade in whole instead of line by line, their pictures
-       opening with the fade: the corporate and investor heroes. A class
-       rather than the three attributes, so both pages have it without a
-       trip to the Designer — the attributes still do the same anywhere
-       else, and win where they are written. */
-    fadeWhole: '.corporate_heading.is-hero',
-    fadeWholeSpeed: 0.55,   // the 0.45s fade to ~0.82s, landing with the first picture's scale
 
     // Unsplit fallback: -split="none", and every role with no kugiri.
     blockFromY: 30,         // % of its own height
@@ -535,8 +522,6 @@
      revealIcons gives them the step's cue. */
   const ICONS = ['[data-text-anim-icon]', TEXT.iconAlso]
     .filter(Boolean).join(', ');
-
-  const fadesWhole = (el) => Boolean(TEXT.fadeWhole) && el.matches(TEXT.fadeWhole);
 
   /* ===== SEQUENCE — the cadence of a composed item ===== */
 
@@ -666,8 +651,7 @@
   function splitLevel(el) {
     if (!hasKugiri) return 'none';
     const raw = (el.dataset.textAnimSplit || '').trim();
-    if (LEVELS.includes(raw)) return raw;
-    return fadesWhole(el) ? 'none' : 'lines';
+    return LEVELS.includes(raw) ? raw : 'lines';
   }
 
   const levelStagger = (level, base) => (
@@ -685,8 +669,7 @@
   // reads the same way as the group root's number.
   function stepSpeed(el) {
     const v = parseFloat(el.dataset.textAnimSpeed);
-    if (Number.isFinite(v) && v > 0) return v;
-    return fadesWhole(el) ? TEXT.fadeWholeSpeed : 1;
+    return Number.isFinite(v) && v > 0 ? v : 1;
   }
 
   function stepDelay(el, wrap) {
@@ -710,8 +693,6 @@
       const raw = node.getAttribute('data-text-anim-fade');
       return raw !== null && raw.trim().toLowerCase() !== 'false';
     };
-    const own = el.getAttribute('data-text-anim-fade');
-    if (own === null && fadesWhole(el)) return true;
     return on(el) || (el !== wrap && on(wrap));
   }
 
@@ -945,8 +926,7 @@
   function revealImages(step, base) {
     if (TEXT.imgFrom === false) return [];
     const anims = [];
-    const units = step.units.length ? step.units : [step.el];
-    units.forEach((unit, i) => {
+    step.units.forEach((unit, i) => {
       const imgs = Array.from(unit.querySelectorAll('img'));
       if (!imgs.length) return;
       const targets = imgs.map((img) => (
@@ -958,10 +938,9 @@
         const lineAt = base + step.start + i * step.stagger;
         /* true and false still mean all of it and none of it, so a
            number is the only new spelling. */
-        const wait = step.units.length ? TEXT.imgAfterLine : TEXT.imgAfterFade;
-        const share = wait === true ? 1
-          : wait === false ? 0
-          : Number(wait) || 0;
+        const share = TEXT.imgAfterLine === true ? 1
+          : TEXT.imgAfterLine === false ? 0
+          : Number(TEXT.imgAfterLine) || 0;
         const cue = lineAt + step.duration * share
           + TEXT.imgOffset + j * TEXT.imgStagger;
         const timing = { delay: cue * 1000, easing: TEXT.imgEase, fill: 'backwards' };
@@ -1051,7 +1030,6 @@
 
       if (!step.units.length) {
         anims.push(...blockRise(step, base));
-        if (step.role === 'heading') anims.push(...revealImages(step, base));
         return;
       }
 
