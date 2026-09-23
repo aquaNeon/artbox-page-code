@@ -86,6 +86,30 @@ It is plain http end to end, with no Webflow around it, so it is also the one
 way to put this code in front of **Safari**, which blocks a localhost script on
 an https page.
 
+### `?jank=1` — a frame counter on the page
+
+Stutter that only happens on somebody's phone cannot be profiled from a
+laptop, and a phone has no console to read. `?jank=1` paints the numbers
+onto the page instead:
+
+```
+frames 1840
+dropped 0
+worst  0ms
+longtasks 0
+```
+
+`dropped` counts frames that took longer than two refreshes, `worst` is
+the longest of them, and `longtasks` is work that blocked the main thread
+(Safari does not report those). Tap the box to start the count again.
+
+It works on the published site as well as locally — it is part of
+`page-transition.js`, not the dev switch — so it can be handed to whoever
+is seeing the problem. `dropped` climbing while scrolling a section is the
+section's fault; `dropped` at 0 while it still looks rough means the
+jank is not on the main thread, and the next suspects are paint and
+compositing rather than script.
+
 ## Install
 
 Two paste-ins, both under **Webflow → Site Settings → Custom Code**:
