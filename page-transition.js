@@ -1707,7 +1707,8 @@
     ratio: 0.72,     // of the text's font size
     gap: 0.5,        // of the same, between square and text
 
-    // Same component, drawn more than once under different names.
+    /* Same component, drawn more than once under different names. A pair
+       may carry its own ratio / gap. */
     pairs: [
       { wrap: '.icon_eyebrow_wrap', text: '.icon_eyebrow_text' },
       { wrap: '.design_sticky_eyebrow', text: '.design_sticky_eyebrow_text' },
@@ -1715,24 +1716,56 @@
       // stopped working once the text carried its own size class.
       { wrap: '.footer_link_wrap', text: '.footer_link_text' },
       { wrap: '.stats_eyebrow_wrap', text: '.stats_eyebrow' },
-      { wrap: '.subheading_eyebrow_wrap', text: '.subheading_text_eyebrow' }
+      { wrap: '.subheading_eyebrow_wrap', text: '.subheading_text_eyebrow' },
+      // 'cap' rather than a guessed fraction: the square is measured
+      // against the capitals it stands beside, not the em box, which
+      // carries the leading and reads too tall.
+      { wrap: '.c_title_text_eyebrow_wrap', text: '.c_title_text_eyebrow', ratio: 'cap' }
     ]
   };
 
+  /* The font's real cap height, read off a canvas: no CSS length gives
+     it, and the ratio differs per family. Cached per font shorthand, and
+     the ratio is the fallback wherever the measurement is unavailable. */
+  const capCache = new Map();
+
+  function capRatio(font, fallback) {
+    if (capCache.has(font)) return capCache.get(font);
+
+    let ratio = fallback;
+    try {
+      const ctx = (capRatio.ctx || (capRatio.ctx = document.createElement('canvas').getContext('2d')));
+      ctx.font = font;
+      const m = ctx.measureText('H');
+      const size = parseFloat(ctx.font.match(/(\d+(?:\.\d+)?)px/)?.[1]);
+      if (m && m.actualBoundingBoxAscent && size) ratio = m.actualBoundingBoxAscent / size;
+    } catch (e) { /* no canvas, keep the fallback */ }
+
+    capCache.set(font, ratio);
+    return ratio;
+  }
+
   Modules.add('eyebrowIcon', function (root) {
     const wraps = [];
-    EYEBROW.pairs.forEach(({ wrap, text }) => {
-      root.querySelectorAll(wrap).forEach((el) => wraps.push({ el, text }));
+    EYEBROW.pairs.forEach(({ wrap, text, ratio, gap }) => {
+      root.querySelectorAll(wrap).forEach((el) => wraps.push({
+        el,
+        text,
+        ratio: ratio == null ? EYEBROW.ratio : ratio,
+        gap: gap == null ? EYEBROW.gap : gap
+      }));
     });
     if (!wraps.length) return;
 
-    const size = () => wraps.forEach(({ el: wrap, text: textSel }) => {
+    const size = () => wraps.forEach(({ el: wrap, text: textSel, ratio, gap }) => {
       const text = wrap.querySelector(textSel);
       if (!text) return;
-      const fs = parseFloat(getComputedStyle(text).fontSize);
+      const cs = getComputedStyle(text);
+      const fs = parseFloat(cs.fontSize);
       if (!fs) return;
-      wrap.style.setProperty('--icon-size', `${fs * EYEBROW.ratio}px`);
-      wrap.style.setProperty('--icon-gap', `${fs * EYEBROW.gap}px`);
+      const r = ratio === 'cap' ? capRatio(cs.font || `${fs}px ${cs.fontFamily}`, EYEBROW.ratio) : ratio;
+      wrap.style.setProperty('--icon-size', `${fs * r}px`);
+      wrap.style.setProperty('--icon-gap', `${fs * gap}px`);
     });
 
     size();
@@ -1745,7 +1778,11 @@
     };
     window.addEventListener('resize', onResize, { passive: true });
 
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(size);
+    // The webfont was not there to measure at first paint.
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
+      capCache.clear();
+      size();
+    });
 
     return () => {
       clearTimeout(timer);

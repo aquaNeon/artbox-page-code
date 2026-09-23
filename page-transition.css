@@ -2066,7 +2066,8 @@ html .cta_wrap {
 .icon_eyebrow_wrap,
 .design_sticky_eyebrow,
 .stats_eyebrow_wrap,
-.subheading_eyebrow_wrap {
+.subheading_eyebrow_wrap,
+.c_title_text_eyebrow_wrap {
   display: flex;
   align-items: center;
   gap: var(--icon-gap, 0.5em);
@@ -2081,10 +2082,23 @@ html .cta_wrap {
   height: var(--icon-size, 0.72em);
 }
 
+/* The measured cap height, where the rest approximate it at 0.72. */
+.c_title_text_eyebrow_color {
+  flex: none;
+  width: var(--icon-size, 0.72em);
+  height: var(--icon-size, 0.72em);
+}
+
 /* An unvariant square takes the text's colour. Scoped away from the
    variants, which set background-color directly and lose to this file's
    position in the cascade. */
 .icon_eyebrow_item:not([class*="w-variant"]),
 .design_sticky_blcvk:not([class*="w-variant"]) {
+  background-color: var(--icon-color, currentColor);
+}
+
+/* This one's variants are combo classes rather than Webflow variants, so
+   .is-purple and its siblings are what has to be scoped away. */
+.c_title_text_eyebrow_color:not([class*="w-variant"]):not([class*="is-"]) {
   background-color: var(--icon-color, currentColor);
 }
