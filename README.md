@@ -2063,40 +2063,6 @@ Both halves read the same number: `FOOTER_PIN` in the JS and the media query
 in the CSS. Change one and change the other, or the file goes back to
 reserving space for a footer that no longer moves.
 
-### The contents lag — `FOOTER_PARALLAX`
-
-The footer is uncovered rather than scrolled to, so contents arriving in
-place with it read as flat. They start `travel` px low and settle at 0,
-scrubbed across the reveal itself: the drift begins on the first pixel of
-footer to show and lands as the last of the page clears.
-
-| Knob | Default | Meaning |
-| --- | --- | --- |
-| `travel` | `160` | px below its resting place the inside starts |
-| `lead` | `0` | extra reveal-heights of run-up before the footer shows |
-
-The window is the footer's own height, not a viewport. The original
-measures a viewport because its footer is nearly that tall, so for it the
-two are the same length. Ours is about half a viewport: measured that way,
-half the travel was spent behind the page and what was left read as a
-twitch in the last few hundred pixels. Raising `lead` puts that run-up
-back — `0.5` starts the drift half a footer-height early — at the price of
-a shorter visible move.
-
-The trigger is the document, not the footer: a fixed element's box sits at
-the same place at every scroll position, so a trigger on it resolves once
-and never again. `maxScroll` is read through `invalidateOnRefresh`, so a
-page of a different length gets the right numbers after the swap.
-
-Everything inside moves as one block, matching the original. Mark children
-with `data-footer-parallax` to move those instead, each on its own —
-useful only if they should travel at different rates, which needs a tween
-per rate rather than the one shared here.
-
-Desktop only, inside the same `FOOTER_PIN` context: in flow the footer
-scrolls into view like any other section and has nothing to lag behind.
-Off entirely under `prefers-reduced-motion`.
-
 If any of the footer is on screen when a navigation starts, the leave step
 now moves the real element into the outgoing layer, pinned at the viewport
 position it already occupied. Inside a fixed wrapper an absolute child

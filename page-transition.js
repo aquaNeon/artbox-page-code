@@ -6256,67 +6256,6 @@
   })();
 
 
-  /* ===== FOOTER PARALLAX — README ### Footer reveal ===== */
-
-  /* The footer is uncovered rather than scrolled to, so its contents
-     arriving in place with it reads as a picture sliding under a door.
-     They lag instead: held low while the page is still over them and
-     settling as the last of it clears.
-
-     Measured against the reveal — the footer's own height of scroll —
-     and not a viewport, which is what the original does: their footer is
-     nearly a viewport tall, so the two are the same length there. Ours is
-     half of one, and a viewport's lead spends half the travel behind the
-     page, leaving a twitch in the last few hundred pixels. */
-  const FOOTER_PARALLAX = {
-    travel: 160,   // px the contents start below their resting place
-    lead: 0        // extra reveal-heights before it, for a longer run-up
-  };
-
-  (function initFooterParallax() {
-    const footer = document.querySelector('.footer_wrap');
-    if (!footer || !hasScrollTrigger || reducedMotion) return;
-
-    /* The whole inside moves as one, as the original does. An opt-in
-       marker splits it into pieces that can travel at their own rate. */
-    const marked = footer.querySelectorAll('[data-footer-parallax]');
-    const targets = marked.length ? Array.from(marked) : Array.from(footer.children);
-    if (!targets.length) return;
-
-    // Pinned and in flow are different footers: in flow it scrolls into
-    // view like any section and has nothing to lag behind.
-    gsap.matchMedia().add(FOOTER_PIN, () => {
-      const tween = gsap.fromTo(targets,
-        { y: FOOTER_PARALLAX.travel },
-        {
-          y: 0,
-          ease: 'none',
-          scrollTrigger: {
-            /* Against the document's end rather than the footer's own
-               box: the footer is fixed, so its box never moves and a
-               trigger on it resolves to the same place at every scroll
-               position. */
-            trigger: document.documentElement,
-            start: () => {
-              const reveal = footer.offsetHeight * (1 + FOOTER_PARALLAX.lead);
-              return Math.max(0, ScrollTrigger.maxScroll(window) - reveal);
-            },
-            end: () => ScrollTrigger.maxScroll(window),
-            scrub: true,
-            invalidateOnRefresh: true
-          }
-        }
-      );
-
-      return () => {
-        tween.scrollTrigger?.kill();
-        tween.kill();
-        gsap.set(targets, { clearProps: 'transform' });
-      };
-    });
-  })();
-
-
   /* ===== NAV SYNC — README ## Per-template attributes ===== */
 
   // The meganav persists, so data-transparent and the active-link state
