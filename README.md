@@ -564,6 +564,19 @@ Cards need the `swiper-slide` class. The module adds it to the wrapper's
 children when none of them carry it and logs that it did, but the class
 belongs in the Designer.
 
+**Two fingers sideways move the rail.** A trackpad swipe arrives as a wheel
+event carrying `deltaX`, which Swiper's Mousewheel module reads — nothing
+has to be pressed down. Three settings make it behave:
+
+| Setting | Why |
+| --- | --- |
+| `forceToAxis: true` | Only sideways gestures count. Without it a vertical flick over the cards drives the rail instead of scrolling the page |
+| `releaseOnEdges: true` | At either end the gesture goes back to the page rather than being swallowed |
+| `thresholdDelta` (`SLIDER_WHEEL.threshold`, 6) | A trackpad reports tiny deltas under a resting palm, and at 0 the cards drift on their own |
+
+The Mousewheel module ships inside `swiper-bundle`, which is what the lazy
+loader fetches, so this costs nothing extra.
+
 ### tabs — `[data-tabs="wrapper"]`
 
 The visual does not cross-fade between tabs: the incoming one **opens an iris

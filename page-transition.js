@@ -4830,6 +4830,11 @@
   })();
 
 
+  /* How hard a sideways trackpad gesture has to be before the slider
+     takes it. A trackpad reports tiny deltas constantly while a hand
+     rests on it, and at 0 the cards drift under an idle palm. */
+  const SLIDER_WHEEL = { threshold: 6 };
+
   Modules.add('slider', function (root) {
     // Nothing to build, and nothing to fetch.
     if (!root.querySelector('.c_slider_swiper')) return;
@@ -4978,6 +4983,21 @@
               slidesPerView: fitPerView(num('data-slides-per-view', 1.25))
             }
           },
+          /* A trackpad's two fingers sideways arrive as a wheel event
+             carrying deltaX, which is the gesture people expect to move
+             a row of cards without pressing anything down.
+
+             forceToAxis is what keeps the page scrolling: without it any
+             wheel over the slider drives it, and a vertical flick on the
+             way down the page snags on the cards instead of passing
+             through. releaseOnEdges hands the gesture back at either end
+             rather than swallowing it. */
+          mousewheel: {
+            forceToAxis: true,
+            releaseOnEdges: true,
+            thresholdDelta: SLIDER_WHEEL.threshold
+          },
+
           navigation: {
             prevEl: wrap ? wrap.querySelector('.c_slider_button_prev') : null,
             nextEl: wrap ? wrap.querySelector('.c_slider_button_next') : null,
