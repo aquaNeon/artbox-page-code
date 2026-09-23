@@ -208,6 +208,27 @@
     });
   });
 
+  /* The same arrangement testimonialColours has: the stylesheet reads the
+     attribute with typed attr(), which is Chrome only, and this writes
+     the variable inline for everywhere else. Inline wins, so the two
+     never disagree.
+
+     It matters more here than there. A browser without typed attr() does
+     not drop the declaration — a custom property takes any tokens, so
+     --scale-to held the attr() text verbatim, scale() was handed that,
+     and the whole transform was thrown out at computed time. The 1.04
+     inside var() only covers a property nobody set, and this one was set
+     to nonsense: Safari and Firefox never leaned at all. */
+  Modules.add('hoverScale', function (root) {
+    root.querySelectorAll('[data-scale]').forEach((el) => {
+      const raw = (el.getAttribute('data-scale') || '').trim();
+      const value = Number.parseFloat(raw);
+      // An empty attribute is the usual case: it marks the picture and
+      // takes the house number.
+      el.style.setProperty('--scale-to', Number.isFinite(value) ? value : 1.04);
+    });
+  });
+
   Modules.add('cardHoverColours', function (root) {
     const resolve = (v) => {
       if (!v) return null;

@@ -1182,6 +1182,37 @@ html .work_smoothly_wrap {
   }
 }
 
+/* No pointer, no reveal. The section embed's own rule is a plain
+   :hover, and a touch browser hands out :hover on tap and keeps it until
+   something else is tapped — so the colour panel lifted and the photo
+   underneath sat there on a phone, on whichever card was touched last.
+
+   Held shut from here rather than in the embed: the panel is the card on
+   touch, and the picture is only ever a hover reward. Specific enough to
+   beat the embed's :hover without !important, and matched on the rest
+   state too, so a card that is mid-fade when a finger lands still closes.
+
+   (hover: none) alone would miss a laptop with a touchscreen, where the
+   media query answers for the pointer that can hover; any-pointer:coarse
+   catches the finger it also has. */
+@media (hover: none), (any-pointer: coarse) {
+  .c_slider_swiper .card_hover_wrap .card_hover_bg_hover,
+  .c_slider_swiper .card_hover_wrap:hover .card_hover_bg_hover,
+  .c_slider_swiper .card_hover_wrap:focus-within .card_hover_bg_hover {
+    opacity: 1;
+    transition: none;
+  }
+
+  /* The art stays put under it: with the panel down there is nothing to
+     see, and a lean that cannot be seen is a transition nobody asked the
+     phone to run. */
+  .c_slider_swiper .card_hover_img_wrap img,
+  .c_slider_swiper .card_hover_wrap:hover .card_hover_img_wrap img {
+    transform: none;
+    transition: none;
+  }
+}
+
 /* The card already animates its colour, so this follows it with the
    alpha baked in rather than running a timer of its own. */
 .c_slider_swiper .card_hover_wrap .card_hover_details_name,

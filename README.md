@@ -1532,6 +1532,15 @@ and wins, so the image sat at 1.004 and hovered to 1. Both rules here are more
 specific again, and neither promotes the image: `will-change` on this element
 is what put the photo over its own colour panel in Safari.
 
+**Where there is no pointer the card stays shut.** The embed's reveal is a
+plain `:hover`, and a touch browser hands `:hover` out on tap and keeps it
+until something else is tapped — so the colour panel lifted and the photo sat
+exposed on whichever card was touched last. Below `(hover: none), (any-pointer:
+coarse)` the panel is held opaque and the art's lean is switched off: with the
+panel down there is nothing to see, and a lean nobody can see is a transition
+the phone is running for free. `any-pointer` as well as `hover`, or a laptop
+with a touchscreen answers for its trackpad and the finger slips through.
+
 ### data-scale — hover lean
 
 `data-scale` on a picture, or on the wrapper around one, and it grows to 1.04
@@ -1550,8 +1559,23 @@ and a hover is not worth paying that on load.
 
 `attr()` is read on the element that carries the attribute and inherited down,
 because `attr()` only ever sees the element it runs on — a number written on a
-wrapper is invisible to a rule targeting the image inside it. Below Chrome 133
-every marked picture takes the 1.04 fallback.
+wrapper is invisible to a rule targeting the image inside it.
+
+**`hoverScale` writes `--scale-to` inline as well**, the arrangement
+`testimonialColours` uses: the stylesheet reads the attribute where typed
+`attr()` exists, the module writes the same number everywhere, and inline
+wins so the two never disagree.
+
+Without it the lean never happened outside Chrome, and not because of a
+missing fallback. A browser without typed `attr()` does not drop the
+declaration — a custom property accepts any tokens, so `--scale-to` held the
+`attr()` text verbatim, `scale()` was handed that, and the whole `transform`
+was thrown out at computed-value time. The `1.04` inside `var()` only covers a
+property nobody set, and this one was set to nonsense.
+
+An earlier attempt put the `attr()` line behind `@supports` instead; that
+stopped the lean in Chrome too and was reverted (`d020601`). Writing the value
+is the version that cannot misfire — there is nothing to detect.
 
 Knobs: `--scale-ms` (500ms) and the value itself. The curve is `ease-in-out`
 rather than the site's own: a lean this small wants to ease in and out of
