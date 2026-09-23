@@ -180,6 +180,14 @@ html.is-transitioning {
   z-index: 2;
 }
 
+/* The logo is the only item in the bar that can give: everything beside
+   it is flex-shrink 0, and its SVG is width:100% of whatever the anchor
+   ends up being. On a phone that made the mark a different size per page,
+   since the width left over depends on what sits opposite it. */
+.meganav_root .meganav_logo {
+  flex: 0 0 auto;
+}
+
 .meganav_root {
   --meganav-panel-bg: var(--_theme---background--background-primary, #191915);
   --meganav-panel-text: var(--_colour---color--color-paper, #f7f7f5);
