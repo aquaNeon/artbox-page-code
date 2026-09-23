@@ -4928,6 +4928,7 @@
     const instances = [];
     const resizeHandlers = [];
     const slideTags = [];
+    const unstretchedSlides = [];
     let dead = false;
 
     const build = () => {
@@ -5107,10 +5108,41 @@
           }
         }
 
+        /* Slides stay stretched, so a row of cards takes one height and
+           grows with the longest quote in it. A card carrying an
+           aspect-ratio cannot be stretched, though: a flex item's cross
+           size comes from the line and outranks the ratio, which Chrome
+           resolves first and WebKit does not — the square cards came out
+           square in one browser and oblong in the other.
+
+           One slide at a time, because no media query can ask whether an
+           element has a ratio, and the same component is square on one
+           page and quote-shaped on another. */
+        const sortStretch = () => {
+          el.querySelectorAll('.swiper-slide').forEach((slide) => {
+            const ratio = getComputedStyle(slide).aspectRatio;
+            const want = ratio && ratio !== 'auto' ? 'flex-start' : 'stretch';
+            if (slide.style.alignSelf === want) return;
+
+            /* important, and not for the usual reason: the card carries
+               align-self from the Designer's own component styles, which
+               a plain inline style loses to — a quote card stood at its
+               own height while its neighbours were taller, and nothing
+               written here moved it. This is the one hand that knows
+               whether the slide has a ratio to protect. */
+            slide.style.setProperty('align-self', want, 'important');
+            unstretchedSlides.push(slide);
+          });
+        };
+        sortStretch();
+
         // One explicit update once the page is laid out, closing the
         // window where the first drag snaps.
         Intro.add(root, () => {
           if (!swiper.destroyed) swiper.update();
+          // A ratio can arrive with a breakpoint, and the duplicates a
+          // loop makes are not there at init.
+          sortStretch();
         });
 
         let t;
@@ -5160,6 +5192,9 @@
               carry(swiper.originalParams.breakpoints[992]);
             }
 
+            // A ratio can come and go with a breakpoint.
+            sortStretch();
+
             if (changed) {
               if (mq.matches) swiper.params.slidesPerView = base;
               swiper.update();
@@ -5190,6 +5225,7 @@
       instances.forEach((s) => s.destroy(true, true));
       /* Only the ones this mount added, so the markup is left as it was. */
       slideTags.forEach((el) => el.classList.remove('swiper-slide'));
+      unstretchedSlides.forEach((el) => el.style.removeProperty('align-self'));
     };
   });
 
