@@ -1805,7 +1805,27 @@
   const CORP_HERO = {
     breakpoint: '(max-width: 991px)',
     parallax: 40,
-    depths: [1, 0.55, 0.8]
+    depths: [1, 0.55, 0.8],
+
+    /* The entrance, the CSS keyframes' numbers written out. It is played
+       here rather than left to them because a keyframe restarts whenever
+       its element moves in the DOM, and the incoming container is moved
+       once per navigation — the pictures arrived, then arrived again.
+       Same scar as heroVideo's intro, same answer: a tween.
+
+       It also hands the transform back. animation-fill-mode kept the
+       keyframe's scale applied for good, and an animation outranks an
+       inline style, so the parallax below was writing to an element that
+       could not move. */
+    open: 1.0,      // --hero-in-open, the clip
+    grow: 0.8,      // --corp-hero-duration, the scale
+    lead: 0.15,     // --corp-hero-lead
+    step: 0.1,      // --corp-hero-step
+
+    /* --ease-inout-mask written out, as the inline heading pictures do
+       it: INOUT_MASK carries qubic's control points, and the curve this
+       has to match is inOutQuart. */
+    ease: 'cubic-bezier(0.77, 0, 0.175, 1)'
   };
 
   Modules.add('corporateHero', function (root) {
@@ -1817,8 +1837,37 @@
 
     const mm = gsap.matchMedia();
 
+    // True only while mm.add's own synchronous entry is running.
+    let mounting = true;
+
     mm.add(CORP_HERO.breakpoint, () => {
       const tweens = [];
+
+      /* The keyframes are the fallback for a dead script; with one
+         running they are in the way, so they go off while this context
+         is alive and the entrance is played below. */
+      const animations = Array.from(wraps).map((wrap) => wrap.style.animation);
+      wraps.forEach((wrap) => { wrap.style.animation = 'none'; });
+
+      const entrance = gsap.timeline({ paused: true });
+      wraps.forEach((wrap, i) => {
+        const at = CORP_HERO.lead + i * CORP_HERO.step;
+        entrance
+          .fromTo(wrap,
+            { scale: 0 },
+            { scale: 1, duration: CORP_HERO.grow, ease: CORP_HERO.ease }, at)
+          .fromTo(wrap,
+            { opacity: 0, clipPath: 'inset(50% 50% 50% 50%)' },
+            { opacity: 1, clipPath: 'inset(0% 0% 0% 0%)', duration: CORP_HERO.open, ease: CORP_HERO.ease }, at);
+      });
+
+      /* Mounted at beforeEnter, where the container is still a fixed
+         100vh rectangle: queued, it plays once the page is laid out.
+         A context entered later — someone dragging a window narrow — has
+         missed that queue, and waiting for it would leave the pictures
+         at scale 0 for good. */
+      if (mounting) Intro.add(root, () => entrance.play());
+      else entrance.play();
 
       wraps.forEach((wrap, i) => {
         const depth = CORP_HERO.depths[i % CORP_HERO.depths.length];
@@ -1838,8 +1887,17 @@
         ));
       });
 
-      return () => tweens.forEach((t) => { t.scrollTrigger?.kill(); t.kill(); });
+      return () => {
+        entrance.kill();
+        tweens.forEach((t) => { t.scrollTrigger?.kill(); t.kill(); });
+        wraps.forEach((wrap, i) => {
+          gsap.set(wrap, { clearProps: 'transform,opacity,clipPath' });
+          wrap.style.animation = animations[i] || '';
+        });
+      };
     });
+
+    mounting = false;
 
     return () => mm.revert();
   });
@@ -4772,6 +4830,11 @@
   })();
 
 
+  /* How hard a sideways trackpad gesture has to be before the slider
+     takes it. A trackpad reports tiny deltas constantly while a hand
+     rests on it, and at 0 the cards drift under an idle palm. */
+  const SLIDER_WHEEL = { threshold: 6 };
+
   Modules.add('slider', function (root) {
     // Nothing to build, and nothing to fetch.
     if (!root.querySelector('.c_slider_swiper')) return;
@@ -4920,6 +4983,21 @@
               slidesPerView: fitPerView(num('data-slides-per-view', 1.25))
             }
           },
+          /* A trackpad's two fingers sideways arrive as a wheel event
+             carrying deltaX, which is the gesture people expect to move
+             a row of cards without pressing anything down.
+
+             forceToAxis is what keeps the page scrolling: without it any
+             wheel over the slider drives it, and a vertical flick on the
+             way down the page snags on the cards instead of passing
+             through. releaseOnEdges hands the gesture back at either end
+             rather than swallowing it. */
+          mousewheel: {
+            forceToAxis: true,
+            releaseOnEdges: true,
+            thresholdDelta: SLIDER_WHEEL.threshold
+          },
+
           navigation: {
             prevEl: wrap ? wrap.querySelector('.c_slider_button_prev') : null,
             nextEl: wrap ? wrap.querySelector('.c_slider_button_next') : null,
@@ -5031,6 +5109,12 @@
 
 
   /* ===== MARQUEE ===== */
+
+  /* The trackpad gesture. strength is how far a row travels per pixel of
+     swipe — 1 would run it away, since a trackpad reports a whole flick
+     in a few large deltas. settle is how long after the last event the
+     auto-scroll waits before taking the row back. */
+  const MARQUEE_WHEEL = { threshold: 4, strength: 0.6, settle: 260 };
 
   Modules.add('marquee', function (root) {
     const marquees = [];
@@ -5219,6 +5303,40 @@
         else if (hoverBehavior === 'slow') state.speedMultiplier = 1;
       }
 
+      /* Two fingers sideways on a trackpad, the gesture the sliders take.
+         A row that can already be dragged should answer the same push
+         without one being held down.
+
+         The sideways test is what keeps the page scrolling: a trackpad
+         reports a little deltaX through any vertical scroll, and without
+         it the logos would jiggle every time someone passed them. The
+         nudge goes through the drag's own inertia, so it slows the way a
+         thrown row does and the auto-scroll picks up where it stops. */
+      let wheelIdle = null;
+      function handleWheel(e) {
+        if (!isDraggable) return;
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        if (Math.abs(e.deltaX) < MARQUEE_WHEEL.threshold) return;
+        if (state.isDragging) return;
+
+        e.preventDefault();
+
+        state.isAnimating = false;
+        state.inInertia = false;
+        state.currentPosition = normalizePosition(
+          state.currentPosition - e.deltaX * MARQUEE_WHEEL.strength
+        );
+        track.style.transform = `translate3d(${state.currentPosition}px, 0, 0)`;
+
+        /* The gesture arrives as a burst of events rather than one, so
+           the hand is only off it once they stop coming. */
+        clearTimeout(wheelIdle);
+        wheelIdle = setTimeout(() => {
+          state.isAnimating = true;
+          state.speedMultiplier = 1;
+        }, MARQUEE_WHEEL.settle);
+      }
+
       const onContextMenu = (e) => e.preventDefault();
       const onDragStart = (e) => e.preventDefault();
 
@@ -5227,6 +5345,7 @@
         marquee.addEventListener('touchstart', handlePointerDown, { passive: true });
         marquee.addEventListener('contextmenu', onContextMenu);
         marquee.addEventListener('dragstart', onDragStart);
+        marquee.addEventListener('wheel', handleWheel, { passive: false });
         marquee.style.cursor = 'grab';
       }
 
@@ -5237,10 +5356,12 @@
 
       detachers.push(function () {
         removeDocListeners();
+        clearTimeout(wheelIdle);
         marquee.removeEventListener('mousedown', handlePointerDown);
         marquee.removeEventListener('touchstart', handlePointerDown);
         marquee.removeEventListener('contextmenu', onContextMenu);
         marquee.removeEventListener('dragstart', onDragStart);
+        marquee.removeEventListener('wheel', handleWheel);
         marquee.removeEventListener('mouseenter', handleMouseEnter);
         marquee.removeEventListener('mouseleave', handleMouseLeave);
       });

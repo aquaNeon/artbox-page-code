@@ -241,6 +241,24 @@ Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
 `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
+### marquee — `[data-marquee-wrap]`
+
+The rows loop on their own, slow or pause under the pointer, and can be
+thrown by hand with inertia. **Two fingers sideways on a trackpad throw
+them too** — the same gesture the slider takes, so a row that answers a
+drag answers a swipe as well, `MARQUEE_WHEEL`:
+
+| Knob | Default | Meaning |
+| --- | --- | --- |
+| `threshold` | `4` | px of `deltaX` before a gesture counts. A trackpad reports small sideways deltas under a resting palm |
+| `strength` | `0.6` | how far the row travels per pixel of swipe. `1` runs it away, since a flick arrives as a few large deltas |
+| `settle` | `260` | ms after the last event before the auto-scroll takes the row back. The gesture is a burst, not one event |
+
+Only when `deltaX` is the larger of the two, or the rows would jiggle
+every time somebody scrolled the page past them. The nudge is written
+straight to the track and the loop carries on from there, so it wraps at
+the seam like any other movement.
+
 ### buttonChars — `.button_main_text`, `[data-button-animate-chars]`
 
 The label climbs a character at a time under the pointer, each one a hair behind
@@ -564,6 +582,19 @@ Cards need the `swiper-slide` class. The module adds it to the wrapper's
 children when none of them carry it and logs that it did, but the class
 belongs in the Designer.
 
+**Two fingers sideways move the rail.** A trackpad swipe arrives as a wheel
+event carrying `deltaX`, which Swiper's Mousewheel module reads — nothing
+has to be pressed down. Three settings make it behave:
+
+| Setting | Why |
+| --- | --- |
+| `forceToAxis: true` | Only sideways gestures count. Without it a vertical flick over the cards drives the rail instead of scrolling the page |
+| `releaseOnEdges: true` | At either end the gesture goes back to the page rather than being swallowed |
+| `thresholdDelta` (`SLIDER_WHEEL.threshold`, 6) | A trackpad reports tiny deltas under a resting palm, and at 0 the cards drift on their own |
+
+The Mousewheel module ships inside `swiper-bundle`, which is what the lazy
+loader fetches, so this costs nothing extra.
+
 ### tabs — `[data-tabs="wrapper"]`
 
 The visual does not cross-fade between tabs: the incoming one **opens an iris
@@ -653,6 +684,13 @@ guarded `refreshScrollHeight()` the footer uses once the switch lands.
 Accordion. Clicking a question animates its answer from height `0` to `auto`,
 rises and fades the answer text in, and rotates the plus icon 45° into a
 cross. One answer open at a time by default.
+
+Below 768px the answer drops from the large paragraph style to the main one
+— `--_typography---font-size--text-main` and `--_typography---line-height--1-35`,
+the design system's own tokens rather than a size pinned here, so it keeps
+following the scale. The rule is in `page-transition.css` and three
+selectors deep: the Designer's variant class carries the large size at two,
+and a tie between the two files is decided by load order.
 
 The panel's own padding is animated with the height, and the open height is
 measured as a number with that padding in place rather than left to `auto`:
@@ -1222,9 +1260,41 @@ Below 992 the corporate hero's pictures leave the heading and stack as
 above — the same two keyframes, so there is one definition of what arriving
 looks like — cued by `--corp-hero-lead` and staggered by `--corp-hero-step`.
 
+**The module plays that entrance itself, as a tween.** The keyframes stay in
+the stylesheet as the answer for a dead script, and `corporateHero` switches
+them off (`style.animation = 'none'`) while its context is alive, playing the
+same numbers through `Intro` instead. Two reasons:
+
+- A CSS animation restarts whenever its element moves in the DOM, and a
+  navigation moves the incoming container once — `reparentContainer` puts it
+  where the outgoing one is. The pictures arrived, then arrived again. The
+  same scar is on heroVideo's intro, with the same answer.
+- `animation-fill-mode: both` keeps the keyframe's `transform` applied for
+  good, and an animation outranks an inline style — so the parallax below was
+  writing `y` to an element that could not move. It moves now.
+
+A context entered late — someone dragging a window narrow after the page has
+settled — has missed the `Intro` queue, so it plays straight away instead;
+waiting would leave the pictures at `scale: 0` for good.
+
 Only below 992. Above it the same pictures are set inline into the heading,
 where `textAnim` scales them with the line they sit on (`TEXT.imgFrom`), and a
 second scale here would be fighting that one.
+
+**The inline pictures must be `loading="lazy"`, or a phone downloads both
+sets.** `display: none` is a CSS answer and the preload scanner asks its
+question before any of it is parsed, so an eager image is fetched whether
+or not a media query will hide it — three hero files nobody on a phone
+ever sees, on top of the three mobile ones. A lazy image has no layout
+box while it is hidden, never comes near the viewport, and is never
+fetched. Measured in Chrome: hidden and eager fetches, hidden and lazy
+does not, and `fetchpriority="high"` alongside `loading="lazy"` does not
+change that — so the hint can stay for the desktop case, where the
+picture is on screen and does load.
+
+The attribute lives in the Designer, on each `.hero-h1__img img`. The
+mobile blocks are already lazy, which is why the reverse never happened:
+on desktop they are hidden and cost nothing.
 
 ### maskReveal — `[data-mask]`
 
