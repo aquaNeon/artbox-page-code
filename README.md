@@ -236,7 +236,8 @@ rather than shared globally. A module that registers global listeners, a `rAF`
 loop or an observer must return a teardown, or it will leak on every navigation.
 
 Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
-`cardHoverColours`, `textAnim`, `parallax`, `stickyStack`, `tabs`, `faq`, `servicesHover`,
+`hoverScale`, `cardLogos`, `cardHoverColours`, `textAnim`, `parallax`,
+`stickyStack`, `tabs`, `faq`, `servicesHover`,
 `filterSingle`, `eyebrowIcon`,
 `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
@@ -935,6 +936,35 @@ sibling to find.
 | The arrival | `background-size` from `0` to `72%`, since that animates where `background-image` does not |
 | Radio | `.is-radio`, or a real `input[type="radio"]`: round, box left empty, a radial gradient for the dot |
 | Focus | The site's ring (`--focus--width`), since these are the only keyboard-reachable controls on the page |
+
+### cardLogos — `.card_hover_logo_svg`
+
+Same **ink** for every logo, rather than the same height. A stacked lockup
+and a horizontal wordmark set to one height read nothing alike — the
+stacked one carries about twice the mark — so the row came out with the
+wide ones looming over the small ones, and capping the height could not
+fix it: at 4rem the set still ran from 2.3k px² of logo to 8.4k.
+
+Area is what the eye weighs, so area is what is held. A height of
+`sqrt(area / ratio)` gives every logo the same pixel count whatever shape
+it is, read off the **`viewBox`** — the rendered box is whatever the last
+rule did to it, and this runs before any of that settles.
+
+| Knob | Default | Meaning |
+| --- | --- | --- |
+| `area` | `4200` | px² of logo, before the clamps |
+| `minHeight` | `22` | the floor, or a very wide wordmark becomes a hairline |
+| `maxHeight` | `64` | the row itself |
+| `maxWidth` | `210` | so a long wordmark cannot run the card's width |
+
+`data-logo-scale="0.9"` on the embed nudges one that still reads heavy or
+light — it scales the area, so `0.9` is nine tenths of the ink. Density is
+not in the ratio: an outline mark can take more size than a solid one, and
+no number here knows that.
+
+Measured across the seven on the home page, the spread went from 3.6× to
+1.07×. The CSS caps in `page-transition.css` stay as the answer for a page
+the script never reaches.
 
 ### filterSingle — `.insights_filter_check`
 

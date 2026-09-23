@@ -229,6 +229,71 @@
     });
   });
 
+  /* ===== CARD LOGOS — README ### cardLogos ===== */
+
+  /* Same ink for every logo, rather than the same height. A stacked
+     lockup and a horizontal wordmark set to one height read nothing
+     alike — the stacked one carries about twice the mark — and the row
+     came out with the wide ones looming over the small ones.
+
+     Area is what the eye is weighing, so area is what is held: a height
+     of sqrt(area / ratio) gives every logo the same number of pixels
+     whatever shape it is. The clamps stop the extremes — a very wide
+     wordmark would otherwise be a hairline, and a square mark taller
+     than the row it sits in.
+
+     data-logo-scale on the embed nudges one that still reads heavy or
+     light. Ink density is not in the ratio: an outline mark can take
+     more size than a solid one, and no number here knows that. */
+  const CARD_LOGO = {
+    area: 4200,       // px² of logo, before the clamps
+    minHeight: 22,    // px, the floor for a very wide wordmark
+    maxHeight: 64,    // px, the row itself
+    maxWidth: 210     // px, so a hairline logo cannot run the card's width
+  };
+
+  Modules.add('cardLogos', function (root) {
+    const holders = root.querySelectorAll('.card_hover_logo_svg');
+    if (!holders.length) return;
+
+    const touched = [];
+
+    holders.forEach((holder) => {
+      const svg = holder.querySelector('svg');
+      if (!svg) return;
+
+      /* The viewBox, not the rendered box: the rendered one is whatever
+         the last rule did to it, and this runs before any of that
+         settles. */
+      const box = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+      const ratio = box.length === 4 && box[2] > 0 && box[3] > 0 ? box[2] / box[3] : 0;
+      if (!ratio) return;
+
+      const nudge = Number.parseFloat(holder.getAttribute('data-logo-scale'));
+      const area = CARD_LOGO.area * (Number.isFinite(nudge) ? nudge * nudge : 1);
+
+      let height = Math.sqrt(area / ratio);
+      height = Math.min(CARD_LOGO.maxHeight, Math.max(CARD_LOGO.minHeight, height));
+      // A wide one can still reach the cap; the width decides then.
+      if (height * ratio > CARD_LOGO.maxWidth) height = CARD_LOGO.maxWidth / ratio;
+
+      svg.style.height = `${Math.round(height)}px`;
+      svg.style.width = 'auto';
+      svg.style.maxHeight = 'none';
+      svg.style.maxWidth = '100%';
+      touched.push(svg);
+    });
+
+    if (!touched.length) return;
+
+    return () => touched.forEach((svg) => {
+      svg.style.removeProperty('height');
+      svg.style.removeProperty('width');
+      svg.style.removeProperty('max-height');
+      svg.style.removeProperty('max-width');
+    });
+  });
+
   Modules.add('cardHoverColours', function (root) {
     const resolve = (v) => {
       if (!v) return null;
