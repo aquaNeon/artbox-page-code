@@ -241,6 +241,24 @@ Registered: `caseRowGrid`, `collectionRatio`, `testimonialColours`,
 `homeHero`,
 `slider` (Swiper), `marquee`, `baseLib`.
 
+### marquee — `[data-marquee-wrap]`
+
+The rows loop on their own, slow or pause under the pointer, and can be
+thrown by hand with inertia. **Two fingers sideways on a trackpad throw
+them too** — the same gesture the slider takes, so a row that answers a
+drag answers a swipe as well, `MARQUEE_WHEEL`:
+
+| Knob | Default | Meaning |
+| --- | --- | --- |
+| `threshold` | `4` | px of `deltaX` before a gesture counts. A trackpad reports small sideways deltas under a resting palm |
+| `strength` | `0.6` | how far the row travels per pixel of swipe. `1` runs it away, since a flick arrives as a few large deltas |
+| `settle` | `260` | ms after the last event before the auto-scroll takes the row back. The gesture is a burst, not one event |
+
+Only when `deltaX` is the larger of the two, or the rows would jiggle
+every time somebody scrolled the page past them. The nudge is written
+straight to the track and the loop carries on from there, so it wraps at
+the seam like any other movement.
+
 ### buttonChars — `.button_main_text`, `[data-button-animate-chars]`
 
 The label climbs a character at a time under the pointer, each one a hair behind

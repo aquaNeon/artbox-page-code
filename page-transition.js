@@ -5110,6 +5110,12 @@
 
   /* ===== MARQUEE ===== */
 
+  /* The trackpad gesture. strength is how far a row travels per pixel of
+     swipe — 1 would run it away, since a trackpad reports a whole flick
+     in a few large deltas. settle is how long after the last event the
+     auto-scroll waits before taking the row back. */
+  const MARQUEE_WHEEL = { threshold: 4, strength: 0.6, settle: 260 };
+
   Modules.add('marquee', function (root) {
     const marquees = [];
     const detachers = [];
@@ -5297,6 +5303,40 @@
         else if (hoverBehavior === 'slow') state.speedMultiplier = 1;
       }
 
+      /* Two fingers sideways on a trackpad, the gesture the sliders take.
+         A row that can already be dragged should answer the same push
+         without one being held down.
+
+         The sideways test is what keeps the page scrolling: a trackpad
+         reports a little deltaX through any vertical scroll, and without
+         it the logos would jiggle every time someone passed them. The
+         nudge goes through the drag's own inertia, so it slows the way a
+         thrown row does and the auto-scroll picks up where it stops. */
+      let wheelIdle = null;
+      function handleWheel(e) {
+        if (!isDraggable) return;
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+        if (Math.abs(e.deltaX) < MARQUEE_WHEEL.threshold) return;
+        if (state.isDragging) return;
+
+        e.preventDefault();
+
+        state.isAnimating = false;
+        state.inInertia = false;
+        state.currentPosition = normalizePosition(
+          state.currentPosition - e.deltaX * MARQUEE_WHEEL.strength
+        );
+        track.style.transform = `translate3d(${state.currentPosition}px, 0, 0)`;
+
+        /* The gesture arrives as a burst of events rather than one, so
+           the hand is only off it once they stop coming. */
+        clearTimeout(wheelIdle);
+        wheelIdle = setTimeout(() => {
+          state.isAnimating = true;
+          state.speedMultiplier = 1;
+        }, MARQUEE_WHEEL.settle);
+      }
+
       const onContextMenu = (e) => e.preventDefault();
       const onDragStart = (e) => e.preventDefault();
 
@@ -5305,6 +5345,7 @@
         marquee.addEventListener('touchstart', handlePointerDown, { passive: true });
         marquee.addEventListener('contextmenu', onContextMenu);
         marquee.addEventListener('dragstart', onDragStart);
+        marquee.addEventListener('wheel', handleWheel, { passive: false });
         marquee.style.cursor = 'grab';
       }
 
@@ -5315,10 +5356,12 @@
 
       detachers.push(function () {
         removeDocListeners();
+        clearTimeout(wheelIdle);
         marquee.removeEventListener('mousedown', handlePointerDown);
         marquee.removeEventListener('touchstart', handlePointerDown);
         marquee.removeEventListener('contextmenu', onContextMenu);
         marquee.removeEventListener('dragstart', onDragStart);
+        marquee.removeEventListener('wheel', handleWheel);
         marquee.removeEventListener('mouseenter', handleMouseEnter);
         marquee.removeEventListener('mouseleave', handleMouseLeave);
       });
