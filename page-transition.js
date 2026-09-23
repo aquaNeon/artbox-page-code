@@ -5816,6 +5816,7 @@
 
     textIn: 0.9,        // s, the arrival once the video is full bleed
     textInStagger: 0.05,
+    textOutScale: 0.6,  // of that, going back down out of the way
     textShift: 40,      // px it rises from, and the gap it leaves by
     textEase: E.body,
 
@@ -5982,7 +5983,7 @@
     /* Parked below, invisible, until the video has the screen. Set here
        rather than in the stylesheet so a page whose script never runs
        shows the statements rather than hiding them for good. */
-    const armText = () => {
+    const armText = (animate) => {
       if (!stacking || !lines.length) return;
       swap.classList.add('is-stacked');
 
@@ -5996,6 +5997,24 @@
       textIn?.kill();
       textIn = null;
       textShown = false;
+
+      /* Leaving upward is a move, not a switch. Scrolling back above the
+         pin used to drop the statements at once, which read as a plop
+         where every other edge of this section is a travel — they go
+         back down the way they came instead, a little quicker, since a
+         thing leaving does not need the time a thing arriving does. */
+      if (animate) {
+        gsap.to(lines, {
+          autoAlpha: 0,
+          y: HERO_VIDEO.textShift,
+          duration: HERO_VIDEO.textIn * HERO_VIDEO.textOutScale,
+          ease: HERO_VIDEO.textEase,
+          stagger: HERO_VIDEO.textInStagger,
+          overwrite: 'auto'
+        });
+        return;
+      }
+
       gsap.set(lines, { autoAlpha: 0, y: HERO_VIDEO.textShift });
     };
 
@@ -6008,7 +6027,11 @@
          before this, and a fade starting on the same frame plays over a
          layout that is still settling — which is the flicker as they
          arrive. */
-      requestAnimationFrame(() => {
+      /* On gsap's ticker rather than requestAnimationFrame: the same one
+         frame of delay, and it still runs in a tab that is never
+         painted, where rAF simply never fires and the statements would
+         wait for the page to be looked at. */
+      gsap.delayedCall(0, () => {
         if (dead || !textShown) return;
         textIn = gsap.to(lines, {
           autoAlpha: 1,
@@ -6306,6 +6329,11 @@
       // back up and down again gets the same throw.
       if (target === 1) takeover();
       else tookOver = false;
+
+      /* The statements arrived when the video reached full bleed, so
+         they leave when it gives it up — going back down the way they
+         came rather than waiting to be switched off at the pin's edge. */
+      if (target === 0) armText(true);
       gsap.to(growth, {
         p: target,
         duration: HERO_VIDEO.growDuration,
@@ -6568,7 +6596,8 @@
          stays inside the component: handed back to the stage it jumps to
          the middle of a screen-tall centred block. */
       onLeave: () => { settle(); placeText(); },
-      onLeaveBack: () => { returnText(); resetSwap(); armText(); },
+      // Animated: this edge is scrolled through, not jumped.
+      onLeaveBack: () => { returnText(); resetSwap(); armText(true); },
 
       onUpdate: (self) => {
         if (dead || !swap) return;
