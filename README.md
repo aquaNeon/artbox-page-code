@@ -1599,11 +1599,18 @@ is what put the photo over its own colour panel in Safari.
 **Where there is no pointer the card stays shut.** The embed's reveal is a
 plain `:hover`, and a touch browser hands `:hover` out on tap and keeps it
 until something else is tapped — so the colour panel lifted and the photo sat
-exposed on whichever card was touched last. Below `(hover: none), (any-pointer:
-coarse)` the panel is held opaque and the art's lean is switched off: with the
-panel down there is nothing to see, and a lean nobody can see is a transition
-the phone is running for free. `any-pointer` as well as `hover`, or a laptop
-with a touchscreen answers for its trackpad and the finger slips through.
+exposed on whichever card was touched last. Below `(hover: none)` the panel is
+held opaque and the art's lean is switched off: with the panel down there is
+nothing to see, and a lean nobody can see is a transition the phone is running
+for free.
+
+`(hover: none)` **and nothing else.** `any-pointer: coarse` was in this query
+to catch the finger on a laptop with a touchscreen, and it caught the laptop:
+a machine with a screen you can poke answers true whatever is driving it, so
+the lean went off on every desktop Chrome with one — including the one this
+was written on, which is how it was found. `hover` reads the pointer actually
+in charge. Where that is a mouse the sticky `:hover` this guards against
+cannot happen anyway, because the hover is real.
 
 ### data-scale — hover lean
 

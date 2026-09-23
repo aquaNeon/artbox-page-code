@@ -1309,10 +1309,14 @@ html .work_smoothly_wrap {
    beat the embed's :hover without !important, and matched on the rest
    state too, so a card that is mid-fade when a finger lands still closes.
 
-   (hover: none) alone would miss a laptop with a touchscreen, where the
-   media query answers for the pointer that can hover; any-pointer:coarse
-   catches the finger it also has. */
-@media (hover: none), (any-pointer: coarse) {
+   (hover: none) and nothing else. any-pointer: coarse was here to catch
+   the finger on a laptop with a touchscreen, and it caught the laptop:
+   a machine with a screen you can poke answers true whatever it is being
+   driven with, so the lean went off on every desktop Chrome that had
+   one. hover reads the pointer actually in charge, which is the mouse —
+   and where a mouse is in charge the sticky :hover this guards against
+   cannot happen, because the hover is real. */
+@media (hover: none) {
   .c_slider_swiper .card_hover_wrap .card_hover_bg_hover,
   .c_slider_swiper .card_hover_wrap:hover .card_hover_bg_hover,
   .c_slider_swiper .card_hover_wrap:focus-within .card_hover_bg_hover {
