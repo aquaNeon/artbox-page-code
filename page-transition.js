@@ -5826,7 +5826,20 @@
        itself before the pin lets go. */
     readUntil: 0.35,
     textOut: 0.85,
-    textTravel: 0.4,    // of the viewport's height, how far up they go
+    /* Of the distance that clears the frame's top edge, measured from
+       where the statements sit. 1 takes them just out of sight; more
+       gives them somewhere to keep going. */
+    textTravel: 1.1,
+
+    /* s the leaving takes to catch up with the scroll. Written straight
+       from the pin's progress it is exact and looks it — a flick
+       teleports the statements rather than moving them, and scrolling up
+       and down inside the pin is a series of jumps with no motion in
+       them at all. Chasing the scroll by a quarter of a second keeps the
+       control (it still follows the hand, and still reverses) and gives
+       every crossing something to watch. */
+    textChase: 0.25,
+    textChaseEase: 'power3.out',
 
     // Fallback only: the real delay is this cell's slot in the entrance
     // order, read off --hero-in-* in the CSS.
@@ -6047,6 +6060,39 @@
     /* The leaving, scrubbed: q is how far through the leaving window the
        pin is, so the statements travel with the hand that moves them and
        come back down when it goes the other way. */
+    /* How far through the leaving the statements are, chased rather than
+       written: the setter below is what paints it, and a quickTo eases
+       towards each new value instead of landing on it. */
+    const leaving = { q: 0 };
+
+    /* How far up is far enough: from where the statements sit to clear
+       of the frame's top edge, measured rather than guessed, so a long
+       quote leaves as completely as a short one. Re-read whenever they
+       are placed, since the box they sit in is the viewport. */
+    let leaveBy = 0;
+    const measureLeave = () => {
+      if (!stacking || !lines.length) return;
+      const box = swap.getBoundingClientRect();
+      const frame = comp.getBoundingClientRect();
+      leaveBy = Math.max(0, box.bottom - frame.top) * HERO_VIDEO.textTravel;
+    };
+
+    /* No fade. They travel up and out of the picture, which is what was
+       asked for — a statement dissolving where it stands reads as a
+       thing being taken away, and one leaving through the top reads as
+       the page moving on. */
+    const paintLeaving = () => {
+      gsap.set(lines, { y: -leaveBy * leaving.q });
+    };
+
+    const chase = stacking
+      ? gsap.quickTo(leaving, 'q', {
+        duration: HERO_VIDEO.textChase,
+        ease: HERO_VIDEO.textChaseEase,
+        onUpdate: paintLeaving
+      })
+      : null;
+
     const scrubText = (progress) => {
       if (!stacking || !lines.length || !textShown) return;
       const span = HERO_VIDEO.textOut - HERO_VIDEO.readUntil;
@@ -6058,10 +6104,7 @@
       // write to the same properties from different clocks.
       if (q > 0) textIn?.kill();
 
-      gsap.set(lines, {
-        y: -HERO_VIDEO.textTravel * window.innerHeight * q,
-        autoAlpha: 1 - q
-      });
+      chase(q);
     };
 
     if (stacking) armText();
@@ -6087,6 +6130,8 @@
       if (themed) comp.classList.add('u-theme-dark');
 
       placeText();
+      // Where they sit is now known, so how far they have to go is too.
+      measureLeave();
     };
 
     /* Leaving the pin either way rewinds the statements. Without it the
@@ -6386,6 +6431,7 @@
       onRefresh: (self) => {
         measure();
         placeText();
+        measureLeave();
         if (!growing) {
           wants = wanted(self.scroll() - self.start);
           growth.p = wants;
