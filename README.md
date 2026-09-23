@@ -1915,7 +1915,12 @@ do that, and keeping them apart is the whole point:
 | | |
 | --- | --- |
 | `CTA.scroll` (4.7 screens) | the **journey** — what every range in the module is measured against, the same at any width |
-| `CTA.release` (0.72, below `CTA.mobile`) | how much of that journey the section stays **stuck** for |
+| `CTA.release` (0.5, below `CTA.mobile`) | how much of that journey the section stays **stuck** for |
+
+Of the five images on the home page, three are still on screen at 0.5 of
+the journey, one at 0.6, and none by 0.85 — so 0.5 lets go with the
+section visibly still full, and anything past about 0.7 reads as having
+waited for all of them.
 
 So the images cross the screen at the rate they always did, and the section
 simply stops holding them before they have all left: they finish on their

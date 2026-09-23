@@ -1569,8 +1569,13 @@
        they finish on their way up with it rather than in front of it.
 
        Shortening the journey instead sped everything up, which is the
-       one thing this was not supposed to change. */
-    release: 0.72,
+       one thing this was not supposed to change.
+
+       Measured on the home page, of five images: three are still on
+       screen at 0.5 of the journey, one at 0.6, and none by 0.85. At
+       0.72 the section was letting go with a single straggler left,
+       which reads as having waited for all of them. */
+    release: 0.5,
     mobile: '(max-width: 991px)',
 
     tint: 0.22,         // fractions of the pin: the neon wash
