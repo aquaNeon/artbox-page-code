@@ -902,6 +902,30 @@ module. Teardown aborts every listener, kills the tweens, removes the
 follower and restores each row's background, `z-index` and hidden image
 wrap, so a container never leaves a follower behind after a swap.
 
+### form checkboxes — `.form1_check_box`
+
+The form component's embed styles a box that is a **sibling** of the input
+(`input:checked ~ .form1_check_box`) with an svg tick inside it to reveal.
+The markup on the site has neither: `.form1_check_box` is the input itself,
+Webflow's own `w-checkbox-input` with the class added to it. Not one of
+those rules could ever match, which is why the box arrived with no border,
+no fill and nothing to show for being checked. Its colours reach for
+`--_theme---text-1` and `--_theme---background-1` as well, names from
+another project that are unset here, so each one resolved to nothing.
+
+Styled as the input instead, in `page-transition.css`, which is simpler
+than the component it came from: `:checked` is the state and there is no
+sibling to find.
+
+| Piece | How |
+| --- | --- |
+| The box | `appearance: none`, `1em` square, `1px solid currentColor`. Webflow's float and negative indent go, and the wrap's `padding-left` with them — it is already a flex row with a gap, and the two arrangements were fighting |
+| The tick | A background image, **not** a `::before`. A pseudo-element on an input is undefined territory: Chrome draws one, Safari is not to be relied on for it, and this box exists because of a Safari bug already |
+| Its colour | Written into the data URI. A URI is a picture, not CSS, and nothing inside it can read a custom property — it holds `--_theme---background--bg-primary`'s value, so change it there if the paper changes |
+| The arrival | `background-size` from `0` to `72%`, since that animates where `background-image` does not |
+| Radio | `.is-radio`, or a real `input[type="radio"]`: round, box left empty, a radial gradient for the dot |
+| Focus | The site's ring (`--focus--width`), since these are the only keyboard-reachable controls on the page |
+
 ### filterSingle — `.insights_filter_check`
 
 Webflow checkboxes that behave like radios: checking one clears the rest.

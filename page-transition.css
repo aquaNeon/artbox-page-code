@@ -160,6 +160,111 @@ html.is-transitioning {
   }
 }
 
+/* ===== FORM CHECKBOXES — .form1_check_box — README ### form checkboxes ===== */
+
+/* The form component's own embed styles a box that is a sibling of the
+   input — input:checked ~ .form1_check_box, with an svg tick inside it
+   to reveal. The markup here has neither: .form1_check_box is the input,
+   so not one of those rules could ever match and the box arrived with no
+   border, no fill and nothing to show for being checked.
+
+   Styled as the input, then, which is simpler than the component it came
+   from: :checked is the state, and the tick is a pseudo rather than a
+   file. The tokens are this site's own — the embed reaches for
+   --_theme---text-1 and --background-1, which are another project's
+   names and unset here, so every colour it set resolved to nothing. */
+.form1_check_wrap {
+  /* Webflow floats the input and pulls it back by its own indent. The
+     wrap is already a flex row with a gap, and the two arrangements were
+     fighting: the box sat outside the row it belongs to. */
+  padding-left: 0;
+}
+
+.form1_check_wrap .form1_check_box {
+  appearance: none;
+  -webkit-appearance: none;
+  float: none;
+  margin: 0;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  display: grid;
+  place-content: center;
+  border: 1px solid currentColor;
+  background-color: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-duration-1, 200ms) var(--transition-ease, ease),
+    border-color var(--transition-duration-1, 200ms) var(--transition-ease, ease),
+    background-size var(--transition-duration-1, 200ms) var(--transition-ease, ease);
+}
+
+/* The tick is a background image, not a ::before. A pseudo-element on an
+   input is undefined territory — Chrome draws one, Safari is not to be
+   relied on for it, and this box exists because of a Safari bug already.
+   A background is painted by every browser that can do appearance: none.
+
+   The colour is written into the file rather than taken from a variable:
+   a data URI is a picture, not CSS, and nothing inside it can read a
+   custom property. It is --_theme---background--bg-primary's value, so
+   change it here if the paper ever changes.
+
+   It grows rather than fades, since background-size animates and
+   background-image does not. */
+.form1_check_wrap .form1_check_box {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23f7f7f5' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3 8.5l3.5 3.5L13 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0 0;
+}
+
+.form1_check_wrap .form1_check_box:checked {
+  background-color: var(--_theme---typography--text-primary, currentColor);
+  border-color: var(--_theme---typography--text-primary, currentColor);
+  background-size: 72% 72%;
+}
+
+/* A radio keeps the box empty and fills a dot instead, the way the
+   component's own is-radio variant does. */
+.form1_check_wrap .form1_check_box.is-radio,
+.form1_check_wrap input[type="radio"].form1_check_box {
+  border-radius: 50%;
+}
+
+/* A radio keeps its box empty and fills a dot instead, so the tick goes
+   and a radial gradient stands in for it — the same trick as the tick,
+   for the same reason. */
+.form1_check_wrap .form1_check_box.is-radio,
+.form1_check_wrap input[type="radio"].form1_check_box {
+  background-image: radial-gradient(circle, currentColor 0 50%, transparent 50%);
+}
+
+.form1_check_wrap .form1_check_box.is-radio:checked,
+.form1_check_wrap input[type="radio"].form1_check_box:checked {
+  background-color: transparent;
+  border-color: currentColor;
+  background-size: 56% 56%;
+}
+
+/* The only keyboard-reachable control on the page, so the ring is the
+   site's rather than the browser's. */
+.form1_check_wrap .form1_check_box:focus-visible {
+  outline: var(--focus--width, 0.125rem) solid
+    var(--_theme---typography--text-primary, currentColor);
+  outline-offset: var(--focus--offset-outer, 2px);
+}
+
+[data-validate].is-error .form1_check_wrap .form1_check_box {
+  border-color: var(--_swatch---error, currentColor);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form1_check_wrap .form1_check_box {
+    transition: none;
+  }
+}
+
 /* ===== MEGANAV — README ## Meganav ===== */
 
 /* The sheet is absolute and sized in viewport units, not fixed: it lives
