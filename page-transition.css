@@ -644,6 +644,47 @@ html.is-menu-open {
   }
 }
 
+/* ===== CASE ROWS — overlapping stack on the about page ===== */
+
+/* The pair is a composition on desktop: two pictures placed on the
+   twelve columns, each with its own span and ratio. The section's own
+   embed collapses that to one full-width column below a 900px container
+   and the composition is gone.
+
+   Kept here instead: the columns stay, the two pictures take a wide
+   share each and the second pulls up over the first. Same container
+   query as the embed's, so the two switch together rather than fighting
+   over the same few pixels.
+
+   The embed writes grid-column with !important, off --col-start and
+   --col-end, so those variables are what is set — the !important
+   declaration then places the item exactly as asked. The selectors are
+   deep enough to outrank the embed, which is in the body and therefore
+   later in the cascade than this file. */
+@container cases (max-width: 900px) {
+  [data-barba-namespace="about"] .c_cases_row_grid[data-stack] {
+    grid-template-columns: repeat(12, 1fr);
+    row-gap: 0;
+  }
+
+  [data-barba-namespace="about"] .c_cases_row_grid[data-stack] > .c_cases_row_grid_item:nth-child(1) {
+    --col-start: 1;
+    --col-end: 10;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Percentage margins resolve against the container's width, so the
+     overlap holds its proportion as the screen narrows. */
+  [data-barba-namespace="about"] .c_cases_row_grid[data-stack] > .c_cases_row_grid_item:nth-child(2) {
+    --col-start: 5;
+    --col-end: 13;
+    position: relative;
+    z-index: 2;
+    margin-top: calc(var(--cases-overlap, 12%) * -1);
+  }
+}
+
 /* ===== POST CONTACT — .post_contact_wrap ===== */
 
 /* Grid and flex children default to min-width:auto and refuse to shrink
