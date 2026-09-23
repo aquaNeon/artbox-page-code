@@ -1561,6 +1561,14 @@
 
   const CTA = {
     scroll: 4.7,        // screens of section height, sticky screen included
+
+    /* Shorter on a phone, where the same journey is a lot more thumb.
+       Every other number here is a fraction of the pin, so this
+       compresses the whole arrangement rather than cutting the end off
+       it — the images still finish where they finished. */
+    scrollMobile: 3.4,
+    mobile: '(max-width: 991px)',
+
     tint: 0.22,         // fractions of the pin: the neon wash
     tintStart: 0.04,    // a beat after the lock, or the scrub starts it early
     fit: 0.97,          // where the last image is made to finish
@@ -1647,13 +1655,28 @@
       clipped.push(el);
     });
 
-    section.style.setProperty('--cta-scroll', `${CTA.scroll * 100}vh`);
+    /* One number, read in both places: the stylesheet takes the section's
+       height from --cta-scroll and the pin below is what is left of it
+       once the sticky screen is taken off. */
+    const phone = window.matchMedia(CTA.mobile);
+    const screens = () => (phone.matches ? CTA.scrollMobile : CTA.scroll);
+    const setLength = () => section.style.setProperty('--cta-scroll', `${screens() * 100}vh`);
+    setLength();
+
+    // Crossing the breakpoint changes the section's height, and every
+    // trigger below it is measured against a document that just moved.
+    const onBreakpoint = () => {
+      setLength();
+      if (hasScrollTrigger) ScrollTrigger.refresh();
+    };
+    phone.addEventListener?.('change', onBreakpoint);
 
     const restore = () => {
       owned.forEach(({ el, raw }) => el.setAttribute('data-parallax', raw));
       clipped.forEach((el) => el.style.removeProperty('clip-path'));
       tint.remove();
       section.style.removeProperty('--cta-scroll');
+      phone.removeEventListener?.('change', onBreakpoint);
     };
 
     if (!hasScrollTrigger || reducedMotion) {
@@ -1688,7 +1711,7 @@
     };
 
     /* The pin is everything past the one screen the frame occupies. */
-    const pin = () => window.innerHeight * (CTA.scroll - 1);
+    const pin = () => window.innerHeight * (screens() - 1);
 
     /* The frame, not the window: they are the same number on Android and
        they are not on iOS, where the toolbar leaves innerHeight and the

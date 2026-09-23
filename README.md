@@ -1909,6 +1909,14 @@ the images rise out of the fold up their own columns at their own rates,
 past the text and off the top. It is still stuck when the last one leaves;
 only then does it let go.
 
+**It lets go earlier on a phone.** `CTA.scroll` is 4.7 screens of section,
+`CTA.scrollMobile` 3.4 below `CTA.mobile` (991px) — the same journey is a
+lot more thumb on a small screen. Every other number here is a fraction of
+the pin, so the shorter length compresses the whole arrangement rather than
+cutting the end off it: the images still finish where they finished.
+Crossing the breakpoint rewrites `--cta-scroll` and refreshes, since the
+section's height is what every trigger below it is measured against.
+
 Its own module rather than `[data-parallax]` because the shape is
 different. Parallax is symmetric — displaced one way at the start, the
 other at the end, at rest at the midpoint — which is a drift, not an
