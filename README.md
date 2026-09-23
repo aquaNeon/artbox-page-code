@@ -1755,6 +1755,17 @@ The last cell of the hero grid is a video. It leaves the grid, travels to the
 middle of the screen at full bleed, holds through a pinned screen while the
 statements play over it, then scrolls away with the stage.
 
+**It leans towards the pointer like the pictures beside it**, on `HERO.bump`'s
+own numbers — the cell was the one hole in that gesture, since the bump binds
+to the `img` inside each `.home_img_wrap` and this cell holds a video instead.
+
+It could not be done the same way. `apply()` owns this element's transform and
+rewrites it every frame, so a tween on the element is painted over on the next
+one; the offset is kept beside that function and folded into the line it
+writes. It fades out with the takeover (`1 - p`) and is ignored once the video
+is travelling or settled: leaning towards a hand is something a cell in a grid
+does, not a video filling the screen.
+
 The growth is **triggered, not scrubbed**. `growAfter` pixels of scroll out of
 the hero and the scale runs on its own clock, finishing whether the scroll
 continues, stops, or races past — a scrubbed one is only ever as committed as

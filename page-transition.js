@@ -6089,6 +6089,15 @@
        leaves — hence the scroll term, faded out as p rises. */
     let frozen = false;
 
+    /* The hero's pictures lean towards the pointer — HERO.bump, tweened
+       onto the img inside each cell. The video could not have it done
+       the same way: apply() owns its transform and rewrites it every
+       frame, so a tween on the element is painted over. The offset is
+       kept here and folded into that line instead, with the same
+       numbers, so the cell and the video answer a hand alike. */
+    const bump = { x: 0, y: 0 };
+    let dropBump = () => {};
+
     const visual = comp.querySelector('.g_visual_video') || video;
 
     const apply = (p, scroll) => {
@@ -6115,8 +6124,17 @@
       const dx = (cover.w * sx * (1 - intro)) / 2;
       const dy = (cover.h * sy * (1 - intro)) / 2;
 
+      /* The hover bump is added here rather than tweened onto the
+         element: this line rewrites the transform every frame, and
+         anything else writing to it would be overwritten on the next
+         one. Faded out with the takeover — a picture leaning towards the
+         pointer is a thing you do to a cell in a grid, not to a video
+         filling the screen. */
+      const lean = 1 - p;
+
       comp.style.transform =
-        `translate3d(${x + dx}px, ${y + dy}px, 0) scale(${sx * intro}, ${sy * intro})`;
+        `translate3d(${x + dx + bump.x * lean}px, ${y + dy + bump.y * lean}px, 0) ` +
+        `scale(${sx * intro}, ${sy * intro})`;
     };
 
     /* Measured against the STAGE, not the hero: the stage's top entering
@@ -6273,6 +6291,47 @@
       });
     });
 
+    /* The lean itself, on the same knobs as the pictures' — hover only,
+       and only while the video is still sitting in its cell. Once it is
+       travelling it belongs to the scroll, and the seat it left behind
+       has nothing in it to move. */
+    if (HERO.bump && window.matchMedia('(hover: hover)').matches && !reducedMotion) {
+      const to = gsap.quickTo(bump, 'x', {
+        duration: HERO.bumpDuration,
+        ease: HERO.bumpEase,
+        onUpdate: () => apply(lastP, lastScroll)
+      });
+      const toY = gsap.quickTo(bump, 'y', {
+        duration: HERO.bumpDuration,
+        ease: HERO.bumpEase,
+        onUpdate: () => apply(lastP, lastScroll)
+      });
+
+      let rect = null;
+      const parked = () => !comp.classList.contains('is-travelling')
+        && !comp.classList.contains('is-settled');
+
+      const onEnter = () => { rect = comp.getBoundingClientRect(); };
+      const onMove = (e) => {
+        if (!parked()) return;
+        if (!rect) rect = comp.getBoundingClientRect();
+        to((e.clientX - (rect.left + rect.width / 2)) * HERO.bumpStrength);
+        toY((e.clientY - (rect.top + rect.height / 2)) * HERO.bumpStrength);
+      };
+      const onLeave = () => { to(0); toY(0); rect = null; };
+
+      comp.addEventListener('mouseenter', onEnter);
+      comp.addEventListener('mousemove', onMove);
+      comp.addEventListener('mouseleave', onLeave);
+
+      dropBump = () => {
+        gsap.killTweensOf(bump);
+        comp.removeEventListener('mouseenter', onEnter);
+        comp.removeEventListener('mousemove', onMove);
+        comp.removeEventListener('mouseleave', onLeave);
+      };
+    }
+
     /* Handed back to the document once the pin is done, so the video
        scrolls away with the stage instead of staying stuck to the
        viewport for the rest of the page. */
@@ -6412,6 +6471,7 @@
     return function cleanup() {
       dead = true;
       clearTimeout(catchUp);
+      dropBump();
       document.removeEventListener('page:leaving', freeze);
       window.removeEventListener('resize', onResize);
       gsap.killTweensOf(growth);
