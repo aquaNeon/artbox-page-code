@@ -6234,6 +6234,15 @@
 
     const apply = (p, scroll) => {
       if (frozen || !base || !cover) return;
+
+      /* Settled, the stage owns the box — settle() cleared the transform
+         for exactly that reason. A growth running down as the section is
+         scrolled away still calls this, and the transform it wrote put a
+         cell-sized video at the cell's coordinates inside the stage:
+         a small picture, off to one side, where a full-bleed one had
+         been. lift() takes the class off before it needs this again. */
+      if (comp.classList.contains('is-settled')) return;
+
       lastP = p;
       lastScroll = scroll;
 
