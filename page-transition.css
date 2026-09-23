@@ -1342,8 +1342,22 @@ html .work_smoothly_wrap {
 
    The embed between the row and the svg has to be allowed to shrink, or
    it holds the old width open under a narrower picture. */
+/* Sat on the floor of the row rather than centred in it. The logos are
+   different heights by design now — the same ink, not the same height —
+   and centring spread that difference across both sides, so the gap
+   under a short logo was bigger than under a tall one and no two cards
+   agreed. Aligned to the bottom, that gap is the row's margin every
+   time and the difference goes above, where the card has air anyway.
+
+   Both levels: the embed is the row's flex item, the svg is the embed's
+   if a rule made that one a flex container too. */
+.card_hover_wrap .card_hover_logo_wrap {
+  align-items: flex-end;
+}
+
 .card_hover_wrap .card_hover_logo_wrap .card_hover_logo_svg {
   min-width: 0;
+  align-self: flex-end;
 }
 
 /* Two caps, not one. Height alone cannot balance a set like this: a
@@ -1361,11 +1375,12 @@ html .work_smoothly_wrap {
   max-height: var(--card-logo-max-h, 3rem);
   max-width: var(--card-logo-max-w, 11rem);
 
-  /* A stretched flex item is sized by its line rather than by itself,
-     and with a ratio to keep that came out as width: a 207x30 logo drawn
-     442 wide to fill a 4rem row. Centred, it keeps its own size.
-     Harmless where the wrapper is not a flex container. */
-  align-self: center;
+  /* Not stretch: a stretched flex item is sized by its line rather than
+     by itself, and with a ratio to keep that came out as width — a
+     207x30 logo drawn 442 wide to fill a 4rem row. Any other value
+     leaves it at its own size, and the bottom is the one that lines the
+     row up. Harmless where the wrapper is not a flex container. */
+  align-self: flex-end;
 }
 
 /* The card already animates its colour, so this follows it with the
