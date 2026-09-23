@@ -6209,7 +6209,6 @@
      the reserved space would just be a footer's height of nothing under
      the footer. */
   const FOOTER_PIN = '(min-width: 992px)';
-  const FOOTER_FLOW = '(max-width: 991px)';   // the other side of it
 
   const FooterReveal = (function () {
     const footer = document.querySelector('.footer_wrap');
@@ -6300,7 +6299,11 @@
 
     /* ScrollTrigger rather than a scroll listener: Lenis drives the page
        from its own ticker and the window fires no scroll events at all,
-       so a listener here never hears the reveal happen. */
+       so a listener here never hears the reveal happen.
+
+       Desktop only, like the pin itself: below the breakpoint the footer
+       is in flow and scrolled to like any other section, with no reveal
+       for the contents to ride. */
     mm.add(FOOTER_PIN, () => {
       const pre = document.querySelector(FOOTER_CONTENT.prefooter);
 
@@ -6344,30 +6347,6 @@
       };
     });
 
-    // In flow below the breakpoint: it is scrolled to like any section,
-    // and rises as it comes up the screen.
-    mm.add(FOOTER_FLOW, () => {
-      const tween = gsap.fromTo(blocks,
-        { y: FOOTER_CONTENT.travel },
-        {
-          y: 0,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: footer,
-            start: 'top bottom',
-            end: 'top center',
-            scrub: true,
-            invalidateOnRefresh: true
-          }
-        }
-      );
-
-      return () => {
-        tween.scrollTrigger?.kill();
-        tween.kill();
-        gsap.set(blocks, { clearProps: 'transform' });
-      };
-    });
   })();
 
 

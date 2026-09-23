@@ -2097,8 +2097,14 @@ and the window fires no `scroll` events at all, so a listener never hears
 the reveal happen. It is a `ScrollTrigger` between two scroll *positions*
 rather than on the element: the footer is fixed, so its box sits in the
 same place whatever the scroll and a trigger on it would resolve once and
-never move. Below the breakpoint it is in flow, and scrubs off its own top
-like any section.
+never move. It still names `.footer_wrap` as its trigger, because
+`afterLeave` kills any trigger it cannot place in the document and a
+triggerless one reads as an orphan — it was swept on the first navigation
+until it had an element to point at.
+
+**Desktop only**, inside the same `FOOTER_PIN` context as the pin. Below
+the breakpoint the footer is in flow and scrolled to like any other
+section, with no reveal for the contents to ride.
 
 If any of the footer is on screen when a navigation starts, the leave step
 now moves the real element into the outgoing layer, pinned at the viewport
