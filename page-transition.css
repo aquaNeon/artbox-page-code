@@ -1187,6 +1187,18 @@ html .work_smoothly_wrap {
   max-width: none !important;
   min-width: 0 !important;
   height: auto;
+
+  /* A slide is a flex item of the track, and a stretched flex item takes
+     its cross size from the line — which outranks its own aspect-ratio.
+     Chrome resolves the ratio first and the cards came out square;
+     WebKit stretches, and since the art inside is absolutely positioned
+     there is almost no in-flow content to stretch around, so the card
+     fell back towards its min-height and stopped being square on both
+     Safaris.
+
+     start, not stretch: the ratio is then the only thing with an opinion
+     about the height, and the two browsers agree. */
+  align-self: flex-start;
 }
 
 .c_slider_swiper .card_hover_wrap {

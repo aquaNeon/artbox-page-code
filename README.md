@@ -582,6 +582,16 @@ Cards need the `swiper-slide` class. The module adds it to the wrapper's
 children when none of them carry it and logs that it did, but the class
 belongs in the Designer.
 
+**Slides sit at `align-self: flex-start`,** which is what keeps a square
+card square. A slide is a flex item of the track, and a stretched flex item
+takes its cross size from the line — that outranks its own `aspect-ratio`.
+Chrome resolves the ratio first and the cards came out square anyway;
+WebKit stretches, and since the art inside is absolutely positioned there is
+almost no in-flow content to stretch around, so the card fell back towards
+its `min-height` and stopped being square in Safari on both desktop and
+phone. At `flex-start` the ratio is the only thing with an opinion about the
+height and the browsers agree.
+
 **Two fingers sideways move the rail.** A trackpad swipe arrives as a wheel
 event carrying `deltaX`, which Swiper's Mousewheel module reads — nothing
 has to be pressed down. Three settings make it behave:
