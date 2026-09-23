@@ -6323,6 +6323,12 @@
           y: 0,
           ease: 'none',
           scrollTrigger: {
+            /* Start and end are absolute positions, so the element is not
+               measured — but afterLeave sweeps every trigger it cannot
+               place in the document, and a trigger without one reads as
+               an orphan. The footer is persistent, so it is the honest
+               answer to where this belongs. */
+            trigger: footer,
             start: () => Math.max(0, start()),
             end,
             scrub: true,
