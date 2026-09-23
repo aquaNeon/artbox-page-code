@@ -31,56 +31,6 @@
 
   const has = (s) => !!nextPage.querySelector(s);
 
-
-  /* ===== ?jank=1 — a frame counter on the page — README ## Local development ===== */
-
-  /* Stutter that only happens on someone's phone cannot be profiled from
-     a laptop, and a phone has no console to read. This paints the
-     numbers onto the page instead: frames, the ones that took longer
-     than two refreshes, the worst of them, and any long task blocking
-     the main thread. Tap it to start again.
-
-     Off unless it is asked for, and nothing below it runs otherwise. */
-  if (new URLSearchParams(location.search).get('jank') === '1') {
-    const box = document.createElement('div');
-    box.style.cssText =
-      'position:fixed;top:0;left:0;z-index:2147483647;background:#000;color:#0f0;' +
-      'font:11px/1.4 ui-monospace,monospace;padding:6px 8px;white-space:pre;' +
-      'pointer-events:auto;opacity:.85';
-    const paint = () => {
-      box.textContent =
-        `frames ${frames}\ndropped ${dropped}\nworst  ${worst}ms\nlongtasks ${tasks}`;
-    };
-
-    let frames = 0, dropped = 0, worst = 0, tasks = 0, last = performance.now();
-
-    try {
-      new PerformanceObserver((list) => {
-        tasks += list.getEntries().length;
-      }).observe({ entryTypes: ['longtask'] });
-    } catch (e) { /* Safari has no longtask observer */ }
-
-    const tick = (t) => {
-      const delta = t - last;
-      last = t;
-      frames++;
-      // Two refreshes at 60Hz: anything longer is a visible hitch.
-      if (delta > 33) { dropped++; if (delta > worst) worst = Math.round(delta); }
-      if (frames % 15 === 0) paint();
-      requestAnimationFrame(tick);
-    };
-
-    box.addEventListener('click', () => {
-      frames = dropped = worst = tasks = 0;
-      last = performance.now();
-      paint();
-    });
-
-    const attach = () => { document.body.appendChild(box); paint(); requestAnimationFrame(tick); };
-    if (document.body) attach();
-    else document.addEventListener('DOMContentLoaded', attach, { once: true });
-  }
-
   /* ===== EASING — curves, then a role per kind of motion — README ## Easing ===== */
 
   const durationDefault = 0.6;
