@@ -654,6 +654,13 @@ Accordion. Clicking a question animates its answer from height `0` to `auto`,
 rises and fades the answer text in, and rotates the plus icon 45° into a
 cross. One answer open at a time by default.
 
+Below 768px the answer drops from the large paragraph style to the main one
+— `--_typography---font-size--text-main` and `--_typography---line-height--1-35`,
+the design system's own tokens rather than a size pinned here, so it keeps
+following the scale. The rule is in `page-transition.css` and three
+selectors deep: the Designer's variant class carries the large size at two,
+and a tie between the two files is decided by load order.
+
 The panel's own padding is animated with the height, and the open height is
 measured as a number with that padding in place rather than left to `auto`:
 gsap measures an `auto` target while the inline padding is still zero, and

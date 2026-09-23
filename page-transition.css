@@ -644,6 +644,23 @@ html.is-menu-open {
   }
 }
 
+/* ===== FAQ — README ### faq ===== */
+
+/* The answer is set in the large paragraph style, which on a phone is a
+   lot of type for a panel that opens inside a list. It drops to the main
+   style there — the design system's own tokens, so it follows the scale
+   rather than pinning a size of its own.
+
+   Three selectors deep on purpose: the Designer's variant class carries
+   the large size at two, and which of the two files wins a tie is a
+   question of load order. */
+@media screen and (max-width: 767px) {
+  .faq_wrap .faq_items_info .g_paragraph {
+    font-size: var(--_typography---font-size--text-main);
+    line-height: var(--_typography---line-height--1-35);
+  }
+}
+
 /* ===== POST CONTACT — .post_contact_wrap ===== */
 
 /* Grid and flex children default to min-width:auto and refuse to shrink
