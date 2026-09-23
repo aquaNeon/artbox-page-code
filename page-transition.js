@@ -6468,6 +6468,15 @@
          the settled value is corrected — snapping p mid-growth is a jump
          in the middle of it. */
       onRefresh: (self) => {
+        /* A refresh — a resize, a navigation, a footer resizing — can
+           land while the component is settled and the page is above the
+           pin, which is a state nothing else would take it out of:
+           settled, apply() leaves the box to the stage, and only
+           entering the pin lifts it again. The video sat in the stage at
+           its cell size and never grew. */
+        if (comp.classList.contains('is-settled')
+          && held && self.scroll() < held.start) lift();
+
         measure();
         placeText();
         measureLeave();
