@@ -2137,6 +2137,26 @@ rather than by an embed in the Designer.
 | --- | --- |
 | `is-scrolled` | past 10px from the top |
 | `is-hidden` | scrolling down past `offset`, or the footer reveal at least half out |
+| `is-current` / `w--current` | the link's path is the page you are on |
+
+### Which link is current
+
+`syncNavCurrent` recomputes both classes from the URL after every
+navigation, across the nav and the footer. Webflow writes `w--current` at
+render, and neither element is ever swapped, so left alone it describes
+whichever page was loaded first.
+
+It matters because the Designer can hang styles on it. The logo links to
+`/`, so on the home page it *is* a current link, and a Current-state rule
+gave it a narrower width below 768px:
+
+```css
+@media screen and (max-width: 767px) { .meganav_logo.w--current { width: 7rem; } }
+```
+
+That is why the mark was smaller on home and nowhere else — one extra
+class, written by Webflow on one page. Keeping `w--current` honest stops it
+following you onto pages where it was never true.
 
 It hides on the way down and returns on the way up, at every breakpoint.
 Three inputs decide, in priority order: an open menu pins it on screen, the

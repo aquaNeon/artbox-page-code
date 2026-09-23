@@ -6488,12 +6488,20 @@
     roots.forEach((root) => root.querySelectorAll('a[href]').forEach((a) => {
       const href = a.getAttribute('href');
       if (!href || href.startsWith('#') || /^[a-z]+:/i.test(href) && !href.startsWith(location.origin)) {
-        a.classList.remove('is-current');
+        a.classList.remove('is-current', 'w--current');
         return;
       }
       let path;
       try { path = new URL(href, location.origin).pathname; } catch (err) { return; }
-      a.classList.toggle('is-current', tidy(path) === here);
+      const current = tidy(path) === here;
+      a.classList.toggle('is-current', current);
+
+      /* Webflow's own class goes with it. It is written at render and the
+         nav is never swapped, so it otherwise describes whichever page
+         was loaded first — and the Designer can hang styles on it: the
+         logo carries a narrower width under .w--current on mobile, which
+         followed you off the home page and shrank the mark everywhere. */
+      a.classList.toggle('w--current', current);
     }));
   }
 
