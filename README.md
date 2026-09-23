@@ -1909,11 +1909,20 @@ the images rise out of the fold up their own columns at their own rates,
 past the text and off the top. It is still stuck when the last one leaves;
 only then does it let go.
 
-**It lets go earlier on a phone.** `CTA.scroll` is 4.7 screens of section,
-`CTA.scrollMobile` 3.4 below `CTA.mobile` (991px) — the same journey is a
-lot more thumb on a small screen. Every other number here is a fraction of
-the pin, so the shorter length compresses the whole arrangement rather than
-cutting the end off it: the images still finish where they finished.
+**It lets go earlier on a phone**, without hurrying anything. Two numbers
+do that, and keeping them apart is the whole point:
+
+| | |
+| --- | --- |
+| `CTA.scroll` (4.7 screens) | the **journey** — what every range in the module is measured against, the same at any width |
+| `CTA.release` (0.72, below `CTA.mobile`) | how much of that journey the section stays **stuck** for |
+
+So the images cross the screen at the rate they always did, and the section
+simply stops holding them before they have all left: they finish on their
+way up with it rather than in front of it. Shortening the journey instead —
+the first attempt — sped every image up, which is the one thing this was
+not meant to change.
+
 Crossing the breakpoint rewrites `--cta-scroll` and refreshes, since the
 section's height is what every trigger below it is measured against.
 

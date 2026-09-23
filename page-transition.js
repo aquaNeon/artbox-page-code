@@ -1562,11 +1562,15 @@
   const CTA = {
     scroll: 4.7,        // screens of section height, sticky screen included
 
-    /* Shorter on a phone, where the same journey is a lot more thumb.
-       Every other number here is a fraction of the pin, so this
-       compresses the whole arrangement rather than cutting the end off
-       it — the images still finish where they finished. */
-    scrollMobile: 3.4,
+    /* Where the section lets go on a phone, as a share of the journey.
+       Not a shorter journey: every range here is measured against the
+       full one, so the images travel at the rate they always did and the
+       section simply stops holding them before they have all left —
+       they finish on their way up with it rather than in front of it.
+
+       Shortening the journey instead sped everything up, which is the
+       one thing this was not supposed to change. */
+    release: 0.72,
     mobile: '(max-width: 991px)',
 
     tint: 0.22,         // fractions of the pin: the neon wash
@@ -1655,12 +1659,16 @@
       clipped.push(el);
     });
 
-    /* One number, read in both places: the stylesheet takes the section's
-       height from --cta-scroll and the pin below is what is left of it
-       once the sticky screen is taken off. */
+    /* Two numbers, not one. The journey is what every range below is
+       measured against — the pace, the same at any width. The section's
+       own height is how much of that journey it stays stuck for, which
+       is all of it on a desktop and CTA.release of it on a phone. */
     const phone = window.matchMedia(CTA.mobile);
-    const screens = () => (phone.matches ? CTA.scrollMobile : CTA.scroll);
-    const setLength = () => section.style.setProperty('--cta-scroll', `${screens() * 100}vh`);
+    const held = () => (phone.matches ? CTA.release : 1);
+    const setLength = () => section.style.setProperty(
+      '--cta-scroll',
+      `${((CTA.scroll - 1) * held() + 1) * 100}vh`
+    );
     setLength();
 
     // Crossing the breakpoint changes the section's height, and every
@@ -1710,8 +1718,11 @@
       return top;
     };
 
-    /* The pin is everything past the one screen the frame occupies. */
-    const pin = () => window.innerHeight * (screens() - 1);
+    /* The journey: everything past the one screen the frame occupies,
+       and the same on every screen. The section may let go partway
+       through it — see held() — but nothing here is measured against
+       that, or the images would cross the screen faster on a phone. */
+    const pin = () => window.innerHeight * (CTA.scroll - 1);
 
     /* The frame, not the window: they are the same number on Android and
        they are not on iOS, where the toolbar leaves innerHeight and the
