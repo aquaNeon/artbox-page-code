@@ -2063,6 +2063,31 @@ Both halves read the same number: `FOOTER_PIN` in the JS and the media query
 in the CSS. Change one and change the other, or the file goes back to
 reserving space for a footer that no longer moves.
 
+### The contents rise — `FOOTER_CONTENT`
+
+The footer is uncovered rather than scrolled to, so its contents are
+already in place when the first pixel of it shows. They sit `travel` px
+low from the start and rise into place once, as the reveal begins.
+
+| Knob | Default | Meaning |
+| --- | --- | --- |
+| `travel` | `160` | px below its resting place each block starts |
+| `duration` | `QUBIC.xl` | of the rise |
+| `stagger` | `0.08` | between the footer's blocks |
+| `skip` | `.g_section_space` | children that hold no text and stay put |
+
+Not `[data-fade]`: that waits for an intersection, and a fixed footer
+intersects the viewport from the page's first frame — everything would
+have played long before anyone saw it.
+
+Not a scroll listener either. Lenis drives the page from its own ticker
+and the window fires no `scroll` events at all, so a listener never hears
+the reveal happen. It is a `ScrollTrigger` at a scroll *position*
+(`maxScroll` − the footer's height) rather than on the element: the footer
+is fixed, so its box sits in the same place whatever the scroll and a
+trigger on it would resolve once and never move. Below the breakpoint it
+is in flow, and triggers off its own top like any section.
+
 If any of the footer is on screen when a navigation starts, the leave step
 now moves the real element into the outgoing layer, pinned at the viewport
 position it already occupied. Inside a fixed wrapper an absolute child

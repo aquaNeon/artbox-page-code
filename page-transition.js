@@ -6209,6 +6209,7 @@
      the reserved space would just be a footer's height of nothing under
      the footer. */
   const FOOTER_PIN = '(min-width: 992px)';
+  const FOOTER_FLOW = '(max-width: 991px)';   // the other side of it
 
   const FooterReveal = (function () {
     const footer = document.querySelector('.footer_wrap');
@@ -6253,6 +6254,88 @@
     });
 
     return { sync, collapse, pinned: () => pinned };
+  })();
+
+
+  /* ===== FOOTER CONTENT — README ### Footer reveal ===== */
+
+  /* The footer is uncovered rather than scrolled to, so its contents are
+     already in place when the first pixel of it shows. They rise instead,
+     once, as the reveal starts.
+
+     Not the site's [data-fade]: that waits for an intersection, and a
+     fixed footer intersects the viewport from the first frame of the
+     page — everything would have played long before anyone saw it. */
+  const FOOTER_CONTENT = {
+    travel: 160,            // px below its resting place each block starts
+    duration: QUBIC.xl,
+    stagger: 0.08,
+    ease: QUBIC.css,
+    // The spacer at the top of the footer holds no text and moving it
+    // only shifts the gap above the content.
+    skip: '.g_section_space'
+  };
+
+  (function initFooterContent() {
+    const footer = document.querySelector('.footer_wrap');
+    if (!footer || reducedMotion) return;
+
+    const blocks = Array.from(footer.children).filter((el) => !el.matches(FOOTER_CONTENT.skip));
+    if (!blocks.length) return;
+
+    // Set now, not at the moment of reveal: the reveal starts on the first
+    // pixel of footer to show, and dropping the blocks there would be a
+    // jump on screen rather than a rise into place.
+    gsap.set(blocks, { y: FOOTER_CONTENT.travel });
+
+    let played = false;
+
+    const play = () => {
+      if (played) return;
+      played = true;
+      gsap.to(blocks, {
+        y: 0,
+        duration: FOOTER_CONTENT.duration,
+        ease: FOOTER_CONTENT.ease,
+        stagger: FOOTER_CONTENT.stagger,
+        clearProps: 'transform'
+      });
+    };
+
+    /* ScrollTrigger rather than a scroll listener: Lenis drives the page
+       from its own ticker and the window fires no scroll events at all,
+       so a listener here never hears the reveal happen.
+
+       Desktop is a scroll position, not an element trigger: the footer is
+       fixed, so its box sits in the same place whatever the scroll and a
+       trigger on it resolves to one position and stays there. Below the
+       breakpoint it is in flow and triggers off its own top like any
+       section. */
+    if (!hasScrollTrigger) { play(); return; }
+
+    const mm = gsap.matchMedia();
+
+    mm.add(FOOTER_PIN, () => {
+      const st = ScrollTrigger.create({
+        start: () => ScrollTrigger.maxScroll(window) - footer.offsetHeight,
+        end: () => ScrollTrigger.maxScroll(window),
+        invalidateOnRefresh: true,
+        onEnter: play,
+        // Loading part-way down, or landing past the start on a refresh.
+        onRefresh: (self) => { if (self.progress > 0) play(); }
+      });
+      return () => st.kill();
+    });
+
+    mm.add(FOOTER_FLOW, () => {
+      const st = ScrollTrigger.create({
+        trigger: footer,
+        start: 'top bottom',
+        onEnter: play,
+        onRefresh: (self) => { if (self.progress > 0) play(); }
+      });
+      return () => st.kill();
+    });
   })();
 
 
