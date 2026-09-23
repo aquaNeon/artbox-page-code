@@ -6308,8 +6308,15 @@
       });
 
       let rect = null;
-      const parked = () => !comp.classList.contains('is-travelling')
-        && !comp.classList.contains('is-settled');
+
+      /* Only the settled state is asked about. is-travelling is worn
+         from the moment the video is lifted out of its cell, which is at
+         init — it is sitting over the cell, not on its way anywhere —
+         and the takeover needs no guard of its own: apply() fades the
+         lean out with 1 - p, so it is already gone by the time the video
+         fills the screen. Settled, the stage owns the box and there is
+         no transform of ours left to add to. */
+      const parked = () => !comp.classList.contains('is-settled');
 
       const onEnter = () => { rect = comp.getBoundingClientRect(); };
       const onMove = (e) => {
