@@ -2067,14 +2067,26 @@ reserving space for a footer that no longer moves.
 
 The footer is uncovered rather than scrolled to, so its contents are
 already in place when the first pixel of it shows. They sit `travel` px
-low from the start and rise into place once, as the reveal begins.
+low and ride up to meet it, scrubbed, so the rise happens while the page
+is still clearing rather than after it has.
 
 | Knob | Default | Meaning |
 | --- | --- | --- |
-| `travel` | `160` | px below its resting place each block starts |
-| `duration` | `QUBIC.xl` | of the rise |
-| `stagger` | `0.08` | between the footer's blocks |
+| `travel` | `160` | px below its resting place the contents start |
+| `lead` | `1` | viewports of run-up before the reveal, when there is no prefooter |
+| `prefooter` | `.prefooter_wrap` | measured instead of `lead` where the page has one |
+| `settle` | `0.7` | where in the reveal it lands, as a fraction of it |
 | `skip` | `.g_section_space` | children that hold no text and stay put |
+
+`settle` is short of `1` on purpose. Ending on the document's last pixel
+puts the landing somewhere nobody can scroll past, so the footer reads as
+still arriving after the page has stopped — which is what a rise timed to
+the exact end of the reveal looked like.
+
+The run-up costs visible travel: starting a viewport early spends about
+half of `travel` behind the page. On the home page the contents are 66px
+low when the footer's first pixel shows. Raise `lead` for a longer, softer
+drift; drop it to `0` to spend the whole `160` inside the reveal.
 
 Not `[data-fade]`: that waits for an intersection, and a fixed footer
 intersects the viewport from the page's first frame — everything would
@@ -2082,11 +2094,11 @@ have played long before anyone saw it.
 
 Not a scroll listener either. Lenis drives the page from its own ticker
 and the window fires no `scroll` events at all, so a listener never hears
-the reveal happen. It is a `ScrollTrigger` at a scroll *position*
-(`maxScroll` − the footer's height) rather than on the element: the footer
-is fixed, so its box sits in the same place whatever the scroll and a
-trigger on it would resolve once and never move. Below the breakpoint it
-is in flow, and triggers off its own top like any section.
+the reveal happen. It is a `ScrollTrigger` between two scroll *positions*
+rather than on the element: the footer is fixed, so its box sits in the
+same place whatever the scroll and a trigger on it would resolve once and
+never move. Below the breakpoint it is in flow, and scrubs off its own top
+like any section.
 
 If any of the footer is on screen when a navigation starts, the leave step
 now moves the real element into the outgoing layer, pinned at the viewport

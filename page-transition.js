@@ -6260,17 +6260,28 @@
   /* ===== FOOTER CONTENT — README ### Footer reveal ===== */
 
   /* The footer is uncovered rather than scrolled to, so its contents are
-     already in place when the first pixel of it shows. They rise instead,
-     once, as the reveal starts.
+     already in place when the first pixel of it shows. They sit low and
+     ride up to meet it, scrubbed, so the rise happens while the page is
+     still clearing rather than after it has.
 
      Not the site's [data-fade]: that waits for an intersection, and a
      fixed footer intersects the viewport from the first frame of the
      page — everything would have played long before anyone saw it. */
   const FOOTER_CONTENT = {
-    travel: 160,            // px below its resting place each block starts
-    duration: QUBIC.xl,
-    stagger: 0.08,
-    ease: QUBIC.css,
+    travel: 160,            // px below its resting place the contents start
+
+    /* The run-up, in viewports before the reveal. The section above the
+       footer — a prefooter, or whatever is last — is what it is measured
+       against when one is there. */
+    lead: 1,
+    prefooter: '.prefooter_wrap',
+
+    /* Where in the reveal it lands, as a fraction of it. Short of 1 on
+       purpose: ending on the document's last pixel puts the landing
+       somewhere nobody can scroll to, and the footer reads as still
+       arriving once the page has stopped. */
+    settle: 0.7,
+
     // The spacer at the top of the footer holds no text and moving it
     // only shifts the gap above the content.
     skip: '.g_section_space'
@@ -6283,58 +6294,73 @@
     const blocks = Array.from(footer.children).filter((el) => !el.matches(FOOTER_CONTENT.skip));
     if (!blocks.length) return;
 
-    // Set now, not at the moment of reveal: the reveal starts on the first
-    // pixel of footer to show, and dropping the blocks there would be a
-    // jump on screen rather than a rise into place.
-    gsap.set(blocks, { y: FOOTER_CONTENT.travel });
-
-    let played = false;
-
-    const play = () => {
-      if (played) return;
-      played = true;
-      gsap.to(blocks, {
-        y: 0,
-        duration: FOOTER_CONTENT.duration,
-        ease: FOOTER_CONTENT.ease,
-        stagger: FOOTER_CONTENT.stagger,
-        clearProps: 'transform'
-      });
-    };
-
-    /* ScrollTrigger rather than a scroll listener: Lenis drives the page
-       from its own ticker and the window fires no scroll events at all,
-       so a listener here never hears the reveal happen.
-
-       Desktop is a scroll position, not an element trigger: the footer is
-       fixed, so its box sits in the same place whatever the scroll and a
-       trigger on it resolves to one position and stays there. Below the
-       breakpoint it is in flow and triggers off its own top like any
-       section. */
-    if (!hasScrollTrigger) { play(); return; }
+    if (!hasScrollTrigger) return;
 
     const mm = gsap.matchMedia();
 
+    /* ScrollTrigger rather than a scroll listener: Lenis drives the page
+       from its own ticker and the window fires no scroll events at all,
+       so a listener here never hears the reveal happen. */
     mm.add(FOOTER_PIN, () => {
-      const st = ScrollTrigger.create({
-        start: () => ScrollTrigger.maxScroll(window) - footer.offsetHeight,
-        end: () => ScrollTrigger.maxScroll(window),
-        invalidateOnRefresh: true,
-        onEnter: play,
-        // Loading part-way down, or landing past the start on a refresh.
-        onRefresh: (self) => { if (self.progress > 0) play(); }
-      });
-      return () => st.kill();
+      const pre = document.querySelector(FOOTER_CONTENT.prefooter);
+
+      /* Scroll positions, not an element trigger: the footer is fixed, so
+         its box sits in the same place whatever the scroll and a trigger
+         on it resolves once and stays there. The prefooter is in flow and
+         can be measured — its top reaching the viewport's bottom is where
+         the run-up begins. */
+      const revealStart = () => ScrollTrigger.maxScroll(window) - footer.offsetHeight;
+
+      const start = () => (pre
+        ? revealStart() - pre.offsetHeight
+        : revealStart() - window.innerHeight * FOOTER_CONTENT.lead);
+
+      const end = () => revealStart() + footer.offsetHeight * FOOTER_CONTENT.settle;
+
+      const tween = gsap.fromTo(blocks,
+        { y: FOOTER_CONTENT.travel },
+        {
+          y: 0,
+          ease: 'none',
+          scrollTrigger: {
+            start: () => Math.max(0, start()),
+            end,
+            scrub: true,
+            invalidateOnRefresh: true
+          }
+        }
+      );
+
+      return () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+        gsap.set(blocks, { clearProps: 'transform' });
+      };
     });
 
+    // In flow below the breakpoint: it is scrolled to like any section,
+    // and rises as it comes up the screen.
     mm.add(FOOTER_FLOW, () => {
-      const st = ScrollTrigger.create({
-        trigger: footer,
-        start: 'top bottom',
-        onEnter: play,
-        onRefresh: (self) => { if (self.progress > 0) play(); }
-      });
-      return () => st.kill();
+      const tween = gsap.fromTo(blocks,
+        { y: FOOTER_CONTENT.travel },
+        {
+          y: 0,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: footer,
+            start: 'top bottom',
+            end: 'top center',
+            scrub: true,
+            invalidateOnRefresh: true
+          }
+        }
+      );
+
+      return () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+        gsap.set(blocks, { clearProps: 'transform' });
+      };
     });
   })();
 
