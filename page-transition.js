@@ -4477,6 +4477,12 @@
       const waits = wrap.hasAttribute('data-swap-wait') ||
         !!wrap.closest('.home_video_wrap');
 
+      /* The hero's statements are a column that arrives whole in stack
+         mode, driven by heroVideo — no cell to share, no timer to hold
+         them. Left to this module they would be stacked one over the
+         other and swapped underneath it. */
+      if (waits && HERO_VIDEO.textMode === 'stack' && wrap.closest('.home_video_wrap')) return;
+
       // One grid cell rather than absolute children, which collapse the
       // wrapper: in one cell the tallest statement still sets the box.
       wrap.classList.add('is-swapping');
@@ -5796,6 +5802,31 @@
 
     dwell: 1300,       // ms a statement holds, however fast the pin runs
 
+    /* 'stack' — both statements arrive together once the video fills the
+       screen, under each other, and leave upward as the pin is scrolled.
+       'swap' — one at a time, each cued by its share of the pin.
+
+       Swapping made the text a function of scroll position: a flick
+       outran it and the first statement was gone before it was read,
+       and scrolling back rewound it rather than bringing it back. The
+       arrival is on a clock now, so it cannot be outrun, and the leaving
+       is scrubbed, so it is reversible — scroll back up and the words
+       come back down. */
+    textMode: 'stack',
+
+    textIn: 0.9,        // s, the arrival once the video is full bleed
+    textInStagger: 0.05,
+    textShift: 40,      // px it rises from, and the gap it leaves by
+    textEase: E.body,
+
+    /* Where in the pin the leaving happens, as a share of it. Below
+       readUntil nothing moves — that is the beat for reading. Past
+       textOut the statements are gone and the video has the screen to
+       itself before the pin lets go. */
+    readUntil: 0.35,
+    textOut: 0.85,
+    textTravel: 0.4,    // of the viewport's height, how far up they go
+
     // Fallback only: the real delay is this cell's slot in the entrance
     // order, read off --hero-in-* in the CSS.
     from: 0.6,
@@ -5827,6 +5858,20 @@
       : 0;
     let reading = -1;
     const video = comp.querySelector('video');
+
+    /* Stack mode: the statements are a column that arrives whole and
+       leaves whole, so textSwap's one-cell grid is not wanted and
+       neither is its timer. It stands aside for this wrapper — see the
+       guard in that module — and these are driven from here. */
+    const stacking = HERO_VIDEO.textMode === 'stack' && !!swap;
+    const lines = stacking
+      ? (swap.querySelectorAll('[data-swap-item]').length
+        ? Array.from(swap.querySelectorAll('[data-swap-item]'))
+        : Array.from(swap.children))
+      : [];
+
+    let textIn = null;     // the arrival, played once the video is full
+    let textShown = false;
 
     /* page-transition.css holds the component hidden from first paint,
        because the pre-hide below is JS and everything before it — the
@@ -5933,6 +5978,61 @@
         text.style.transform = `scale(${1 / k})`;
       }
     };
+
+    /* Parked below, invisible, until the video has the screen. Set here
+       rather than in the stylesheet so a page whose script never runs
+       shows the statements rather than hiding them for good. */
+    const armText = () => {
+      if (!stacking || !lines.length) return;
+      swap.classList.add('is-stacked');
+
+      /* The stylesheet holds marked text hidden from first paint until a
+         module takes it over, and textSwap is the one that normally
+         drops it here. It stands aside in this mode, so the hold is
+         dropped from here instead — otherwise a statement sits at
+         opacity 0 through its own arrival and appears when the hold
+         expires seconds later. */
+      lines.forEach((el) => { el.style.animation = 'none'; });
+      textIn?.kill();
+      textIn = null;
+      textShown = false;
+      gsap.set(lines, { autoAlpha: 0, y: HERO_VIDEO.textShift });
+    };
+
+    const showText = () => {
+      if (!stacking || !lines.length || textShown) return;
+      textShown = true;
+      textIn = gsap.to(lines, {
+        autoAlpha: 1,
+        y: 0,
+        duration: HERO_VIDEO.textIn,
+        ease: HERO_VIDEO.textEase,
+        stagger: HERO_VIDEO.textInStagger,
+        overwrite: 'auto'
+      });
+    };
+
+    /* The leaving, scrubbed: q is how far through the leaving window the
+       pin is, so the statements travel with the hand that moves them and
+       come back down when it goes the other way. */
+    const scrubText = (progress) => {
+      if (!stacking || !lines.length || !textShown) return;
+      const span = HERO_VIDEO.textOut - HERO_VIDEO.readUntil;
+      const q = span > 0
+        ? Math.min(1, Math.max(0, (progress - HERO_VIDEO.readUntil) / span))
+        : 0;
+
+      // The arrival is over the moment the leaving starts, or the two
+      // write to the same properties from different clocks.
+      if (q > 0) textIn?.kill();
+
+      gsap.set(lines, {
+        y: -HERO_VIDEO.textTravel * window.innerHeight * q,
+        autoAlpha: 1 - q
+      });
+    };
+
+    if (stacking) armText();
 
     const bringText = () => {
       if (!text || text.parentNode === comp) return;
@@ -6426,6 +6526,9 @@
           apply(1, travel.scroll());
         }
         bringText();
+        // The video has the screen now, so the words can have it too —
+        // on their own clock, where no scroll can outrun them.
+        showText();
       },
       onEnterBack: () => {
         if (dead) return;
@@ -6434,17 +6537,22 @@
         // the gaps now resolve against the frame again.
         bringText();
         placeText();
+        // Coming back up into the pin, the statements are owed their
+        // arrival again if the page went above it and re-armed them.
+        showText();
       },
       /* Out the bottom the last statement stays put — it is the one the
          pin ended on, and only going back above the pin resets. It also
          stays inside the component: handed back to the stage it jumps to
          the middle of a screen-tall centred block. */
       onLeave: () => { settle(); placeText(); },
-      onLeaveBack: () => { returnText(); resetSwap(); },
+      onLeaveBack: () => { returnText(); resetSwap(); armText(); },
 
-      // One statement per equal share of the pin, both directions.
       onUpdate: (self) => {
-        if (dead || !swap || !statements) return;
+        if (dead || !swap) return;
+        if (stacking) { scrubText(self.progress); return; }
+        // One statement per equal share of the pin, both directions.
+        if (!statements) return;
         step(Math.min(statements - 1, Math.floor(self.progress * statements)));
       }
     });
@@ -6479,6 +6587,11 @@
       dead = true;
       clearTimeout(catchUp);
       dropBump();
+      textIn?.kill();
+      if (lines.length) {
+        gsap.set(lines, { clearProps: 'opacity,visibility,transform' });
+        swap?.classList.remove('is-stacked');
+      }
       document.removeEventListener('page:leaving', freeze);
       window.removeEventListener('resize', onResize);
       gsap.killTweensOf(growth);

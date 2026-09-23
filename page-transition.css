@@ -1667,6 +1667,26 @@ html .work_smoothly_wrap {
   display: grid;
 }
 
+/* Stack mode — HERO_VIDEO.textMode. The statements are a column rather
+   than a pile in one cell: they arrive together and leave together, so
+   there is nothing to swap and they need a gap instead of a shared
+   grid area. The token first, then the number it holds today, so the
+   spacing follows the system where the system is readable. */
+[data-swap].is-stacked {
+  display: grid;
+  gap: var(--_sizes---space--7, 2rem);
+}
+
+/* One row each. The Designer places both statements in row 1 — they
+   were a pile to swap between, and its placement is written against each
+   child's node id, which outranks any class. !important is the only
+   thing that outranks an id, and the alternative is asking somebody to
+   remember to clear the grid position on two elements in Webflow. */
+[data-swap].is-stacked > * {
+  grid-area: auto !important;
+  grid-column: 1 / -1 !important;
+}
+
 /* One explicit track, so the JS placing statements at 1 / -1 has an end
    line to reach: implicit columns resolve -1 back to line 1. */
 @media (max-width: 767px) {
