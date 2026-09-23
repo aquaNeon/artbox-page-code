@@ -6002,13 +6002,22 @@
     const showText = () => {
       if (!stacking || !lines.length || textShown) return;
       textShown = true;
-      textIn = gsap.to(lines, {
-        autoAlpha: 1,
-        y: 0,
-        duration: HERO_VIDEO.textIn,
-        ease: HERO_VIDEO.textEase,
-        stagger: HERO_VIDEO.textInStagger,
-        overwrite: 'auto'
+
+      /* A frame after the move, not in the same one: the statements are
+         re-parented into the video and placed against its box just
+         before this, and a fade starting on the same frame plays over a
+         layout that is still settling — which is the flicker as they
+         arrive. */
+      requestAnimationFrame(() => {
+        if (dead || !textShown) return;
+        textIn = gsap.to(lines, {
+          autoAlpha: 1,
+          y: 0,
+          duration: HERO_VIDEO.textIn,
+          ease: HERO_VIDEO.textEase,
+          stagger: HERO_VIDEO.textInStagger,
+          overwrite: 'auto'
+        });
       });
     };
 
@@ -6303,7 +6312,20 @@
         ease: HERO_VIDEO.growEase,
         overwrite: true,
         onUpdate: () => apply(growth.p, travel ? travel.scroll() : lastScroll),
-        onComplete: () => { growing = false; apply(growth.p, travel ? travel.scroll() : lastScroll); }
+        onComplete: () => {
+          growing = false;
+          apply(growth.p, travel ? travel.scroll() : lastScroll);
+
+          /* The video is full bleed HERE, at the end of the growth — the
+             pin starts a moment later, and cueing the statements off it
+             meant waiting for one more scroll with the video already
+             filling the screen. */
+          if (target === 1) {
+            bringText();
+            placeText();
+            showText();
+          }
+        }
       });
     };
 
