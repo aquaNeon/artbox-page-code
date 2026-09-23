@@ -3605,7 +3605,20 @@
     coverEase: E.body,
     fill: 0.5,               // the colour wipe behind the row
     fillEase: E.open,
-    dim: 0.45                // the rows that are not hovered
+    dim: 0.45,               // the rows that are not hovered
+
+    /* Which way the colour travels.
+
+       'follow' — in from the edge the pointer crossed, out towards the
+       edge it leaves by. A wipe that always rose met anyone coming down
+       the list head-on: the colour travelled against the pointer on
+       every second approach, which is what reads as wrong.
+
+       'fade'   — no direction at all, just opacity. Safe, and gives up
+       the gesture the section is built on.
+
+       'up'     — the original, always from the bottom edge. */
+    fillMode: 'follow'
   };
 
   /* ------------------------------------------------------------
@@ -3897,7 +3910,9 @@
           pointerEvents: 'none',
           background: colour || 'var(--_colour---color--color-neon)'
         });
-        gsap.set(fill, { clipPath: 'inset(100% 0% 0% 0%)' });
+        gsap.set(fill, SERVICES.fillMode === 'fade'
+          ? { clipPath: 'inset(0% 0% 0% 0%)', opacity: 0 }
+          : { clipPath: 'inset(100% 0% 0% 0%)' });
 
         const itemPos = item.style.position;
         const itemBg = item.style.backgroundColor;
@@ -3946,14 +3961,48 @@
         return { item, inner, fill, img };
       });
 
-      function wipe(rec, open) {
+      // Collapsed against one edge or the other. A top inset of 100%
+      // parks the band on the bottom edge, and the reverse on the top.
+      const PARKED = {
+        top: 'inset(0% 0% 100% 0%)',
+        bottom: 'inset(100% 0% 0% 0%)'
+      };
+
+      /* Which edge the pointer crossed. Halfway is the split: on the way
+         in the pointer is still on the boundary it came through, and on
+         the way out it is at the one it is leaving by. */
+      function edgeOf(e, el) {
+        if (!e || typeof e.clientY !== 'number') return 'bottom';
+        const r = el.getBoundingClientRect();
+        return e.clientY - r.top < r.height / 2 ? 'top' : 'bottom';
+      }
+
+      function wipe(rec, open, e) {
+        const duration = reducedMotion ? 0 : SERVICES.fill;
+
+        if (SERVICES.fillMode === 'fade') {
+          gsap.to(rec.fill, {
+            opacity: open ? 1 : 0,
+            duration,
+            ease: SERVICES.fillEase,
+            overwrite: 'auto'
+          });
+          return;
+        }
+
+        const edge = SERVICES.fillMode === 'follow' ? edgeOf(e, rec.item) : 'bottom';
+
+        /* Only a wipe starting from nothing picks its edge. Reversing one
+           already in flight tweens from wherever it is, or the colour
+           would jump across the row to start again. */
+        if (open && !rec.open) gsap.set(rec.fill, { clipPath: PARKED[edge] });
+        rec.open = open;
+
         gsap.to(rec.fill, {
-          clipPath: open ? 'inset(0% 0% 0% 0%)' : 'inset(0% 0% 100% 0%)',
-          duration: reducedMotion ? 0 : SERVICES.fill,
+          clipPath: open ? 'inset(0% 0% 0% 0%)' : PARKED[edge],
+          duration,
           ease: SERVICES.fillEase,
-          overwrite: 'auto',
-          // Parked at the bottom edge, so the next wipe rises again.
-          onComplete: () => { if (!open) gsap.set(rec.fill, { clipPath: 'inset(100% 0% 0% 0%)' }); }
+          overwrite: 'auto'
         });
       }
 
@@ -3971,7 +4020,7 @@
 
       records.forEach((rec) => {
         rec.item.addEventListener('mouseenter', (e) => {
-          wipe(rec, true);
+          wipe(rec, true, e);
           dim(rec);
           if (rec.img) {
             showFollower(e);
@@ -3979,14 +4028,14 @@
           }
         }, { signal });
 
-        rec.item.addEventListener('mouseleave', () => wipe(rec, false), { signal });
+        rec.item.addEventListener('mouseleave', (e) => wipe(rec, false, e), { signal });
       });
 
       // One leave for the whole list: it ends the preview, and does not
       // fire while the pointer only crosses between rows.
-      collection.addEventListener('mouseleave', () => {
+      collection.addEventListener('mouseleave', (e) => {
         // A pointer leaving the window can skip a row's own leave.
-        records.forEach((rec) => wipe(rec, false));
+        records.forEach((rec) => wipe(rec, false, e));
         dim(null);
         hideFollower();
       }, { signal });

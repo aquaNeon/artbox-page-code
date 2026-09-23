@@ -744,6 +744,23 @@ colour is chosen. The wipe is `clip-path`, not `scaleY`, so reversing it
 mid-flight cannot jump: swapping a transform origin under a half-played
 scale moves the box, an inset just interpolates.
 
+`SERVICES.fillMode` decides which way the colour travels:
+
+| Mode | What it does |
+| --- | --- |
+| `follow` | In from the edge the pointer crossed, out towards the edge it leaves by (default) |
+| `fade` | Opacity only, no direction |
+| `up` | The original: always from the bottom edge |
+
+It rose from the bottom whatever the pointer did, so anyone coming *down*
+the list met the colour head-on — travelling against them on every second
+approach. `follow` reads the pointer's Y against the row's middle at
+`mouseenter` and again at `mouseleave`: nearer the top edge means it came
+through the top, and the band is parked against that edge before it
+opens. Only a wipe starting from nothing picks an edge — reversing one
+already in flight tweens from wherever it is, or the colour would jump
+across the row to start again.
+
 The follower is appended to `<body>`, not to the section.
 `prepareForTransition` puts perspective on `.page_wrap`, and perspective
 creates a containing block for fixed-position descendants — a follower
