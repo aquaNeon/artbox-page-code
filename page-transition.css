@@ -1330,6 +1330,44 @@ html .work_smoothly_wrap {
   }
 }
 
+/* The card logos are drawn at whatever size their file happens to be —
+   30px tall to 101px across the set — and the row they sit in is 4rem.
+   The tall ones overflowed it and ate the margin under the row, which is
+   why the gap under a logo looked different card to card.
+
+   Capped, not stretched: a logo's own size is a decision somebody made
+   in the file, and forcing them all to one height made the light ones
+   loom and the heavy ones shrink. Only the ones that do not fit are
+   touched, and they keep their ratio on the way down.
+
+   The embed between the row and the svg has to be allowed to shrink, or
+   it holds the old width open under a narrower picture. */
+.card_hover_wrap .card_hover_logo_wrap .card_hover_logo_svg {
+  min-width: 0;
+}
+
+/* Two caps, not one. Height alone cannot balance a set like this: a
+   stacked lockup and a horizontal wordmark at the same height read
+   nothing alike, and the wide ones came out looming. Capped both ways, a
+   wordmark is stopped by the width and ends up shorter, a square mark by
+   the height — which is how a wall of logos is usually evened out.
+
+   Nothing is scaled up. A logo smaller than both caps is left at the
+   size its file asks for, since that size was somebody's decision. */
+.card_hover_wrap .card_hover_logo_wrap .card_hover_logo_svg svg {
+  display: block;
+  width: auto;
+  height: auto;
+  max-height: var(--card-logo-max-h, 3rem);
+  max-width: var(--card-logo-max-w, 11rem);
+
+  /* A stretched flex item is sized by its line rather than by itself,
+     and with a ratio to keep that came out as width: a 207x30 logo drawn
+     442 wide to fill a 4rem row. Centred, it keeps its own size.
+     Harmless where the wrapper is not a flex container. */
+  align-self: center;
+}
+
 /* The card already animates its colour, so this follows it with the
    alpha baked in rather than running a timer of its own. */
 .c_slider_swiper .card_hover_wrap .card_hover_details_name,
