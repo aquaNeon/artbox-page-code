@@ -1233,6 +1233,21 @@ Only below 992. Above it the same pictures are set inline into the heading,
 where `textAnim` scales them with the line they sit on (`TEXT.imgFrom`), and a
 second scale here would be fighting that one.
 
+**The inline pictures must be `loading="lazy"`, or a phone downloads both
+sets.** `display: none` is a CSS answer and the preload scanner asks its
+question before any of it is parsed, so an eager image is fetched whether
+or not a media query will hide it — three hero files nobody on a phone
+ever sees, on top of the three mobile ones. A lazy image has no layout
+box while it is hidden, never comes near the viewport, and is never
+fetched. Measured in Chrome: hidden and eager fetches, hidden and lazy
+does not, and `fetchpriority="high"` alongside `loading="lazy"` does not
+change that — so the hint can stay for the desktop case, where the
+picture is on screen and does load.
+
+The attribute lives in the Designer, on each `.hero-h1__img img`. The
+mobile blocks are already lazy, which is why the reverse never happened:
+on desktop they are hidden and cost nothing.
+
 ### maskReveal — `[data-mask]`
 
 A wipe down the picture as it arrives. Put `data-mask` on an image, a video, or
