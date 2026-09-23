@@ -1576,7 +1576,7 @@
        0.72 the section was letting go with a single straggler left,
        which reads as having waited for all of them. */
     release: 0.5,
-    mobile: '(max-width: 991px)',
+    mobile: '(max-width: 767px)',   // mobile landscape and down
 
     tint: 0.22,         // fractions of the pin: the neon wash
     tintStart: 0.04,    // a beat after the lock, or the scrub starts it early
