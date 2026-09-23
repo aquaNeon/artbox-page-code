@@ -1229,6 +1229,23 @@ Below 992 the corporate hero's pictures leave the heading and stack as
 above — the same two keyframes, so there is one definition of what arriving
 looks like — cued by `--corp-hero-lead` and staggered by `--corp-hero-step`.
 
+**The module plays that entrance itself, as a tween.** The keyframes stay in
+the stylesheet as the answer for a dead script, and `corporateHero` switches
+them off (`style.animation = 'none'`) while its context is alive, playing the
+same numbers through `Intro` instead. Two reasons:
+
+- A CSS animation restarts whenever its element moves in the DOM, and a
+  navigation moves the incoming container once — `reparentContainer` puts it
+  where the outgoing one is. The pictures arrived, then arrived again. The
+  same scar is on heroVideo's intro, with the same answer.
+- `animation-fill-mode: both` keeps the keyframe's `transform` applied for
+  good, and an animation outranks an inline style — so the parallax below was
+  writing `y` to an element that could not move. It moves now.
+
+A context entered late — someone dragging a window narrow after the page has
+settled — has missed the `Intro` queue, so it plays straight away instead;
+waiting would leave the pictures at `scale: 0` for good.
+
 Only below 992. Above it the same pictures are set inline into the heading,
 where `textAnim` scales them with the line they sit on (`TEXT.imgFrom`), and a
 second scale here would be fighting that one.
