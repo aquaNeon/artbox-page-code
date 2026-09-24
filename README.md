@@ -1049,10 +1049,10 @@ design, Investor design; a `Sort` number orders them). Each card shows a
 nested Collection List of it: one `work_visual_heading_eyebrow` per service,
 the text bound to the name, `data-accent` on the square bound to the slug.
 
-`page-transition.css` colours the square by slug —
-`corporate-design` purple, `investor-design` green — so every page with a
-card gets it without an embed of its own. The colour belongs to the service,
-not the case, which is why there is no colour field.
+The square is coloured by slug — `corporate-design` purple,
+`investor-design` green — in the site-wide CSS embed in Webflow, not in
+`page-transition.css`, so the Designer shows it too. The colour belongs to
+the service, not the case, which is why there is no colour field.
 
 On `/vare-arbeider` the tag text carries `fs-list-field="category"`. Finsweet
 reads each tag in a card as a value of the same field, so a case with both

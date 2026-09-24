@@ -796,19 +796,6 @@ a[x-apple-data-detectors],
   }
 }
 
-/* ===== SERVICE TAGS — README ### Service tags ===== */
-
-/* data-accent is bound to the Tjenester item's slug. Here rather than in
-   a page embed so every page with a case card gets it. The class is in
-   the selector to beat the icon-square variant's own background. */
-.work_visual_heading_icon[data-accent="corporate-design"] {
-  background-color: var(--_theme---unthemed--purple);
-}
-
-.work_visual_heading_icon[data-accent="investor-design"] {
-  background-color: var(--_theme---unthemed--green);
-}
-
 /* ===== POST CONTACT — .post_contact_wrap ===== */
 
 /* Grid and flex children default to min-width:auto and refuse to shrink
