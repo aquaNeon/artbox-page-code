@@ -1056,8 +1056,23 @@ alphabetic` — so the row centres the box against the type instead of
 against the leading, which is what leaves a tick sitting visibly high next
 to its own label. Same problem as the descender padding in `textAnim`,
 solved from the other end. Behind `@supports`, so a browser without it
-keeps the line box it had. Alignment itself stays in the Designer; this
-only makes the text box honest about where the letters are.
+keeps the line box it had.
+
+The box itself is a capital beside the label's capitals, the same as the
+services icon: `1cap` on the label's own type (`0.725em` without the unit),
+centred on the trimmed label, so its top lands on the cap line and its
+bottom on the baseline — measured flush to 0.01px in Chrome. It replaces
+three fixed numbers from the Designer that were only right at one width: a
+`0.75rem` box against fluid type, `margin-top: -1px` on the label, and
+`margin-left: -8px` on the item, which was cancelling Webflow's `.w-checkbox`
+clearfix. The clearfix pseudos go (in a flex row each one is an item with a
+gap after it), and the 8px the `::after` put between chips comes back as
+`margin-right: 0.5rem`, so the spacing is unchanged. The label's
+`u-text-style` trim pseudos go as well — with `text-box` on, the label was
+trimmed twice. Without `text-box` the box is lifted `0.054em`, the distance
+from the line box's middle to the caps' in Suisse Intl.
+
+The Designer's `-8px` and `-1px` can be cleared; the CSS overrides both.
 
 ### Service tags — `data-accent`
 

@@ -160,6 +160,56 @@ html.is-transitioning {
   }
 }
 
+/* The box is a capital beside the label's capitals, as on the services
+   rows: cap height on the label's own type, and centred on the trimmed
+   label, so its top and bottom land on the cap line and the baseline.
+   This replaces three fixed numbers that were only right at one width —
+   a 0.75rem box against fluid type, the label's -1px nudge, and the
+   item's -8px, which cancelled Webflow's clearfix. That clearfix is a
+   flex item in this row, so it goes, and the 8px its ::after put between
+   the chips comes back as a margin. The label's own u-text-style trim
+   pseudos go too: text-box already trims it, and the two together
+   trimmed it twice. */
+.filter-single::before,
+.filter-single::after,
+.filter-single .w-form-label::before,
+.filter-single .w-form-label::after {
+  content: none;
+}
+
+.insights_filter_item.filter-single {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+.filter-single .w-form-label {
+  margin-top: 0;
+}
+
+.filter-single .w-checkbox-input {
+  box-sizing: border-box;
+  font-family: var(--_typography---font--secondary-family);
+  font-size: var(--_typography---font-size--text-small);
+  width: 1cap;
+  height: 1cap;
+}
+
+/* Without the cap unit: Suisse Intl's cap height. Without text-box the
+   label keeps its line box, whose middle is 0.054em below the caps'. */
+@supports not (height: 1cap) {
+  .filter-single .w-checkbox-input {
+    width: 0.725em;
+    height: 0.725em;
+  }
+}
+
+@supports not (text-box: trim-both cap alphabetic) {
+  .filter-single .w-checkbox-input {
+    position: relative;
+    top: -0.054em;
+  }
+}
+
 /* ===== FORM CHECKBOXES — .form1_check_box — README ### form checkboxes ===== */
 
 /* The form component's own embed styles a box that is a sibling of the
