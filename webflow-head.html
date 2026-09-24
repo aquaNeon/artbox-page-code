@@ -8,6 +8,11 @@
      touches the page's DOM, so head is safe.
      ============================================================ -->
 
+<!-- iOS turns numbers and addresses shown as text into its own
+     underlined links, doubling the underline under the overlay-anchor
+     contacts. They are real tel:/mailto: links already. -->
+<meta name="format-detection" content="telephone=no, email=no, address=no">
+
 <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.17/dist/lenis.css">
 
 <!-- Swiper's stylesheet is NOT here on purpose. In head it is render
@@ -30,7 +35,7 @@
      rather than leaving the page bare. -->
 <script>
   /* The build everyone gets. Swap this link to ship. */
-  window.ARTBOX_CDN = 'https://rawcdn.githack.com/aquaNeon/artbox-page-code/257aba555f26b74562ed5bef52fe1d3917a31b97/';
+  window.ARTBOX_CDN = 'https://rawcdn.githack.com/aquaNeon/artbox-page-code/13888b439fdb58877f191d71cdfc7345935e587a/';
   window.ARTBOX_LOCAL = 'http://localhost:5180/';
 
   (function () {
