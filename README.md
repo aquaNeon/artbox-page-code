@@ -1041,6 +1041,24 @@ solved from the other end. Behind `@supports`, so a browser without it
 keeps the line box it had. Alignment itself stays in the Designer; this
 only makes the text box honest about where the letters are.
 
+### Service tags — `data-accent`
+
+A case can be Corporate design, Investor design or both. Cases carry a
+multi-reference field, **Tjenester**, to a two-item collection (Corporate
+design, Investor design; a `Sort` number orders them). Each card shows a
+nested Collection List of it: one `work_visual_heading_eyebrow` per service,
+the text bound to the name, `data-accent` on the square bound to the slug.
+
+`page-transition.css` colours the square by slug —
+`corporate-design` purple, `investor-design` green — so every page with a
+card gets it without an embed of its own. The colour belongs to the service,
+not the case, which is why there is no colour field.
+
+On `/vare-arbeider` the tag text carries `fs-list-field="category"`. Finsweet
+reads each tag in a card as a value of the same field, so a case with both
+matches either checkbox. Lists that show one service use Webflow's own filter,
+`Tjenester contains …`; a case with both appears under each.
+
 ### Finsweet Attributes
 
 Attributes scans the DOM once, on load, so a page reached by navigating had
