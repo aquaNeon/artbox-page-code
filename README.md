@@ -2472,6 +2472,19 @@ That is why the mark was smaller on home and nowhere else — one extra
 class, written by Webflow on one page. Keeping `w--current` honest stops it
 following you onto pages where it was never true.
 
+**Link colours in the footer and the open menu.** Every link sits at `#F7F7F5`
+at 70%, the current page at 100%, and the link under a pointer goes to 100%
+too. On touch a tap lights it (`:active`) instead of `:hover`, which sticks
+after a tap and would leave a second link lit beside the current one. The
+colour is set on `.footer_link_wrap`, not the text, so the square hover icon
+(drawn in `currentColor`) dims with it. The paper colour is `--link-on` on
+the same rule.
+
+A fixed colour rather than `--_theme---navlinks--text-inactive`: in the dark
+theme that variable resolves to the full paper colour, so nothing stepped
+back and the current page stopped standing out, and inside the menu it
+resolved to the light theme's dark ink.
+
 It hides on the way down and returns on the way up, at every breakpoint.
 Three inputs decide, in priority order: an open menu pins it on screen, the
 footer reveal takes it away, and otherwise the scroll direction rules.
