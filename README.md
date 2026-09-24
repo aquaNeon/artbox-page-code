@@ -905,6 +905,12 @@ whether or not it is showing, so the text beside it holds still: a transform
 never reflows. `--services-icon-size` (1.25rem) sets the box; in the stacked
 view the icon is always at full size, since there is no pointer to earn it.
 
+The icon sits in its own column, `.services_hover_right`, beside the heading.
+That column is made exactly one heading line tall (`height: 1lh` on the h4
+heading's own type variables) with the icon centred in it. Top-aligned and
+only as tall as the icon, its middle sat 3.75px above the line's. If the
+heading's style changes, change the two variables with it.
+
 The preview itself is square, `--services-follower-ratio` (1 / 1).
 
 The section swaps shape when the viewport crosses the breakpoint: the build

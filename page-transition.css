@@ -1681,6 +1681,17 @@ html .work_smoothly_wrap {
   transition: transform 0.45s var(--services-icon-ease);
 }
 
+/* The icon has a column of its own beside the heading, top-aligned in the
+   row, so its top met the line's top and its middle sat (line - icon) / 2
+   above the text's. One heading line tall and centred instead. The type
+   variables are the h4 heading's; change them with the heading's style. */
+.services_hover_right {
+  font-size: var(--_typography---font-size--h4-primary);
+  line-height: var(--_typography---line-height--1-25);
+  height: 1lh;
+  align-items: center;
+}
+
 @media (hover: hover) and (min-width: 992px) {
   .services_hover_item:hover .services_hover_icon,
   .services_hover_item:focus-within .services_hover_icon {
