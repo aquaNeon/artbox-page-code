@@ -178,6 +178,23 @@ html.is-transitioning {
      wrap is already a flex row with a gap, and the two arrangements were
      fighting: the box sat outside the row it belongs to. */
   padding-left: 0;
+  /* The trimmed label below is shorter than its line; this keeps the
+     rows as far apart as they were. */
+  min-height: 1lh;
+}
+
+/* Centring the box on the label's line box put it 0.26em below the
+   middle of the letters, since the line box carries the descender
+   space. Trimmed to cap height, centre is the letters' centre. */
+.form1_check_wrap .form1_check_label {
+  text-box: trim-both cap alphabetic;
+}
+
+@supports not (text-box: trim-both cap alphabetic) {
+  .form1_check_wrap .form1_check_box {
+    position: relative;
+    top: -0.26em;
+  }
 }
 
 .form1_check_wrap .form1_check_box {

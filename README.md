@@ -946,6 +946,7 @@ sibling to find.
 | --- | --- |
 | The box | `appearance: none`, `1em` square, `1px solid currentColor`. Webflow's float and negative indent go, and the wrap's `padding-left` with them — it is already a flex row with a gap, and the two arrangements were fighting |
 | Checked | Solid black box, no tick — the client asked for it. `#000` with `!important`, and Webflow's own `w--redirected-checked` / `w--redirected-focus` named too: in Safari they add a blue `#3898ec` fill, a blue glow and a tick image of their own. `accent-color: #000` covers Safari tinting the native control |
+| Alignment | The label is trimmed to cap height (`text-box: trim-both cap alphabetic`), so the wrap's `align-items: center` centres the box on the letters rather than on the line box, which sat it 0.26em low. `min-height: 1lh` on the wrap keeps the rows as far apart as before. Where `text-box` is missing (Safari before 18.2, Firefox) the box is lifted `0.26em` instead — measured for Suisse Intl, so re-measure if the label font changes |
 | Radio | `.is-radio`, or a real `input[type="radio"]`: round, box left empty, a radial gradient for the dot |
 | Focus | The site's ring (`--focus--width`), since these are the only keyboard-reachable controls on the page |
 
