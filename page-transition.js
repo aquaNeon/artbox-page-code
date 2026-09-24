@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-10-kugiri-fit';
+  const BUILD = '2026-09-24-back-to-section';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -6727,6 +6727,45 @@
 
     document.addEventListener('page:leaving', freeze);
 
+    /* Back to a section at or past the pin is a jump, not a scroll: the
+       triggers see the whole journey at once and the growth played out
+       over the section the page came back to. The state a scroll would
+       have left behind is placed instead. */
+    const onRestored = (e) => {
+      if (dead || frozen || e.detail?.container !== root) return;
+      const y = held.scroll();
+      if (y < held.start) return;
+
+      gsap.killTweensOf(growth);
+      scrollTween?.kill();
+      tookOver = true;
+      growing = false;
+      wants = 1;
+      growth.p = 1;
+      intro = 1;
+      if (comp.classList.contains('is-settled')) lift();
+      apply(1, y);
+      bringText();
+      placeText();
+
+      if (y < held.end) {
+        showText();
+        return;
+      }
+
+      settle();
+      placeText();
+      if (stacking && lines.length) {
+        textShown = true;
+        gsap.set(lines, { autoAlpha: 1, y: 0 });
+        measureLeave();
+        leaving.q = 1;
+        paintLeaving();
+      }
+    };
+
+    document.addEventListener('page:restored', onRestored);
+
     // On the resize itself, not ScrollTrigger's refresh a beat later:
     // sized in px off the viewport, it is briefly the old box.
     const onResize = () => {
@@ -6747,6 +6786,7 @@
         swap?.classList.remove('is-stacked');
       }
       document.removeEventListener('page:leaving', freeze);
+      document.removeEventListener('page:restored', onRestored);
       window.removeEventListener('resize', onResize);
       gsap.killTweensOf(growth);
       scrollTween?.kill();
@@ -7769,7 +7809,7 @@
     });
 
     gsap.set(next, {
-      position: 'absolute', top: 0, left: 0, width: '100%',
+      position: 'absolute', top: -ScrollMemory.layerOffset(next), left: 0, width: '100%',
       willChange: 'transform, opacity', backfaceVisibility: 'hidden'
     });
 
@@ -7947,7 +7987,103 @@
       lenis.resize();
       lenis.start();
     }
+    ScrollMemory.apply(container);
   }
+
+
+  /* ===== BACK TO THE SECTION — README ## Back button ===== */
+
+  /* history.scrollRestoration is manual and every swap starts at the top,
+     so Back used to land there too. The section is what is kept, not the
+     pixel: an intro, a pin or a slider settling differently moves every
+     offset below it, and the section still holds the place.
+
+     Menu, nav and footer links forget the page instead — the client asked
+     for Back after a menu jump to go to the top. */
+  const ScrollMemory = (function () {
+    const KEY = 'artbox-scroll';
+    const MENU = '.meganav_root, .meganav, [data-nav], [data-nav-panel], .footer_wrap';
+    let saved = {};
+    let pending = null;
+    try { saved = JSON.parse(sessionStorage.getItem(KEY)) || {}; } catch (e) {}
+
+    const keyOf = (href) => {
+      const url = new URL(href, location.href);
+      return url.pathname + url.search;
+    };
+    const persist = () => {
+      try { sessionStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+    };
+
+    const sectionsIn = (container) => [...container.querySelectorAll('section')]
+      .filter((el) => !el.parentElement.closest('section'));
+
+    // A pinned section sits at the viewport top for its whole run; the
+    // spacer is what holds its place in the page.
+    function topIn(el, container) {
+      const host = el.parentElement?.classList.contains('pin-spacer') ? el.parentElement : el;
+      return host.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    }
+
+    function capture(container) {
+      const view = -container.getBoundingClientRect().top;
+      const line = view + window.innerHeight * 0.3;
+      const list = sectionsIn(container);
+      let index = -1;
+      list.forEach((el, i) => { if (topIn(el, container) <= line) index = i; });
+      if (index < 0) return { index, into: view };
+      return { index, into: view - topIn(list[index], container) };
+    }
+
+    // Distance from the container's top, so it works both while the page
+    // is a fixed layer in the crossfade and once it is in the flow.
+    function offsetIn(container, entry) {
+      const el = sectionsIn(container)[entry.index];
+      return Math.max(0, (el ? topIn(el, container) : 0) + entry.into);
+    }
+
+    function scrollTo(y) {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const target = Math.min(Math.max(0, y), Math.max(0, max));
+      window.scrollTo(0, target);
+      if (hasLenis && lenis) lenis.scrollTo(target, { immediate: true, force: true });
+    }
+
+    return {
+      leave(data) {
+        const trigger = data?.trigger;
+        const current = data?.current;
+        if (current?.container && current.url?.href) {
+          const key = keyOf(current.url.href);
+          if (trigger instanceof Element && trigger.closest(MENU)) delete saved[key];
+          else saved[key] = capture(current.container);
+          persist();
+        }
+        const next = data?.next?.url?.href;
+        const isHistory = typeof trigger === 'string' && trigger !== 'barba';
+        pending = isHistory && next ? saved[keyOf(next)] || null : null;
+      },
+      // For the incoming layer during the crossfade, so the fade lands on
+      // the section instead of on the top of the page.
+      layerOffset(container) {
+        return pending ? offsetIn(container, pending) : 0;
+      },
+      apply(container) {
+        if (!pending || !container) return;
+        const docTop = container.getBoundingClientRect().top + window.scrollY;
+        scrollTo(docTop + offsetIn(container, pending));
+      },
+      // Again once the page's triggers have refreshed: pin spacers arrive
+      // then, and move every section below the first pin.
+      settle(container) {
+        if (!pending) return;
+        this.apply(container);
+        pending = null;
+        if (hasScrollTrigger) ScrollTrigger.update();
+        document.dispatchEvent(new CustomEvent('page:restored', { detail: { container } }));
+      }
+    };
+  })();
 
 
   /* ===== BARBA ===== */
@@ -7956,6 +8092,7 @@
 
   barba.hooks.beforeLeave((data) => {
     root.classList.add('is-transitioning');
+    ScrollMemory.leave(data);
     /* A travelling video is fixed on the body, so it would hang above
        both pages for the swap. Marked before the incoming page mounts
        anything of its own; the CSS does the hiding. */
@@ -8045,8 +8182,9 @@
     requestAnimationFrame(clearTransitionLeftovers);
   });
 
-  barba.hooks.after(() => {
+  barba.hooks.after((data) => {
   FooterReveal.sync();
+  ScrollMemory.settle(data?.next?.container);
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       root.classList.remove('is-transitioning');

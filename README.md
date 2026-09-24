@@ -2253,6 +2253,33 @@ links — hidden by this file until it is deleted in the Designer.
 | `--meganav-panel-text` | `--_colour---color--color-paper`, `#f7f7f5` | sheet type, and the bar while open |
 | `--nav--height` | `5rem` | the sheet's top padding, so its content clears the bar |
 
+## Back button
+
+`history.scrollRestoration` is manual and every swap starts at the top, so
+Back used to land at the top of the page too. `ScrollMemory` in
+`page-transition.js` fixes that:
+
+- **On leave**, the section you were in (top-level `<section>`s in the
+  container, the one crossing 30% down the viewport) and how far into it you
+  were are saved to `sessionStorage`, keyed by path.
+- **On Back / Forward**, the incoming page crossfades in already at that
+  section, lands there when the transition settles, and is corrected once
+  more after `ScrollTrigger.refresh()`, since pin spacers move everything
+  below them.
+- **Menu, nav and footer links** (`.meganav_root`, `.meganav`, `[data-nav]`,
+  `[data-nav-panel]`, `.footer_wrap`) clear the saved spot instead, so Back
+  after a menu jump goes to the top — the client asked for that.
+
+The section is what is kept, not the pixel: an intro or a pin settling
+differently shifts every offset below it, and the section still holds.
+
+Once it has landed, `ScrollMemory` dispatches `page:restored` on `document`
+with `{ container }`. A module whose animation is driven by scrolling past a
+point should listen for it: a restore is a jump, so its triggers see the whole
+journey at once and play it over the section the page came back to.
+`heroVideo` does — landing in or past the pin places the video full bleed or
+settled, with the statements already read, instead of growing it on screen.
+
 ## Footer and the transition
 
 On desktop the footer is `position: fixed` behind the page and revealed by
