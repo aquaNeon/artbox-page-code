@@ -911,6 +911,14 @@ heading's own type variables) with the icon centred in it. Top-aligned and
 only as tall as the icon, its middle sat 3.75px above the line's. If the
 heading's style changes, change the two variables with it.
 
+Centred on the line box it still read low: the line box's middle is not the
+letters'. Suisse Intl's content area (ascent `1.174`, descent `0.556` of the
+em, the same in hhea, typo and win, so the same on every platform) puts the
+middle of the capitals `0.054em` above it, and the square is taller than the
+caps, so it hung past the baseline. It is lifted `0.054em` (`top`, not a
+transform, which the hover scale owns) and now overhangs the caps evenly. The
+heading is untouched — no trim, its line height stays.
+
 The preview itself is square, `--services-follower-ratio` (1 / 1).
 
 The section swaps shape when the viewport crosses the breakpoint: the build

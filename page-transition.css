@@ -1692,6 +1692,16 @@ html .work_smoothly_wrap {
   align-items: center;
 }
 
+/* The line box's middle is not the letters': Suisse Intl's content area
+   (ascent 1.174, descent 0.556 of the em) puts the middle of the capitals
+   0.054em above it. Lifted to the caps, the square overhangs them evenly
+   instead of hanging past the baseline. From the font file, whose metrics
+   are the same on every platform. */
+.services_hover_right .services_hover_icon {
+  position: relative;
+  top: -0.054em;
+}
+
 @media (hover: hover) and (min-width: 992px) {
   .services_hover_item:hover .services_hover_icon,
   .services_hover_item:focus-within .services_hover_icon {
