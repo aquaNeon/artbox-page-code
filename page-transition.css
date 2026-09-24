@@ -573,6 +573,19 @@ html.is-menu-open {
 
 /* ===== UNDERLINE LINKS — [data-underline-link] — README ## Underline links ===== */
 
+/* The visible number or address is plain text under an overlay anchor,
+   and iOS wraps text like that in a link of its own, underlined — a
+   second line under this one. format-detection in the head stops most of
+   it; this covers whatever iOS still wraps. */
+a[x-apple-data-detectors],
+[data-underline-link] a[href^="tel:"]:not(.g_clickable_wrap),
+[data-underline-link] a[href^="mailto:"]:not(.g_clickable_wrap) {
+  color: inherit !important;
+  font: inherit !important;
+  text-decoration: none !important;
+  pointer-events: none;
+}
+
 /* Two lines, not one: the resting line wipes out right while a fresh one
    wipes in from the left, which reads as a replacement rather than a
    retreat and a return. Hover comes from the marked element, an ancestor
@@ -1499,9 +1512,12 @@ html .work_smoothly_wrap {
   display: none;
 }
 
-/* Nothing is selectable, so nothing should look it. */
+/* Nothing is selectable, so nothing should look it. The divider goes
+   too: it is the item's border-top, and stacked, the visual is the
+   item's first child, so the line sat on top of every picture. */
 [data-tabs="wrapper"].is-stacked [data-tabs="content-item"] {
   cursor: auto;
+  border-top: 0;
 }
 
 /* ===== SERVICES — pinned crossfade below 992px — README ### servicesHover ===== */

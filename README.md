@@ -671,6 +671,10 @@ and `page-transition.css` undoes the desktop presentation — a visual column
 is usually a pile of absolutely positioned panels, which means nothing once
 they are in the flow.
 
+The divider between tabs is the content item's `border-top`, and stacked,
+the visual is the item's first child — so the stack drops that border, or it
+sits on top of every picture.
+
 The wrapper is switched to a single column and the emptied visual column is
 hidden — otherwise the stack sits in half the width with a blank space
 beside it. That column is only hidden when it holds nothing else: a column
@@ -2099,6 +2103,14 @@ Tuning, per element or globally:
 
 Desktop pointers only (`(hover: hover) and (pointer: fine)`), and under
 `prefers-reduced-motion` the lines swap instantly.
+
+**Double line on iPhone.** Where the visible text is a phone number or email
+under an overlay anchor, iOS wraps that text in a link of its own with its
+own underline, under this one. `webflow-head.html` turns detection off
+(`<meta name="format-detection" content="telephone=no, email=no, address=no">`)
+and `page-transition.css` strips the styling off anything iOS still wraps
+(`a[x-apple-data-detectors]`). The overlay is already a real `tel:` /
+`mailto:` link, so nothing is lost.
 
 ## Meganav
 
