@@ -1686,20 +1686,29 @@ html .work_smoothly_wrap {
    above the text's. One heading line tall and centred instead. The type
    variables are the h4 heading's; change them with the heading's style. */
 .services_hover_right {
+  font-family: var(--_typography---font--secondary-family);
   font-size: var(--_typography---font-size--h4-primary);
   line-height: var(--_typography---line-height--1-25);
   height: 1lh;
   align-items: center;
 }
 
-/* The line box's middle is not the letters': Suisse Intl's content area
-   (ascent 1.174, descent 0.556 of the em) puts the middle of the capitals
-   0.054em above it. Lifted to the caps, the square overhangs them evenly
-   instead of hanging past the baseline. From the font file, whose metrics
-   are the same on every platform. */
+/* A capital beside the capitals: cap height tall, and lifted off the
+   line box's middle onto theirs. Suisse Intl's content area (ascent 1.174,
+   descent 0.556 of the em) puts the middle of the caps 0.054em above the
+   line box's, so the square's top and bottom land on the cap line and the
+   baseline. From the font file, whose metrics are the same on every
+   platform; 0.725em is its cap height, for anything without the unit. */
 .services_hover_right .services_hover_icon {
+  --services-icon-size: 1cap;
   position: relative;
   top: -0.054em;
+}
+
+@supports not (height: 1cap) {
+  .services_hover_right .services_hover_icon {
+    --services-icon-size: 0.725em;
+  }
 }
 
 @media (hover: hover) and (min-width: 992px) {

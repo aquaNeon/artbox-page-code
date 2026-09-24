@@ -916,8 +916,11 @@ letters'. Suisse Intl's content area (ascent `1.174`, descent `0.556` of the
 em, the same in hhea, typo and win, so the same on every platform) puts the
 middle of the capitals `0.054em` above it, and the square is taller than the
 caps, so it hung past the baseline. It is lifted `0.054em` (`top`, not a
-transform, which the hover scale owns) and now overhangs the caps evenly. The
-heading is untouched — no trim, its line height stays.
+transform, which the hover scale owns) and sized `1cap` (`0.725em` where the
+unit is missing), so its top and bottom land on the cap line and the
+baseline — a capital beside the capitals. The column takes the heading's
+secondary font family so `cap` measures the same letters. The heading is
+untouched — no trim, its line height stays.
 
 The preview itself is square, `--services-follower-ratio` (1 / 1).
 
