@@ -183,6 +183,14 @@ html.is-transitioning {
   min-height: 1lh;
 }
 
+/* Webflow's clearfix on .w-checkbox, for the float layout this no longer
+   uses. In a flex row each pseudo is an item, and the gap after the
+   zero-width ::before pushed the box 8px in from the edge. */
+.form1_check_wrap::before,
+.form1_check_wrap::after {
+  content: none;
+}
+
 /* Centring the box on the label's line box put it 0.26em below the
    middle of the letters, since the line box carries the descender
    space. Trimmed to cap height, centre is the letters' centre. */
