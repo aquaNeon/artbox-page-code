@@ -196,33 +196,29 @@ html.is-transitioning {
   cursor: pointer;
   transition:
     background-color var(--transition-duration-1, 200ms) var(--transition-ease, ease),
-    border-color var(--transition-duration-1, 200ms) var(--transition-ease, ease),
-    background-size var(--transition-duration-1, 200ms) var(--transition-ease, ease);
+    border-color var(--transition-duration-1, 200ms) var(--transition-ease, ease);
 }
 
-/* The tick is a background image, not a ::before. A pseudo-element on an
-   input is undefined territory — Chrome draws one, Safari is not to be
-   relied on for it, and this box exists because of a Safari bug already.
-   A background is painted by every browser that can do appearance: none.
-
-   The colour is written into the file rather than taken from a variable:
-   a data URI is a picture, not CSS, and nothing inside it can read a
-   custom property. It is --_theme---background--bg-primary's value, so
-   change it here if the paper ever changes.
-
-   It grows rather than fades, since background-size animates and
-   background-image does not. */
+/* Checked is a solid black box, no tick. Webflow's own classes get named
+   here too: its script adds w--redirected-checked and w--redirected-focus
+   in Safari, which bring a blue fill, a blue glow and a tick image of their
+   own, and accent-color covers Safari tinting the native control. */
 .form1_check_wrap .form1_check_box {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23f7f7f5' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3 8.5l3.5 3.5L13 4.5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 0 0;
+  accent-color: #000;
+  background-image: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.form1_check_wrap .form1_check_box:checked {
-  background-color: var(--_theme---typography--text-primary, currentColor);
-  border-color: var(--_theme---typography--text-primary, currentColor);
-  background-size: 72% 72%;
+.form1_check_wrap .form1_check_box:not(.is-radio):not([type="radio"]):checked,
+.form1_check_wrap .form1_check_box:not(.is-radio):not([type="radio"]).w--redirected-checked {
+  background-color: #000 !important;
+  border-color: #000 !important;
+  background-image: none !important;
+}
+
+.form1_check_wrap .form1_check_box.w--redirected-focus {
+  box-shadow: none !important;
 }
 
 /* A radio keeps the box empty and fills a dot instead, the way the
@@ -232,12 +228,16 @@ html.is-transitioning {
   border-radius: 50%;
 }
 
-/* A radio keeps its box empty and fills a dot instead, so the tick goes
-   and a radial gradient stands in for it — the same trick as the tick,
-   for the same reason. */
+/* The dot is a background rather than a ::before, which Safari is not to
+   be relied on to draw on an input. It grows, since background-size
+   animates and background-image does not. */
 .form1_check_wrap .form1_check_box.is-radio,
 .form1_check_wrap input[type="radio"].form1_check_box {
   background-image: radial-gradient(circle, currentColor 0 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0 0;
+  transition: background-size var(--transition-duration-1, 200ms) var(--transition-ease, ease);
 }
 
 .form1_check_wrap .form1_check_box.is-radio:checked,

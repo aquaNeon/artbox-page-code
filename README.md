@@ -931,9 +931,7 @@ sibling to find.
 | Piece | How |
 | --- | --- |
 | The box | `appearance: none`, `1em` square, `1px solid currentColor`. Webflow's float and negative indent go, and the wrap's `padding-left` with them — it is already a flex row with a gap, and the two arrangements were fighting |
-| The tick | A background image, **not** a `::before`. A pseudo-element on an input is undefined territory: Chrome draws one, Safari is not to be relied on for it, and this box exists because of a Safari bug already |
-| Its colour | Written into the data URI. A URI is a picture, not CSS, and nothing inside it can read a custom property — it holds `--_theme---background--bg-primary`'s value, so change it there if the paper changes |
-| The arrival | `background-size` from `0` to `72%`, since that animates where `background-image` does not |
+| Checked | Solid black box, no tick — the client asked for it. `#000` with `!important`, and Webflow's own `w--redirected-checked` / `w--redirected-focus` named too: in Safari they add a blue `#3898ec` fill, a blue glow and a tick image of their own. `accent-color: #000` covers Safari tinting the native control |
 | Radio | `.is-radio`, or a real `input[type="radio"]`: round, box left empty, a radial gradient for the dot |
 | Focus | The site's ring (`--focus--width`), since these are the only keyboard-reachable controls on the page |
 
