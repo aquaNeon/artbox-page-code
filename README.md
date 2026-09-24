@@ -832,8 +832,18 @@ own pace; it is not scrubbed. Tying the fade to the wheel means a trackpad
 flick blinks the rows past half-drawn. Nothing moves, only opacity, and the
 container padding is dropped so the rows run edge to edge.
 
-One boundary per gap, positioned a screen apart as a function so a refresh
-recomputes it — a phone's viewport changes height when its address bar does.
+**The track is in `lvh`, never `dvh`.** It is the height of everything above
+the rest of the page, and `dvh` moves with the iOS toolbar, which shows and
+hides on every change of scroll direction. Six screens of it shifted the CTA
+and the FAQ by about half a screen each time — Chrome's scroll anchoring hid
+that on Android, and Safari has no scroll anchoring. `lvh` is the tallest the
+viewport gets, so the track is never short of the screens it holds. The
+sticky `.services_stack_viewport` keeps `dvh`: it is out of the flow's height
+and should match the visible screen.
+
+One boundary per gap, a step apart — the track's height divided by its
+screens, not `innerHeight`, which on iOS moves with the toolbar while the
+track does not.
 Scrolling back fires `onLeaveBack`, not `onEnterBack`: the trigger element is
 the whole track, so the boundary is crossed by leaving through its start
 rather than re-entering from beyond its end.

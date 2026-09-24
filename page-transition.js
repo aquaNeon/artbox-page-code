@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-24-ios-underline-tabs';
+  const BUILD = '2026-09-24-services-lvh';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3863,9 +3863,16 @@
       // a step per gap, plus the hold, plus its own screen.
       const screens = (items.length - 1) * SERVICES_STACK.screens
         + SERVICES_STACK.hold + 1;
-      // dvh to match the viewport: a track measured in svh is shorter than
-      // the screens it is holding, and the last row loses its hold early.
-      list.style.height = `${screens * 100}dvh`;
+      /* lvh, never dvh: this track is everything above the rest of the
+         page, and dvh moves with the iOS toolbar — which shows and hides on
+         every change of scroll direction. Times six screens, that shifted
+         the CTA and the FAQ by half a screen each time. Chrome's scroll
+         anchoring hid it on Android; Safari has none. lvh is the tallest
+         the viewport gets, so the track is never short of the screens it
+         holds either. */
+      const unit = CSS.supports?.('height', '1lvh') ? 'lvh' : 'vh';
+      list.style.height = `${screens * 100}${unit}`;
+      const step = () => list.offsetHeight / screens;
 
       // The rest wait at zero rather than hidden, so their images are
       // decoded before they are needed.
@@ -3898,13 +3905,13 @@
            position. A resize rebuild is direct: the queue for this
            container has already been played and dropped. */
         const createTriggers = () => {
-          /* One boundary per gap between rows. Positions are functions so
-             they are recomputed on refresh — the step is a screen tall and
-             a phone's screen changes when its address bar does. */
+          /* One boundary per gap between rows, measured off the track
+             rather than innerHeight, which on iOS moves with the toolbar
+             while the track does not. */
           for (let i = 1; i < items.length; i += 1) {
             const boundary = ScrollTrigger.create({
               trigger: list,
-              start: () => `top top-=${i * window.innerHeight * SERVICES_STACK.screens}`,
+              start: () => `top top-=${i * step() * SERVICES_STACK.screens}`,
               invalidateOnRefresh: true,
               onEnter: () => show(i),
               // Leave, not enter: the trigger is the whole track, so the
