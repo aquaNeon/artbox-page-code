@@ -2480,6 +2480,10 @@ colour is set on `.footer_link_wrap`, not the text, so the square hover icon
 (drawn in `currentColor`) dims with it. The paper colour is `--link-on` on
 the same rule.
 
+**The current page always shows its icon**, in the footer and in the open
+menu, at the end state the hover animates to. On desktop only for the menu:
+below 992px and on touch the menu hides its hover icons altogether.
+
 A fixed colour rather than `--_theme---navlinks--text-inactive`: in the dark
 theme that variable resolves to the full paper colour, so nothing stepped
 back and the current page stopped standing out, and inside the menu it

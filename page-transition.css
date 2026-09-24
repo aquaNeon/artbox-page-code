@@ -2394,16 +2394,22 @@ html .cta_wrap {
   color: var(--link-on);
 }
 
-/* The current page wears its icon permanently, at the same end state the
-   hover animates to. Values mirrored from the component's own rule. */
+/* The current page wears its icon permanently, in the footer and the
+   open menu, at the same end state the hover animates to. The menu hides
+   its icons below 992px and on touch, and that rule still wins there.
+   Values mirrored from the component's own rule. */
 .footer_wrap .footer_link_wrap:has(a.is-current) .footer_link_hover_icon,
-.footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon {
+.footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon,
+.meganav_root .meganav_links_wrap .footer_link_wrap:has(a.is-current) .footer_link_hover_icon,
+.meganav_root .meganav_links_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon {
   width: var(--icon-size);
   margin-right: var(--icon-gap);
 }
 
 .footer_wrap .footer_link_wrap:has(a.is-current) .footer_link_hover_icon::before,
-.footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon::before {
+.footer_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon::before,
+.meganav_root .meganav_links_wrap .footer_link_wrap:has(a.is-current) .footer_link_hover_icon::before,
+.meganav_root .meganav_links_wrap .footer_link_wrap:has(a.w--current) .footer_link_hover_icon::before {
   transform: translateX(0);
   opacity: 1;
 }
