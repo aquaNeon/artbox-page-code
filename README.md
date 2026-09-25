@@ -1815,26 +1815,39 @@ any width.
 
 ### heroVideo
 
-The last cell of the hero grid is a video. As the section below it
-(`.home_video_wrap`) scrolls up, the video grows out of that cell until it
-fills the section, exactly when the section's top reaches the top of the
-screen. From there it is simply part of that section and scrolls away with it.
-No pin, no text, no scroll takeover. (The pinned version with statements is
-tagged `pre-no-text`.)
+The last cell of the hero grid is a video. It grows out of that cell to fill
+the screen, lands exactly as the section below (`.home_video_wrap`) reaches
+the top, and from there is simply part of that section and scrolls away with
+it. No pin and no text — the pinned version with statements is tagged
+`pre-no-text`.
 
-**Nothing is triggered, latched or moved mid-scroll.** At mount the component
-moves once into the section, and the empty cell keeps the video's ratio so the
-grid holds its shape. After that, every frame is computed from where the cell
-and the section are on screen *right now* — the cell's live rect, including the
-hero's parallax and its `translateY(30%)`, and the section's. The same scroll
-position always draws the same frame, so scrolling up and down, a toolbar
-resize, or Back landing mid-page cannot leave it in a wrong state. That is what
-the pinned version kept getting wrong on iOS: each of its hand-offs (lift to
-the body, pin, settle back) could be left half done.
+**Triggered, not scrubbed.** `growAfter` px (120) after the section starts to
+come up, the growth runs on its own clock (`growDuration`, `growEase`) and
+finishes whatever the scroll does. The threshold is latched: it fires at
+`growAfter` and only lets go back at the very start of that range, so a scroll
+parked on it cannot flip it back and forth. **The takeover** carries the page to
+the section's top in the same second, locked while it goes
+(`lenis.scrollTo(..., { lock: true })`), so a flick cannot skip the whole
+thing. Never under `prefers-reduced-motion`.
 
-Progress runs from the section's top at `section height` below the top of the
-screen to `0`, measured against the section, not `innerHeight`, which on
-iOS moves with the toolbar. `HERO_VIDEO.growEase` shapes it.
+Grown means the screen until the section arrives, then the section: the two
+are the same box the moment its top reaches the top, so the video is handed
+from one to the other without a seam. Scrolled back up, it holds the screen
+until the growth lets go at the top of the range, then shrinks back to its cell.
+
+**Nothing is moved mid-scroll.** At mount the component moves once into the
+section, and the empty cell keeps the video's ratio so the grid holds its
+shape. Every frame is drawn from where the cell and the section are on screen
+*right now* — the cell's live rect, including the hero's parallax and its
+`translateY(30%)`, and the section's — plus one number, how far the growth
+has got. That is what the pinned version kept getting wrong on iOS: each of its
+hand-offs (lift to the body, pin, settle back) could be left half done by a
+toolbar resize or a scroll reversal. Distances are measured against the
+section's height, not `innerHeight`, which on iOS moves with the toolbar.
+
+Landing past the section — Back, or a reload further down — is a place, not a
+journey: the growth is set to full at once instead of playing over whatever
+the page came back to.
 
 **One shape the whole way.** The component is laid out as the video's own ratio
 just covering the section, centred. Each frame is one uniform scale plus a
@@ -1857,7 +1870,11 @@ page. Reduced motion: the video is placed in the section and does not grow.
 
 | Key in `HERO_VIDEO` | Default | Meaning |
 | --- | --- | --- |
-| `growEase` | `power2.inOut` (`E.travel`) | shape of the growth; the scroll sets its pace |
+| `growAfter` | `120` | px into the section before the growth fires |
+| `growDuration` | `1` | seconds to full size, its own clock |
+| `growEase` | `power2.inOut` (`E.travel`) | |
+| `takeover` | `true` | carry the page to the section's top while it grows |
+| `takeoverDuration` | `1` | seconds of that throw |
 | `bleed` | `1` | px past the section on every side |
 | `from`, `duration`, `delay`, `ease` | `0.6`, `0.9`, `0.55`, `E.small` | the entrance |
 
@@ -2276,7 +2293,8 @@ Once it has landed, `ScrollMemory` dispatches `page:restored` on `document`
 with `{ container }`. A module whose animation is driven by scrolling past a
 point should listen for it: a restore is a jump, so its triggers see the whole
 journey at once and play it over the section the page came back to.
-`heroVideo` does not need to: it draws straight from the scroll position.
+`heroVideo` handles it itself: landing past its section sets the growth to
+full at once.
 
 ## Footer and the transition
 

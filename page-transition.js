@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-25-hero-video-scrub';
+  const BUILD = '2026-09-25-hero-video-trigger';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -5826,7 +5826,19 @@
     delay: 0.55,
     ease: E.small,
 
-    growEase: E.travel,  // shapes the growth; the scroll sets its pace
+    // px of scroll into the section before the growth fires. Pixels, not
+    // a fraction: what fires it is the gesture, the same on any screen.
+    growAfter: 120,
+    growDuration: 1,
+    growEase: E.travel,
+
+    /* The growth is a second long and a flick of the wheel is a screen,
+       so the page is carried to the section and locked while it grows —
+       otherwise it is possible to arrive having seen none of it. Never
+       under reduced motion: taking the scroll away is the one thing that
+       setting asks you not to do. */
+    takeover: true,
+    takeoverDuration: 1,
 
     /* px past the section on every side: a scaled layer's edges land on
        fractions and the compositor rounds the other way from the paint,
@@ -5835,12 +5847,12 @@
   };
 
   /* The video lives in the section it grows into, from mount to teardown,
-     and every frame is a function of where the cell and the section are
-     on screen right now. Nothing is triggered, latched, pinned or moved
-     mid-scroll — the pinned version kept breaking on iOS, where each of
-     those hand-offs could be left half done by a toolbar resize or a
-     scroll reversal. The same scroll position always draws the same
-     frame, so there is no state to get wrong. */
+     and every frame is drawn from where the cell and the section are on
+     screen right now. No pin, and nothing moved mid-scroll — the pinned
+     version kept breaking on iOS, where its hand-offs (lift to the body,
+     pin, settle back) could be left half done by a toolbar resize or a
+     scroll reversal. The one piece of state left is how far the growth
+     has got. */
   Modules.add('heroVideo', function (root) {
     const hero = root.querySelector('.home_wrap');
     const stage = root.querySelector('.home_video_wrap');
@@ -5908,7 +5920,6 @@
     };
 
     const lerp = (a, b, t) => a + (b - a) * t;
-    const grow = gsap.parseEase(HERO_VIDEO.growEase);
     const bleed = HERO_VIDEO.bleed;
 
     let intro = HERO_VIDEO.from;
@@ -5916,10 +5927,56 @@
     let dead = false;
     let drawn = '';
 
-    /* From the cell at the top of the page to the whole section once its
-       top reaches the top of the screen. Measured against the section's
-       own height, not the window's: on iOS innerHeight moves with the
-       toolbar and the section does not. */
+    /* Triggered, not scrubbed: growAfter px after the section starts to
+       come up, the growth runs on its own clock and finishes whatever the
+       scroll does. Latched, edges far apart — it only lets go back at the
+       very start of that range, so a scroll parked on the threshold cannot
+       flip it back and forth. */
+    const growth = { p: 0 };
+    let wants = 0;
+    let scrollTween = null;
+
+    // Carried rather than blocked: a page that stops answering reads as
+    // broken. The same second as the growth, so both land together.
+    const takeover = (s) => {
+      if (!HERO_VIDEO.takeover || reducedMotion || s.top <= 0) return;
+      const target = window.scrollY + s.top;
+      if (hasLenis && lenis && lenis.scrollTo) {
+        lenis.scrollTo(target, { duration: HERO_VIDEO.takeoverDuration, lock: true, force: true });
+        return;
+      }
+      const pos = { y: window.scrollY };
+      scrollTween = gsap.to(pos, {
+        y: target,
+        duration: HERO_VIDEO.takeoverDuration,
+        ease: HERO_VIDEO.growEase,
+        overwrite: true,
+        onUpdate: () => window.scrollTo(0, pos.y)
+      });
+    };
+
+    const growTo = (target, s) => {
+      if (wants === target) return;
+      wants = target;
+      /* Already past the section — Back, or a reload further down — is a
+         place, not a journey: drawn full size at once rather than growing
+         over whatever the page came back to. */
+      if (target === 1 && s.top <= 0) {
+        gsap.killTweensOf(growth);
+        growth.p = 1;
+        return;
+      }
+      if (target === 1) takeover(s);
+      gsap.to(growth, {
+        p: target,
+        duration: HERO_VIDEO.growDuration,
+        ease: HERO_VIDEO.growEase,
+        overwrite: true
+      });
+    };
+
+    /* Measured against the section's own height, not the window's: on iOS
+       innerHeight moves with the toolbar and the section does not. */
     const draw = () => {
       if (dead || frozen) return;
       if (!frame) size();
@@ -5927,13 +5984,24 @@
 
       const s = stage.getBoundingClientRect();
       const c = cell.getBoundingClientRect();
-      const progress = Math.min(1, Math.max(0, 1 - s.top / s.height));
-      const q = grow(progress);
 
-      const w = lerp(c.width, s.width + bleed * 2, q);
-      const h = lerp(c.height, s.height + bleed * 2, q);
-      const dx = lerp(c.left + c.width / 2, s.left + s.width / 2, q) - (s.left + s.width / 2);
-      const dy = lerp(c.top + c.height / 2, s.top + s.height / 2, q) - (s.top + s.height / 2);
+      const distance = s.height - s.top;
+      if (distance >= HERO_VIDEO.growAfter) growTo(1, s);
+      else if (distance <= 0) growTo(0, s);
+      const q = growth.p;
+
+      /* Grown means the screen until the section arrives, then the
+         section: the two are the same box the moment its top reaches the
+         top, so the video is handed from one to the other without a seam
+         and then scrolls away with it. */
+      const t = s.top > 0
+        ? { left: s.left, top: 0, width: s.width, height: s.height }
+        : s;
+
+      const w = lerp(c.width, t.width + bleed * 2, q);
+      const h = lerp(c.height, t.height + bleed * 2, q);
+      const dx = lerp(c.left + c.width / 2, t.left + t.width / 2, q) - (s.left + s.width / 2);
+      const dy = lerp(c.top + c.height / 2, t.top + t.height / 2, q) - (s.top + s.height / 2);
 
       // Scaled to cover the rectangle, then cropped to it.
       const k = Math.max(w / frame.w, h / frame.h);
@@ -5946,7 +6014,7 @@
       comp.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${k * intro})`;
       comp.style.clipPath = `inset(${insetY}px ${insetX}px)`;
 
-      if (video && video.paused && progress < 1) play();
+      if (video && video.paused && s.bottom > 0) play();
     };
 
     gsap.ticker.add(draw);
@@ -5959,7 +6027,11 @@
 
     // A swap turns both containers into fixed layers, and the rects this
     // reads stop describing the page anyone is looking at.
-    const freeze = () => { frozen = true; };
+    const freeze = () => {
+      frozen = true;
+      gsap.killTweensOf(growth);
+      scrollTween?.kill();
+    };
     document.addEventListener('page:leaving', freeze);
 
     const introDelay = () => {
@@ -6002,7 +6074,8 @@
       gsap.ticker.remove(draw);
       window.removeEventListener('resize', onResize);
       document.removeEventListener('page:leaving', freeze);
-      gsap.killTweensOf(comp);
+      gsap.killTweensOf([comp, growth]);
+      scrollTween?.kill();
       gsap.set(comp, { clearProps: 'opacity,visibility' });
       restore();
     };
