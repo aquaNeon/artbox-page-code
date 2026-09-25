@@ -509,7 +509,7 @@
     /* One curve and one duration across the three line roles: a heading
        and the paragraph under it read as the same gesture, and three
        near-identical eases only made them drift. */
-    headingDuration: 0.6,
+    headingDuration: 1.0,
     headingStagger: 0.16,
     headingEase: QUBIC.css,
 
