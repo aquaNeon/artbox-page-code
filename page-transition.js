@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-24-services-lvh';
+  const BUILD = '2026-09-25-hero-video-scrub';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -1748,8 +1748,8 @@
             end: () => `top top-=${pin() * (CTA.tintStart + CTA.tint)}`,
             scrub: CTA.scrub,
             invalidateOnRefresh: true,
-            // After anything that pins above it: heroVideo's pin spacing
-            // has to be in the document before this is measured.
+            // After anything that pins above it: pin spacing has to be
+            // in the document before this is measured.
             refreshPriority: -1
           }
         }
@@ -4516,18 +4516,8 @@
       const hold = parseInt(wrap.dataset.swapHold, 10) || SWAP.hold;
       const loop = wrap.dataset.swapLoop !== 'false';
 
-      /* data-swap-wait hands the start to heroVideo, which fires it once
-         the video has finished growing — its own trigger goes off while
-         the video is still travelling. Assumed inside the hero stage
-         whether or not the attribute survived the Designer. */
-      const waits = wrap.hasAttribute('data-swap-wait') ||
-        !!wrap.closest('.home_video_wrap');
-
-      /* The hero's statements are a column that arrives whole in stack
-         mode, driven by heroVideo — no cell to share, no timer to hold
-         them. Left to this module they would be stacked one over the
-         other and swapped underneath it. */
-      if (waits && HERO_VIDEO.textMode === 'stack' && wrap.closest('.home_video_wrap')) return;
+      // data-swap-wait holds the start until something sends swap:start.
+      const waits = wrap.hasAttribute('data-swap-wait');
 
       // One grid cell rather than absolute children, which collapse the
       // wrapper: in one cell the tallest statement still sets the box.
@@ -5826,67 +5816,9 @@
   });
 
 
-  /* ===== HERO VIDEO — the hero's last cell to full screen — README ### heroVideo ===== */
+  /* ===== HERO VIDEO — the hero's last cell grows into the section below — README ### heroVideo ===== */
 
   const HERO_VIDEO = {
-    pin: 1.5,          // screens of pin once it is full bleed
-
-    /* The growth is a second long and a flick of the wheel is a screen,
-       so the page is carried to the pin and locked while it travels —
-       otherwise it is possible to arrive having seen none of it. Never
-       under reduced motion: taking the scroll away is the one thing
-       that setting asks you not to do. */
-    takeover: true,
-    takeoverDuration: 1,
-    z: 5,              // over the hero and the stage, under the nav
-
-    // px of scroll out of the hero before the growth fires. Pixels, not
-    // a fraction: what fires it is the gesture, the same on any screen.
-    growAfter: 120,
-    growDuration: 1,
-    growEase: E.travel,
-
-    dwell: 1300,       // ms a statement holds, however fast the pin runs
-
-    /* 'stack' — both statements arrive together once the video fills the
-       screen, under each other, and leave upward as the pin is scrolled.
-       'swap' — one at a time, each cued by its share of the pin.
-
-       Swapping made the text a function of scroll position: a flick
-       outran it and the first statement was gone before it was read,
-       and scrolling back rewound it rather than bringing it back. The
-       arrival is on a clock now, so it cannot be outrun, and the leaving
-       is scrubbed, so it is reversible — scroll back up and the words
-       come back down. */
-    textMode: 'stack',
-
-    textIn: 0.9,        // s, the arrival once the video is full bleed
-    textInStagger: 0.05,
-    textOutScale: 0.6,  // of that, going back down out of the way
-    textShift: 40,      // px it rises from, and the gap it leaves by
-    textEase: E.body,
-
-    /* Where in the pin the leaving happens, as a share of it. Below
-       readUntil nothing moves — that is the beat for reading. Past
-       textOut the statements are gone and the video has the screen to
-       itself before the pin lets go. */
-    readUntil: 0.35,
-    textOut: 0.85,
-    /* Of the distance that clears the frame's top edge, measured from
-       where the statements sit. 1 takes them just out of sight; more
-       gives them somewhere to keep going. */
-    textTravel: 1.1,
-
-    /* s the leaving takes to catch up with the scroll. Written straight
-       from the pin's progress it is exact and looks it — a flick
-       teleports the statements rather than moving them, and scrolling up
-       and down inside the pin is a series of jumps with no motion in
-       them at all. Chasing the scroll by a quarter of a second keeps the
-       control (it still follows the hand, and still reverses) and gives
-       every crossing something to watch. */
-    textChase: 0.25,
-    textChaseEase: 'power3.out',
-
     // Fallback only: the real delay is this cell's slot in the entrance
     // order, read off --hero-in-* in the CSS.
     from: 0.6,
@@ -5894,15 +5826,21 @@
     delay: 0.55,
     ease: E.small,
 
-    overspill: 1.02,   // painted larger than its frame, as in the CSS
+    growEase: E.travel,  // shapes the growth; the scroll sets its pace
 
-    /* px past the viewport on every side: a scaled layer's edges land on
+    /* px past the section on every side: a scaled layer's edges land on
        fractions and the compositor rounds the other way from the paint,
-       leaving a flickering hairline. Never visible in a screenshot,
-       which captures the composited result. */
-    bleed: 2
+       leaving a flickering hairline. */
+    bleed: 1
   };
 
+  /* The video lives in the section it grows into, from mount to teardown,
+     and every frame is a function of where the cell and the section are
+     on screen right now. Nothing is triggered, latched, pinned or moved
+     mid-scroll — the pinned version kept breaking on iOS, where each of
+     those hand-offs could be left half done by a toolbar resize or a
+     scroll reversal. The same scroll position always draws the same
+     frame, so there is no state to get wrong. */
   Modules.add('heroVideo', function (root) {
     const hero = root.querySelector('.home_wrap');
     const stage = root.querySelector('.home_video_wrap');
@@ -5912,599 +5850,118 @@
     const cell = comp && comp.closest('.home_img_wrap');
     if (!comp || !cell) return;
 
-    const swap = stage.querySelector('[data-swap]');
-    const statements = swap
-      ? (swap.querySelectorAll('[data-swap-item]').length || swap.children.length)
-      : 0;
-    let reading = -1;
     const video = comp.querySelector('video');
-
-    /* Stack mode: the statements are a column that arrives whole and
-       leaves whole, so textSwap's one-cell grid is not wanted and
-       neither is its timer. It stands aside for this wrapper — see the
-       guard in that module — and these are driven from here. */
-    const stacking = HERO_VIDEO.textMode === 'stack' && !!swap;
-    const lines = stacking
-      ? (swap.querySelectorAll('[data-swap-item]').length
-        ? Array.from(swap.querySelectorAll('[data-swap-item]'))
-        : Array.from(swap.children))
-      : [];
-
-    let textIn = null;     // the arrival, played once the video is full
-    let textShown = false;
-
-    /* page-transition.css holds the component hidden from first paint,
-       because the pre-hide below is JS and everything before it — the
-       bundle, GSAP, ScrollTrigger — is a stretch of time in which the
-       video is sitting in the grid, painted. That was the flash.
-
-       Released here, at mount, before anything is drawn: a running CSS
-       animation outranks an inline style, so leaving it alive would
-       mean the fade had nothing to say until the hold expired. The
-       hold is a watchdog, not a state — if this file never arrives it
-       lets go by itself and the video is simply there. */
-    comp.style.animation = 'none';
-
-    /* Reduced motion gets the destination without the journey: the
-       video is placed in the stage full bleed and never travels. */
-    if (reducedMotion || !hasScrollTrigger) {
-      const marker = document.createComment('hero-video');
-      cell.insertBefore(marker, comp);
-      stage.insertBefore(comp, stage.firstChild);
-      comp.classList.add('is-hero-video-static');
-      swap?.dispatchEvent(new Event('swap:start'));
-      return () => {
-        comp.classList.remove('is-hero-video-static');
-        marker.parentNode?.insertBefore(comp, marker);
-        marker.remove();
-      };
-    }
-
-    let base = null;    // cell box in document coordinates
-    let cover = null;   // where and how big it has to be to fill the screen
-    let dead = false;
-    let lifted = false;
-
-    /* position:fixed resolves against the viewport only while no
-       ancestor is transformed — and the hero parallax transforms this
-       very cell. So it moves to the body for the journey, and this
-       marker holds its seat for teardown. */
     const seat = document.createComment('hero-video');
 
-    /* The statements move INTO the video for the pin: fixed on the body
-       it paints over the whole stage, and every section is its own
-       stacking context, so no z-index on the text could outrank it. As
-       children they are simply painted after. */
-    const text = stage.querySelector('.home_video_contain');
-    const textSeat = document.createComment('hero-video-text');
+    /* The cell keeps the video's shape once it is empty, so the grid
+       holds its shape around the hole. */
+    const declared = (getComputedStyle(comp).aspectRatio.match(/[\d.]+/g) || []).map(Number);
+    const ratio = declared.length >= 2 && declared[1] ? declared[0] / declared[1] : 16 / 9;
+    cell.style.aspectRatio = String(ratio);
+    cell.style.height = 'auto';
 
-    // The theme travels with them: colour is a variable the stage sets,
-    // and inside the component they read the page default instead.
-    const themed = stage.classList.contains('u-theme-dark');
+    // The CSS hold is written against the hero, and would stop matching
+    // the moment the component leaves it.
+    comp.style.animation = 'none';
+    cell.insertBefore(seat, comp);
+    stage.appendChild(comp);
 
-    /* The statements keep the box the design gave them in the stage,
-       measured before the move: centring them was a guess, and a wrong
-       one. All four edges, since the frame is no longer the viewport —
-       it is the video's own shape, scaled until it covers, running well
-       past both sides of a phone.
-
-       Measured against the frame's RESTING box, not its current rect: a
-       fast scroll reaches the pin with the growth still running, and a
-       rect read mid-flight is a scaled one.
-
-       Anchored to the bottom, because the gap to the foot of the stage
-       is the design and the height is whatever the text needs.
-
-       Kept as offsets rather than viewport numbers, which go stale as
-       soon as the address bar retracts — and resolved against the
-       VIEWPORT, since while the pin holds the stage is the screen.
-       (A refresh reverts pins to measure them, so the stage's own rect
-       at that moment is a page away.) */
-    let textBox = null;
-
-    const placeText = () => {
-      if (!text || !textBox || text.parentNode !== comp) return;
-
-      /* Settled, the component IS the stage, so the measured gaps are
-         written unchanged. Travelling, it is the frame — bigger than the
-         screen — so they resolve through where the frame sits. */
-      const settled = comp.classList.contains('is-settled');
-      if (!settled && !cover) return;
-
-      /* Travelling, the component is laid out at viewport width and
-         scaled to cover, so its children scale too — the statements came
-         out at four times their size. Offsets are expressed in the
-         component's own units so the text lands 1:1. */
-      const k = 1;
-      const fromLeft = textBox.leftRatio * window.innerWidth;
-      const width = textBox.widthRatio * window.innerWidth;
-
-      text.style.top = 'auto';
-      text.style.bottom = settled
-        ? `${textBox.fromBottom}px`
-        : `${((cover.y + cover.h) - (window.innerHeight - textBox.fromBottom)) / k}px`;
-      text.style.left = settled
-        ? `${fromLeft}px`
-        : `${(fromLeft - cover.x) / k}px`;
-      text.style.right = 'auto';
-      text.style.width = `${width}px`;
-      text.style.height = 'auto';
-
-      if (k === 1) {
-        text.style.removeProperty('transform');
-        text.style.removeProperty('transform-origin');
-      } else {
-        text.style.transformOrigin = '0 100%';
-        text.style.transform = `scale(${1 / k})`;
+    const restore = () => {
+      comp.classList.remove('is-staged', 'is-hero-video-static');
+      ['animation', 'left', 'top', 'width', 'height', 'transform', 'clip-path']
+        .forEach((prop) => comp.style.removeProperty(prop));
+      cell.style.removeProperty('aspect-ratio');
+      cell.style.removeProperty('height');
+      if (seat.parentNode) {
+        seat.parentNode.insertBefore(comp, seat);
+        seat.remove();
       }
     };
 
-    /* Parked below, invisible, until the video has the screen. Set here
-       rather than in the stylesheet so a page whose script never runs
-       shows the statements rather than hiding them for good. */
-    const armText = (animate) => {
-      if (!stacking || !lines.length) return;
-      swap.classList.add('is-stacked');
+    if (reducedMotion) {
+      comp.classList.add('is-hero-video-static');
+      return restore;
+    }
 
-      /* The stylesheet holds marked text hidden from first paint until a
-         module takes it over, and textSwap is the one that normally
-         drops it here. It stands aside in this mode, so the hold is
-         dropped from here instead — otherwise a statement sits at
-         opacity 0 through its own arrival and appears when the hold
-         expires seconds later. */
-      lines.forEach((el) => { el.style.animation = 'none'; });
-      textIn?.kill();
-      textIn = null;
-      textShown = false;
-
-      /* Leaving upward is a move, not a switch. Scrolling back above the
-         pin used to drop the statements at once, which read as a plop
-         where every other edge of this section is a travel — they go
-         back down the way they came instead, a little quicker, since a
-         thing leaving does not need the time a thing arriving does. */
-      if (animate) {
-        gsap.to(lines, {
-          autoAlpha: 0,
-          y: HERO_VIDEO.textShift,
-          duration: HERO_VIDEO.textIn * HERO_VIDEO.textOutScale,
-          ease: HERO_VIDEO.textEase,
-          stagger: HERO_VIDEO.textInStagger,
-          overwrite: 'auto'
-        });
-        return;
-      }
-
-      gsap.set(lines, { autoAlpha: 0, y: HERO_VIDEO.textShift });
-    };
-
-    const showText = () => {
-      if (!stacking || !lines.length || textShown) return;
-      textShown = true;
-
-      /* A frame after the move, not in the same one: the statements are
-         re-parented into the video and placed against its box just
-         before this, and a fade starting on the same frame plays over a
-         layout that is still settling — which is the flicker as they
-         arrive. */
-      /* On gsap's ticker rather than requestAnimationFrame: the same one
-         frame of delay, and it still runs in a tab that is never
-         painted, where rAF simply never fires and the statements would
-         wait for the page to be looked at. */
-      gsap.delayedCall(0, () => {
-        if (dead || !textShown) return;
-        textIn = gsap.to(lines, {
-          autoAlpha: 1,
-          y: 0,
-          duration: HERO_VIDEO.textIn,
-          ease: HERO_VIDEO.textEase,
-          stagger: HERO_VIDEO.textInStagger,
-          overwrite: 'auto'
-        });
-      });
-    };
-
-    /* The leaving, scrubbed: q is how far through the leaving window the
-       pin is, so the statements travel with the hand that moves them and
-       come back down when it goes the other way. */
-    /* How far through the leaving the statements are, chased rather than
-       written: the setter below is what paints it, and a quickTo eases
-       towards each new value instead of landing on it. */
-    const leaving = { q: 0 };
-
-    /* How far up is far enough: from where the statements sit to clear
-       of the frame's top edge, measured rather than guessed, so a long
-       quote leaves as completely as a short one. Re-read whenever they
-       are placed, since the box they sit in is the viewport. */
-    let leaveBy = 0;
-    const measureLeave = () => {
-      if (!stacking || !lines.length) return;
-      const box = swap.getBoundingClientRect();
-      const frame = comp.getBoundingClientRect();
-      leaveBy = Math.max(0, box.bottom - frame.top) * HERO_VIDEO.textTravel;
-    };
-
-    /* No fade. They travel up and out of the picture, which is what was
-       asked for — a statement dissolving where it stands reads as a
-       thing being taken away, and one leaving through the top reads as
-       the page moving on. */
-    const paintLeaving = () => {
-      gsap.set(lines, { y: -leaveBy * leaving.q });
-    };
-
-    const chase = stacking
-      ? gsap.quickTo(leaving, 'q', {
-        duration: HERO_VIDEO.textChase,
-        ease: HERO_VIDEO.textChaseEase,
-        onUpdate: paintLeaving
-      })
-      : null;
-
-    const scrubText = (progress) => {
-      if (!stacking || !lines.length || !textShown) return;
-      const span = HERO_VIDEO.textOut - HERO_VIDEO.readUntil;
-      const q = span > 0
-        ? Math.min(1, Math.max(0, (progress - HERO_VIDEO.readUntil) / span))
-        : 0;
-
-      // The arrival is over the moment the leaving starts, or the two
-      // write to the same properties from different clocks.
-      if (q > 0) textIn?.kill();
-
-      chase(q);
-    };
-
-    if (stacking) armText();
-
-    const bringText = () => {
-      if (!text || text.parentNode === comp) return;
-
-      const t = text.getBoundingClientRect();
-      const st = stage.getBoundingClientRect();
-
-      /* Horizontals as fractions of the stage: measured once in pixels,
-         a phone's box survives into a desktop window. The vertical stays
-         in px — the gap above the bottom edge is a fixed offset. */
-      const stageW = st.width || window.innerWidth;
-      textBox = {
-        fromBottom: st.bottom - t.bottom,
-        leftRatio: (t.left - st.left) / stageW,
-        widthRatio: t.width / stageW
-      };
-
-      stage.insertBefore(textSeat, text);
-      comp.appendChild(text);
-      if (themed) comp.classList.add('u-theme-dark');
-
-      placeText();
-      // Where they sit is now known, so how far they have to go is too.
-      measureLeave();
-    };
-
-    /* Leaving the pin either way rewinds the statements. Without it the
-       sequence is a one-off: coming back finds them already read. */
-    const resetSwap = () => {
-      if (dead || !swap) return;
-      clearTimeout(catchUp);
-      readAt = 0;
-      reading = -1;
-      swap.dispatchEvent(new Event('swap:reset'));
-    };
-
-    const returnText = () => {
-      if (!text || !textSeat.parentNode) return;
-      textSeat.parentNode.insertBefore(text, textSeat);
-      textSeat.remove();
-      comp.classList.remove('u-theme-dark');
-      text.style.removeProperty('top');
-      text.style.removeProperty('bottom');
-      text.style.removeProperty('left');
-      text.style.removeProperty('right');
-      text.style.removeProperty('width');
-      text.style.removeProperty('height');
-      text.style.removeProperty('transform');
-      text.style.removeProperty('transform-origin');
-      textBox = null;
-    };
-
+    comp.classList.add('is-staged');
     gsap.set(comp, { autoAlpha: 0 });
 
-    const measure = () => {
-      /* The cell carries its own Designer height, so it measured as a
-         square box around a 16/9 component. Stamping the component's
-         ratio on it first makes the measurement describe the video. */
-      if (!lifted) {
-        const declared = getComputedStyle(comp).aspectRatio;
-        cell.style.aspectRatio = declared && declared !== 'auto' ? declared : '16 / 9';
-        cell.style.height = 'auto';
-      }
-
-      const r = cell.getBoundingClientRect();
-      const y = window.scrollY || window.pageYOffset;
-      if (!r.width || !r.height) {
-        console.warn(
-          '[heroVideo] the hero cell has no size, so there is nothing to ' +
-          'travel from. Usually the component is still absolutely ' +
-          'positioned and contributing no height to the grid.', cell
-        );
-        return;
-      }
-
-      base = { x: r.left, y: r.top + y, w: r.width, h: r.height };
-
-      /* The frame is the viewport, never wider: kept at the video's
-         ratio it is four screens wide on a phone, and the browser scales
-         the whole page to that. The shape is fixed on the video inside
-         instead — see apply(). */
-      const b = HERO_VIDEO.bleed;
-      const cw = window.innerWidth + b * 2;
-      const ch = window.innerHeight + b * 2;
-
-      const ratio = base.w / base.h;
-
-      cover = {
-        w: cw,
-        h: ch,
-        sx: base.w / cw,
-        sy: base.h / ch,
-        ratio,
-        // Scale the video needs to cover a frame of another shape.
-        toCover: Math.max(1, (ch * ratio) / cw),
-        x: -b,
-        y: -b
-      };
-
-      /* Laid out in its own ratio rather than stretched to the frame:
-         object-fit against a portrait box crops a 16/9 video to 9/16
-         before any transform sees it. */
-      if (visual) {
-        visual.style.position = 'absolute';
-        visual.style.left = '50%';
-        visual.style.top = '50%';
-        visual.style.width = `${cw}px`;
-        visual.style.height = `${cw / ratio}px`;
-        visual.style.maxWidth = 'none';
-      }
-
-      // Once, and after the first measurement: the cell needs the
-      // component's height before it can hold the shape itself.
-      if (!lifted) {
-        cell.insertBefore(seat, comp);
-        document.body.appendChild(comp);
-        comp.classList.add('is-travelling');
-        lifted = true;
-      }
-
-      comp.style.width = `${cover.w}px`;
-      comp.style.height = `${cover.h}px`;
-    };
-
-    /* Taken off base-lib's books before it initialises (heroVideo mounts
-       first): once the component is fixed on the body, that observer's
-       idea of "in view" has nothing to do with what is on screen, and it
-       would pause the video mid-flight. Started with the travel here
-       instead, or the first thing anyone sees of it is a still. */
+    // base-lib's observer pauses anything it thinks is out of view, and
+    // this is a video that spends its first screen outside its section.
     video?.removeAttribute('data-video-scroll-in-play');
+    const play = () => video?.play?.().catch(() => {});
 
-    let playing = false;
-    const play = () => {
-      if (!video) return;
-      playing = true;
-      // An autoplay refusal is a decision, not a fault.
-      video.play?.().catch(() => {});
-    };
-
-    // Re-asserted while it travels: something else pausing it is likelier
-    // than it having ended.
-    const keepPlaying = () => {
-      if (playing && video && video.paused) video.play?.().catch(() => {});
+    /* The frame is the video's own shape, just covering the section, so
+       nothing is ever stretched: the growth is one scale plus a crop. */
+    let frame = null;
+    const size = () => {
+      const w = stage.clientWidth;
+      const h = stage.clientHeight;
+      if (!w || !h) return;
+      const fw = Math.max(w, h * ratio);
+      const fh = fw / ratio;
+      frame = { w: fw, h: fh };
+      comp.style.width = `${fw}px`;
+      comp.style.height = `${fh}px`;
+      comp.style.left = `${(w - fw) / 2}px`;
+      comp.style.top = `${(h - fh) / 2}px`;
     };
 
     const lerp = (a, b, t) => a + (b - a) * t;
+    const grow = gsap.parseEase(HERO_VIDEO.growEase);
+    const bleed = HERO_VIDEO.bleed;
 
-    // The entrance cannot be a CSS animation: apply() writes the same
-    // transform every frame, so its scale is composed in instead.
     let intro = HERO_VIDEO.from;
-    let lastP = 0;
-    let lastScroll = 0;
-
-    /* p 0 is the cell, p 1 the filled screen. In between it still has to
-       travel with the page, or it hangs in the viewport while the hero
-       leaves — hence the scroll term, faded out as p rises. */
     let frozen = false;
+    let dead = false;
+    let drawn = '';
 
-    /* The hero's pictures lean towards the pointer — HERO.bump, tweened
-       onto the img inside each cell. The video could not have it done
-       the same way: apply() owns its transform and rewrites it every
-       frame, so a tween on the element is painted over. The offset is
-       kept here and folded into that line instead, with the same
-       numbers, so the cell and the video answer a hand alike. */
-    const bump = { x: 0, y: 0 };
-    let dropBump = () => {};
+    /* From the cell at the top of the page to the whole section once its
+       top reaches the top of the screen. Measured against the section's
+       own height, not the window's: on iOS innerHeight moves with the
+       toolbar and the section does not. */
+    const draw = () => {
+      if (dead || frozen) return;
+      if (!frame) size();
+      if (!frame) return;
 
-    const visual = comp.querySelector('.g_visual_video') || video;
+      const s = stage.getBoundingClientRect();
+      const c = cell.getBoundingClientRect();
+      const progress = Math.min(1, Math.max(0, 1 - s.top / s.height));
+      const q = grow(progress);
 
-    const apply = (p, scroll) => {
-      if (frozen || !base || !cover) return;
+      const w = lerp(c.width, s.width + bleed * 2, q);
+      const h = lerp(c.height, s.height + bleed * 2, q);
+      const dx = lerp(c.left + c.width / 2, s.left + s.width / 2, q) - (s.left + s.width / 2);
+      const dy = lerp(c.top + c.height / 2, s.top + s.height / 2, q) - (s.top + s.height / 2);
 
-      /* Settled, the stage owns the box — settle() cleared the transform
-         for exactly that reason. A growth running down as the section is
-         scrolled away still calls this, and the transform it wrote put a
-         cell-sized video at the cell's coordinates inside the stage:
-         a small picture, off to one side, where a full-bleed one had
-         been. lift() takes the class off before it needs this again. */
-      if (comp.classList.contains('is-settled')) return;
+      // Scaled to cover the rectangle, then cropped to it.
+      const k = Math.max(w / frame.w, h / frame.h);
+      const insetX = Math.max(0, (frame.w - w / k) / 2);
+      const insetY = Math.max(0, (frame.h - h / k) / 2);
 
-      lastP = p;
-      lastScroll = scroll;
+      const next = `${dx.toFixed(2)},${dy.toFixed(2)},${(k * intro).toFixed(5)},${insetX.toFixed(2)},${insetY.toFixed(2)}`;
+      if (next === drawn) return;
+      drawn = next;
+      comp.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${k * intro})`;
+      comp.style.clipPath = `inset(${insetY}px ${insetX}px)`;
 
-      const x = lerp(base.x, cover.x, p);
-      const y = lerp(base.y - scroll, cover.y, p);
-      const sx = lerp(cover.sx, 1, p);
-      const sy = lerp(cover.sy, 1, p);
-
-      /* The frame morphs from the cell's shape to the screen's and the
-         video is handed that difference back, so it is only ever scaled
-         by one number: the cell's fill at one end, cover at the other. */
-      if (visual && sx > 0 && sy > 0) {
-        const f = lerp(cover.sx, cover.toCover, p) * HERO_VIDEO.overspill;
-        visual.style.transform =
-          `translate(-50%, -50%) scale(${f / sx}, ${f / sy})`;
-      }
-
-      // The travel scales from the top left, so the entrance's centre is
-      // held by hand: half the shrink on each side.
-      const dx = (cover.w * sx * (1 - intro)) / 2;
-      const dy = (cover.h * sy * (1 - intro)) / 2;
-
-      /* The hover bump is added here rather than tweened onto the
-         element: this line rewrites the transform every frame, and
-         anything else writing to it would be overwritten on the next
-         one. Faded out with the takeover — a picture leaning towards the
-         pointer is a thing you do to a cell in a grid, not to a video
-         filling the screen. */
-      const lean = 1 - p;
-
-      comp.style.transform =
-        `translate3d(${x + dx + bump.x * lean}px, ${y + dy + bump.y * lean}px, 0) ` +
-        `scale(${sx * intro}, ${sy * intro})`;
+      if (video && video.paused && progress < 1) play();
     };
 
-    /* Measured against the STAGE, not the hero: the stage's top entering
-       the viewport to reaching it is one screen, and its end is the
-       pin's start by definition. Tied to the hero's height instead, the
-       travel finished whenever that section happened to end.
+    gsap.ticker.add(draw);
 
-       Declared before anything that reaches for it — the trigger's own
-       callbacks run during its creation, where a const on the same line
-       is still in its dead zone. */
-    let travel = null;
-
-    const growth = { p: 0 };
-    let growing = false;
-    let wants = 0;
-
-    /* Its own tween, not the trigger's updates: once it is going it has
-       to keep going, and a scroll that races past the range — or stops
-       dead inside it — takes those updates with it. The scroll is read
-       live for the same reason.
-
-       The page is carried to the pin rather than merely blocked: a lock
-       on its own is a page that stops answering. */
-    let tookOver = false;
-    let scrollTween = null;
-
-    const takeover = () => {
-      if (!HERO_VIDEO.takeover || reducedMotion || tookOver || dead) return;
-      if (!travel) return;
-
-      const target = travel.end;
-      if (!isFinite(target) || travel.scroll() >= target) return;
-      tookOver = true;
-
-      if (hasLenis && lenis && lenis.scrollTo) {
-        lenis.scrollTo(target, {
-          duration: HERO_VIDEO.takeoverDuration,
-          lock: true,
-          force: true
-        });
-        return;
-      }
-
-      const pos = { y: travel.scroll() };
-      scrollTween = gsap.to(pos, {
-        y: target,
-        duration: HERO_VIDEO.takeoverDuration,
-        ease: HERO_VIDEO.growEase,
-        overwrite: true,
-        onUpdate: () => window.scrollTo(0, pos.y)
-      });
+    const onResize = () => {
+      size();
+      drawn = '';
     };
+    window.addEventListener('resize', onResize, { passive: true });
 
-    const growTo = (target) => {
-      if (dead || wants === target) return;
-      wants = target;
-      growing = true;
+    // A swap turns both containers into fixed layers, and the rects this
+    // reads stop describing the page anyone is looking at.
+    const freeze = () => { frozen = true; };
+    document.addEventListener('page:leaving', freeze);
 
-      // Re-armed only once the growth is let go entirely, so scrolling
-      // back up and down again gets the same throw.
-      if (target === 1) takeover();
-      else tookOver = false;
-
-      /* The statements arrived when the video reached full bleed, so
-         they leave when it gives it up — going back down the way they
-         came rather than waiting to be switched off at the pin's edge. */
-      if (target === 0) armText(true);
-      gsap.to(growth, {
-        p: target,
-        duration: HERO_VIDEO.growDuration,
-        ease: HERO_VIDEO.growEase,
-        overwrite: true,
-        onUpdate: () => apply(growth.p, travel ? travel.scroll() : lastScroll),
-        onComplete: () => {
-          growing = false;
-          apply(growth.p, travel ? travel.scroll() : lastScroll);
-
-          /* The video is full bleed HERE, at the end of the growth — the
-             pin starts a moment later, and cueing the statements off it
-             meant waiting for one more scroll with the video already
-             filling the screen. */
-          if (target === 1) {
-            bringText();
-            placeText();
-            showText();
-          }
-        }
-      });
-    };
-
-    /* Latched, edges far apart: one threshold for both directions means
-       a scroll hovering on it flips the growth back and forth. */
-    const wanted = (distance) => {
-      if (distance >= HERO_VIDEO.growAfter) return 1;
-      if (distance <= 0) return 0;
-      return wants;
-    };
-
-    travel = ScrollTrigger.create({
-      trigger: stage,
-      start: 'top bottom',
-      end: 'top top',
-      invalidateOnRefresh: true,
-
-      /* Refreshes land on every navigation and footer resize, so only
-         the settled value is corrected — snapping p mid-growth is a jump
-         in the middle of it. */
-      onRefresh: (self) => {
-        /* A refresh — a resize, a navigation, a footer resizing — can
-           land while the component is settled and the page is above the
-           pin, which is a state nothing else would take it out of:
-           settled, apply() leaves the box to the stage, and only
-           entering the pin lifts it again. The video sat in the stage at
-           its cell size and never grew. */
-        if (comp.classList.contains('is-settled')
-          && held && self.scroll() < held.start) lift();
-
-        measure();
-        placeText();
-        measureLeave();
-        if (!growing) {
-          wants = wanted(self.scroll() - self.start);
-          growth.p = wants;
-        }
-        apply(growth.p, self.scroll());
-      },
-
-      onUpdate: (self) => {
-        if (dead) return;
-        growTo(wanted(self.scroll() - self.start));
-        apply(growth.p, self.scroll());
-        keepPlaying();
-      }
-    });
-
-    /* The entrance order lives on .home_wrap in the CSS, next to the
-       images' own delays; this reads its slot out of there rather than
-       keeping a second copy. Falls back to the constants above. */
     const introDelay = () => {
       const cs = getComputedStyle(hero);
       const num = (name) => {
@@ -6520,301 +5977,34 @@
       return lead + step * slot;
     };
 
-    /* A tween, not a keyframe: moving an element in the DOM restarts its
-       CSS animations, and this one moves to the body and back — so the
-       fade replayed on the way up. Opacity only; apply() owns the
-       transform. */
     Intro.add(root, () => {
       if (dead) return;
       play();
-
       const delay = introDelay();
-
       gsap.to(comp, {
         autoAlpha: 1,
         duration: HERO_VIDEO.duration,
-        delay: delay,
-        ease: HERO_VIDEO.ease,
-        overwrite: 'auto'
+        delay,
+        ease: HERO_VIDEO.ease
       });
-
       gsap.to({ k: HERO_VIDEO.from }, {
         k: 1,
         duration: HERO_VIDEO.duration,
-        delay: delay,
+        delay,
         ease: HERO_VIDEO.ease,
-        onUpdate() {
-          intro = this.targets()[0].k;
-          apply(lastP, lastScroll);
-        },
-        onComplete() { intro = 1; apply(lastP, lastScroll); }
+        onUpdate() { intro = this.targets()[0].k; },
+        onComplete() { intro = 1; }
       });
     });
-
-    /* The lean itself, on the same knobs as the pictures' — hover only,
-       and only while the video is still sitting in its cell. Once it is
-       travelling it belongs to the scroll, and the seat it left behind
-       has nothing in it to move. */
-    if (HERO.bump && window.matchMedia('(hover: hover)').matches && !reducedMotion) {
-      const to = gsap.quickTo(bump, 'x', {
-        duration: HERO.bumpDuration,
-        ease: HERO.bumpEase,
-        onUpdate: () => apply(lastP, lastScroll)
-      });
-      const toY = gsap.quickTo(bump, 'y', {
-        duration: HERO.bumpDuration,
-        ease: HERO.bumpEase,
-        onUpdate: () => apply(lastP, lastScroll)
-      });
-
-      let rect = null;
-
-      /* Only the settled state is asked about. is-travelling is worn
-         from the moment the video is lifted out of its cell, which is at
-         init — it is sitting over the cell, not on its way anywhere —
-         and the takeover needs no guard of its own: apply() fades the
-         lean out with 1 - p, so it is already gone by the time the video
-         fills the screen. Settled, the stage owns the box and there is
-         no transform of ours left to add to. */
-      const parked = () => !comp.classList.contains('is-settled');
-
-      const onEnter = () => { rect = comp.getBoundingClientRect(); };
-      const onMove = (e) => {
-        if (!parked()) return;
-        if (!rect) rect = comp.getBoundingClientRect();
-        to((e.clientX - (rect.left + rect.width / 2)) * HERO.bumpStrength);
-        toY((e.clientY - (rect.top + rect.height / 2)) * HERO.bumpStrength);
-      };
-      const onLeave = () => { to(0); toY(0); rect = null; };
-
-      comp.addEventListener('mouseenter', onEnter);
-      comp.addEventListener('mousemove', onMove);
-      comp.addEventListener('mouseleave', onLeave);
-
-      dropBump = () => {
-        gsap.killTweensOf(bump);
-        comp.removeEventListener('mouseenter', onEnter);
-        comp.removeEventListener('mousemove', onMove);
-        comp.removeEventListener('mouseleave', onLeave);
-      };
-    }
-
-    /* Handed back to the document once the pin is done, so the video
-       scrolls away with the stage instead of staying stuck to the
-       viewport for the rest of the page. */
-    const settle = () => {
-      if (dead) return;
-      // Past the pin the stage owns the box, so a growth still running
-      // would be writing to nothing.
-      gsap.killTweensOf(growth);
-      growing = false;
-      wants = 1;
-      growth.p = 1;
-      stage.appendChild(comp);
-      comp.classList.remove('is-travelling');
-      comp.classList.add('is-settled');
-      // Settled, the frame is the stage's box and object-fit is right
-      // again.
-      if (visual) {
-        ['position', 'left', 'top', 'width', 'height', 'max-width', 'transform']
-          .forEach((prop) => visual.style.removeProperty(prop));
-      }
-      comp.style.transform = '';
-      comp.style.width = '';
-      comp.style.height = '';
-    };
-
-    const lift = () => {
-      if (dead) return;
-      document.body.appendChild(comp);
-      comp.classList.remove('is-settled');
-      comp.classList.add('is-travelling');
-      measure();
-      if (!cover) return;
-      comp.style.width = `${cover.w}px`;
-      comp.style.height = `${cover.h}px`;
-      // Placed at once: settle() cleared the transform, and with the
-      // travel behind us nothing else would ever write one.
-      apply(growth.p, travel.scroll());
-    };
-
-    /* One statement at a time: driven straight off the pin's progress, a
-       flick skips whatever it crosses. Advance a step, hold it for
-       dwell, then catch up to where the scroll now is. */
-    let readAt = 0;
-    let catchUp = null;
-
-    const step = (want) => {
-      if (dead || !swap) return;
-      clearTimeout(catchUp);
-      if (want === reading) return;
-
-      const wait = HERO_VIDEO.dwell - (performance.now() - readAt);
-      if (wait > 0) {
-        catchUp = setTimeout(() => step(want), wait);
-        return;
-      }
-
-      // One at a time, so a jump of several still plays as a sequence.
-      reading += want > reading ? 1 : -1;
-      readAt = performance.now();
-      swap.dispatchEvent(new CustomEvent('swap:to', { detail: reading }));
-      if (reading !== want) catchUp = setTimeout(() => step(want), HERO_VIDEO.dwell);
-    };
-
-    const held = ScrollTrigger.create({
-      trigger: stage,
-      start: 'top top',
-      end: () => '+=' + window.innerHeight * HERO_VIDEO.pin,
-      pin: true,
-      pinSpacing: true,
-
-      /* Refreshed before anything below it: pin spacing is real height,
-         so a trigger measured before it lands is early by exactly the
-         pin's length. Creation order does not settle this. */
-      refreshPriority: 1,
-      onEnter: () => {
-        if (dead) return;
-        /* A growth still running is left to finish rather than snapped
-           to 1, which is the jump; it lands well inside the hold. The
-           entrance is over by definition here — left at its start value
-           the video renders at 60% with the page showing around it. */
-        intro = 1;
-        if (!growing) {
-          wants = 1;
-          growth.p = 1;
-          apply(1, travel.scroll());
-        }
-        bringText();
-        // The video has the screen now, so the words can have it too —
-        // on their own clock, where no scroll can outrun them.
-        showText();
-      },
-      onEnterBack: () => {
-        if (dead) return;
-        lift();
-        // If it left through the bottom the text is already inside, but
-        // the gaps now resolve against the frame again.
-        bringText();
-        placeText();
-        // Coming back up into the pin, the statements are owed their
-        // arrival again if the page went above it and re-armed them.
-        showText();
-      },
-      /* Out the bottom the last statement stays put — it is the one the
-         pin ended on, and only going back above the pin resets. It also
-         stays inside the component: handed back to the stage it jumps to
-         the middle of a screen-tall centred block. */
-      onLeave: () => { settle(); placeText(); },
-      // Animated: this edge is scrolled through, not jumped.
-      onLeaveBack: () => { returnText(); resetSwap(); armText(true); },
-
-      onUpdate: (self) => {
-        if (dead || !swap) return;
-        if (stacking) { scrubText(self.progress); return; }
-        // One statement per equal share of the pin, both directions.
-        if (!statements) return;
-        step(Math.min(statements - 1, Math.floor(self.progress * statements)));
-      }
-    });
-
-    /* A swap collapses the document under the triggers — the footer
-       margin goes and both containers become fixed layers — which they
-       read as a race back up the page, playing the travel in reverse
-       over the transition. Hiding it is wrong (it is part of what the
-       outgoing page still shows), so it is frozen where it stands. */
-    const freeze = () => {
-      if (dead) return;
-      frozen = true;
-      gsap.killTweensOf(growth);
-      scrollTween?.kill();
-      travel?.disable(false);
-      held?.disable(false);
-    };
-
-    document.addEventListener('page:leaving', freeze);
-
-    /* Back to a section at or past the pin is a jump, not a scroll: the
-       triggers see the whole journey at once and the growth played out
-       over the section the page came back to. The state a scroll would
-       have left behind is placed instead. */
-    const onRestored = (e) => {
-      if (dead || frozen || e.detail?.container !== root) return;
-      const y = held.scroll();
-      if (y < held.start) return;
-
-      gsap.killTweensOf(growth);
-      scrollTween?.kill();
-      tookOver = true;
-      growing = false;
-      wants = 1;
-      growth.p = 1;
-      intro = 1;
-      if (comp.classList.contains('is-settled')) lift();
-      apply(1, y);
-      bringText();
-      placeText();
-
-      if (y < held.end) {
-        showText();
-        return;
-      }
-
-      settle();
-      placeText();
-      if (stacking && lines.length) {
-        textShown = true;
-        gsap.set(lines, { autoAlpha: 1, y: 0 });
-        measureLeave();
-        leaving.q = 1;
-        paintLeaving();
-      }
-    };
-
-    document.addEventListener('page:restored', onRestored);
-
-    // On the resize itself, not ScrollTrigger's refresh a beat later:
-    // sized in px off the viewport, it is briefly the old box.
-    const onResize = () => {
-      if (dead || frozen || !lifted) return;
-      measure();
-      placeText();
-      apply(growth.p, travel ? travel.scroll() : lastScroll);
-    };
-    window.addEventListener('resize', onResize, { passive: true });
 
     return function cleanup() {
       dead = true;
-      clearTimeout(catchUp);
-      dropBump();
-      textIn?.kill();
-      if (lines.length) {
-        gsap.set(lines, { clearProps: 'opacity,visibility,transform' });
-        swap?.classList.remove('is-stacked');
-      }
-      document.removeEventListener('page:leaving', freeze);
-      document.removeEventListener('page:restored', onRestored);
+      gsap.ticker.remove(draw);
       window.removeEventListener('resize', onResize);
-      gsap.killTweensOf(growth);
-      scrollTween?.kill();
-      travel.kill();
-      held.kill();
+      document.removeEventListener('page:leaving', freeze);
+      gsap.killTweensOf(comp);
       gsap.set(comp, { clearProps: 'opacity,visibility' });
-      comp.classList.remove('is-travelling', 'is-settled', 'is-page-leaving');
-      comp.style.removeProperty('transform');
-      comp.style.removeProperty('width');
-      comp.style.removeProperty('height');
-      if (visual) {
-        ['position', 'left', 'top', 'width', 'height', 'max-width', 'transform']
-          .forEach((prop) => visual.style.removeProperty(prop));
-      }
-      returnText();
-      cell.style.removeProperty('aspect-ratio');
-      cell.style.removeProperty('height');
-      if (seat.parentNode) {
-        seat.parentNode.insertBefore(comp, seat);
-        seat.remove();
-      }
+      restore();
     };
   });
 
@@ -8100,11 +7290,6 @@
   barba.hooks.beforeLeave((data) => {
     root.classList.add('is-transitioning');
     ScrollMemory.leave(data);
-    /* A travelling video is fixed on the body, so it would hang above
-       both pages for the swap. Marked before the incoming page mounts
-       anything of its own; the CSS does the hiding. */
-    document.querySelectorAll('[data-video="component"].is-travelling')
-      .forEach((el) => el.classList.add('is-page-leaving'));
     // Before the footer margin collapses below: that is the change the
     // outgoing page's triggers would react to.
     document.dispatchEvent(new CustomEvent('page:leaving'));
@@ -8182,10 +7367,6 @@
 
   barba.hooks.after((data) => {
     clearContainerLayer(data?.next?.container);
-    // The marked one leaves with its container; this is for the swap
-    // that never completes.
-    document.querySelectorAll('[data-video="component"].is-page-leaving')
-      .forEach((el) => el.classList.remove('is-page-leaving'));
     requestAnimationFrame(clearTransitionLeftovers);
   });
 

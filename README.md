@@ -1815,126 +1815,51 @@ any width.
 
 ### heroVideo
 
-The last cell of the hero grid is a video. It leaves the grid, travels to the
-middle of the screen at full bleed, holds through a pinned screen while the
-statements play over it, then scrolls away with the stage.
+The last cell of the hero grid is a video. As the section below it
+(`.home_video_wrap`) scrolls up, the video grows out of that cell until it
+fills the section, exactly when the section's top reaches the top of the
+screen. From there it is simply part of that section and scrolls away with it.
+No pin, no text, no scroll takeover. (The pinned version with statements is
+tagged `pre-no-text`.)
 
-**It leans towards the pointer like the pictures beside it**, on `HERO.bump`'s
-own numbers — the cell was the one hole in that gesture, since the bump binds
-to the `img` inside each `.home_img_wrap` and this cell holds a video instead.
+**Nothing is triggered, latched or moved mid-scroll.** At mount the component
+moves once into the section, and the empty cell keeps the video's ratio so the
+grid holds its shape. After that, every frame is computed from where the cell
+and the section are on screen *right now* — the cell's live rect, including the
+hero's parallax and its `translateY(30%)`, and the section's. The same scroll
+position always draws the same frame, so scrolling up and down, a toolbar
+resize, or Back landing mid-page cannot leave it in a wrong state. That is what
+the pinned version kept getting wrong on iOS: each of its hand-offs (lift to
+the body, pin, settle back) could be left half done.
 
-It could not be done the same way. `apply()` owns this element's transform and
-rewrites it every frame, so a tween on the element is painted over on the next
-one; the offset is kept beside that function and folded into the line it
-writes. It fades out with the takeover (`1 - p`) and is ignored once the video
-is travelling or settled: leaning towards a hand is something a cell in a grid
-does, not a video filling the screen.
+Progress runs from the section's top at `section height` below the top of the
+screen to `0`, measured against the section, not `innerHeight`, which on
+iOS moves with the toolbar. `HERO_VIDEO.growEase` shapes it.
 
-The growth is **triggered, not scrubbed**. `growAfter` pixels of scroll out of
-the hero and the scale runs on its own clock, finishing whether the scroll
-continues, stops, or races past — a scrubbed one is only ever as committed as
-the hand on the wheel. Where it travels *to* is still scroll-bound: the scroll
-term keeps it moving with the hero until it has fully arrived.
+**One shape the whole way.** The component is laid out as the video's own ratio
+just covering the section, centred. Each frame is one uniform scale plus a
+`clip-path: inset()` crop to the rectangle between the cell and the section,
+so nothing is ever stretched. At the end the scale is 1 and the crop is exactly
+the section. `bleed` (1px) runs it a hair past the section's edges, so a
+scaled edge landing on a fraction cannot leave a hairline.
 
-The threshold is latched: it fires at `growAfter` and only releases back at the
-very top of the range, so a scroll parked on the threshold cannot flip it back
-and forth. The tween runs on the ticker rather than on the trigger's updates,
-so a scroll that leaves the trigger's range mid-growth doesn't strand it — and
-the pin no longer snaps `p` to 1 on entry, which was the jump from half-grown
-to full bleed in one frame. It finishes inside the pin's hold instead.
+The section is later in the DOM than the hero and every section is its own
+stacking context (`container-type` in the global embed), so the video paints
+over the hero on its way down with no z-index games.
+
+The entrance is a fade plus a scale from `HERO_VIDEO.from`, at this cell's
+slot in the hero's entrance order (`--hero-in-video-slot` in the CSS).
+`page-transition.css` holds the component at `opacity: 0` from first paint
+(`hero-video-hold`), a watchdog with no fill, so a page that never gets the
+script shows the video in its cell. A swap freezes it on `page:leaving`,
+since both containers become fixed layers and the rects stop describing the
+page. Reduced motion: the video is placed in the section and does not grow.
 
 | Key in `HERO_VIDEO` | Default | Meaning |
 | --- | --- | --- |
-| `growAfter` | `120` | px of scroll out of the hero before the growth fires |
-| `growDuration` | `1` | seconds to full bleed, its own clock |
-| `growEase` | `power2.inOut` | |
-| `takeover` | `true` | carry the page to the pin on the scroll that fires the growth |
-| `takeoverDuration` | `1` | seconds of that throw |
-| `pin` | `1.5` | screens of pin once it is full bleed |
-| `bleed` | `2` | px past the viewport on every side |
-
-**One shape the whole way.** The frame keeps the video's own ratio — the cell is
-stamped with the component's declared `aspect-ratio` at measure time, 16/9 by
-default — and only ever gets bigger. The small state in the grid is the whole
-frame, every state after it is that frame closer, and a single scale in both
-directions cannot stretch anything.
-
-The end state covers rather than fits: large enough that neither side of the
-screen is uncovered, so on a phone the frame runs well past the edges and the
-screen does the cropping. Same picture `object-fit: cover` would have drawn,
-reached without deforming anything on the way.
-
-It used to end as the viewport exactly, X and Y scaled apart — a frame that
-changed shape as it travelled, and a video squashed along with it. `object-fit`
-cannot save that: it resolves against the laid-out box, and the transform
-squashes its result afterwards. A desktop cell is shaped near enough to the
-screen to hide it; a phone is not, which is where it showed.
-
-The statements move into the component for the pin so they sit over the video,
-and their box is reproduced on all four edges from where it sat in the stage —
-measured against the frame's *resting* box, since a fast scroll can reach the
-pin with the growth still running and a rect read mid-flight is a scaled one.
-The stylesheet's `left: 0; right: 0` spans the frame, which since the frame
-stopped being the viewport would stretch them off both edges of a phone.
-
-
-The first statement enters through a `fromTo`, not a `to`. Whoever sends
-`swap:to` owns the entrance, and a `to` from wherever the statement happens to
-be has nowhere to travel if it is already showing — which is how the first one
-appeared without the rise every one after it gets. A swap inside
-`.home_video_wrap` also counts as `data-swap-wait` whether or not the attribute
-survived the Designer, since `heroVideo` drives it either way.
-
-**Keeping it out of everything else's way.** While it travels the component is
-`position: fixed` on the body, so it is outside `.page_wrap`'s stacking context
-and outside the container Barba swaps — nothing that covers the page covers it,
-and nothing that replaces the page replaces it. That is the video over an open
-meganav, and the video hanging above both pages through a transition. Both are
-hidden in CSS (`html.is-menu-open`, and `is-page-leaving` which `beforeLeave`
-stamps on anything already travelling), with `!important`, since the opacity to
-beat is the entrance tween's inline one.
-
-Hiding does not cover the other half of it. Scrolled past the pin the component
-is *settled* — in flow, part of what the outgoing page still shows — so it is
-never marked, and a swap collapses the document under its triggers: the footer
-margin goes, both containers become fixed layers, and the scroll they measure
-against is somewhere else entirely. Live, they read that as the user racing
-back up the page and play the travel in reverse over the transition. So
-`beforeLeave` also dispatches `page:leaving` (before `FooterReveal.collapse()`,
-which is the change they would react to) and the module freezes: triggers
-disabled, tweens killed, `apply()` inert. Whatever it was showing when the
-navigation started is what it shows until it is taken away.
-
-Not `html.is-transitioning` for the swap case: that class is still on through
-the incoming page's `afterEnter`, which is exactly when an incoming home page's
-own video is entering. `beforeLeave` runs before any new module has lifted a
-component, so marking there catches only the outgoing one. `after` unmarks, for
-a navigation that never completes.
-
-**The takeover.** A flick of the wheel is a screen and the growth is a second,
-so it was possible to reach the pin having seen none of it. The scroll that
-fires the growth now carries the page the rest of the way to the pin start,
-locked while it goes — `lenis.scrollTo(..., { lock: true })`, or a frame-by-frame
-`window.scrollTo` where Lenis is absent. Carried rather than merely blocked: a
-page that stops answering reads as broken. It re-arms only once the growth has
-been released back at the top of the range, so hero → down → up → down gets the
-same throw each time, and `prefers-reduced-motion` never gets it at all — taking
-someone's scroll away is the thing that setting asks you not to do.
-
-Lenis does not smooth touch by default here, so on a phone the lock is weaker
-than the wheel's; the longer pin is what holds the ground there.
-
-The component is taken out of flow and fixed for the travel — a transform
-inside the grid would be clipped by the section and would be fighting the
-hero's parallax for the same matrix. The cell it leaves keeps its aspect ratio
-so the grid holds its shape around the hole.
-
-`page-transition.css` holds the component at `opacity: 0` from first paint
-(`hero-video-hold`), because the module's own pre-hide is JS and the gap before
-the bundle lands was a flash of video in the grid. The hold has no fill, so a
-page that never gets the script shows the video rather than an empty cell; the
-module drops the animation at mount, since a running animation would outrank
-the tween's inline opacity.
+| `growEase` | `power2.inOut` (`E.travel`) | shape of the growth; the scroll sets its pace |
+| `bleed` | `1` | px past the section on every side |
+| `from`, `duration`, `delay`, `ease` | `0.6`, `0.9`, `0.55`, `E.small` | the entrance |
 
 ### smooothy — `.work_smoothly_wrap`
 
@@ -2351,8 +2276,7 @@ Once it has landed, `ScrollMemory` dispatches `page:restored` on `document`
 with `{ container }`. A module whose animation is driven by scrolling past a
 point should listen for it: a restore is a jump, so its triggers see the whole
 journey at once and play it over the section the page came back to.
-`heroVideo` does — landing in or past the pin places the video full bleed or
-settled, with the statements already read, instead of growing it on screen.
+`heroVideo` does not need to: it draws straight from the scroll position.
 
 ## Footer and the transition
 

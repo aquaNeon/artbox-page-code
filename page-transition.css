@@ -1992,11 +1992,6 @@ html:not(.wf-design-mode) :is(
 
 /* ===== HERO VIDEO — README ### heroVideo ===== */
 
-/* is-travelling takes the component out of flow, so its transform is
-   neither clipped by the hero nor sharing an element with the hero's
-   parallax; left/top stay at 0 and the module does the placing.
-   is-settled hands it back to the stage after the pin. */
-
 /* Hidden from first paint: the module's pre-hide is JS, so between the
    paint and the bundle landing the video showed at full opacity.
 
@@ -2018,10 +2013,10 @@ html:not(.wf-design-mode) .home_wrap [data-video="component"] {
   }
 }
 
-/* In the grid it needs a size: the component ships u-cover-absolute,
-   which contributes no height, so the cell collapsed around it and
-   measure() had nothing to read. --hero-video-ratio sets the shape. */
-.home_wrap [data-video="component"]:not(.is-travelling):not(.is-settled) {
+/* In the grid until heroVideo mounts, and for good if it never does: the
+   component ships u-cover-absolute, which contributes no height, so the
+   cell collapsed around it. --hero-video-ratio sets the shape. */
+.home_wrap [data-video="component"] {
   position: relative;
   inset: auto;
   width: 100%;
@@ -2029,85 +2024,29 @@ html:not(.wf-design-mode) .home_wrap [data-video="component"] {
   aspect-ratio: var(--hero-video-ratio, 16 / 9);
 }
 
-[data-video="component"].is-travelling,
-[data-video="component"].is-settled {
-  overflow: clip;
+/* In the section it grows into, the component is the video's own shape
+   just covering it, centred; heroVideo writes that box, and a transform
+   and a crop that take it from the hero cell to the whole section. */
+[data-video="component"].is-staged {
+  position: absolute;
+  inset: auto;
+  z-index: 1;
+  transform-origin: 50% 50%;
+  will-change: transform, clip-path;
   backface-visibility: hidden;
 }
 
-/* Overspilling its own box, which clips it: object-fit lays the frame
-   out to fractional pixels, so the painted content falls a hair short of
-   an edge — and on a dark video that hair is the black line. */
-[data-video="component"].is-travelling .g_visual_video,
-[data-video="component"].is-settled .g_visual_video {
+[data-video="component"].is-staged .g_visual_video,
+[data-video="component"].is-staged [data-video="poster"] {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scale(1.02);
-  transform-origin: center;
 }
 
-/* The travelling component is fixed on the body, outside .page_wrap's
-   stacking context and outside the container Barba swaps — so nothing
-   that covers the page covers it: the video over an open meganav, or
-   hanging above both pages mid-transition. In CSS so it holds even where
-   the script throws first, and !important because the opacity to beat is
-   the entrance tween's, written inline.
-
-   is-page-leaving rather than html.is-transitioning: that class is on
-   through the incoming page's afterEnter too, which is exactly when the
-   incoming home page's own video is entering. */
-html.is-menu-open [data-video="component"].is-travelling,
-[data-video="component"].is-page-leaving {
-  opacity: 0 !important;
-  pointer-events: none;
-}
-
-/* Both directions, so it does not snap back into view from under a menu
-   that is still swiping away. */
-[data-video="component"].is-travelling {
-  transition: opacity 0.24s linear;
-}
-
-[data-video="component"].is-travelling {
-  position: fixed;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-  z-index: 5;
-  will-change: transform;
-}
-
-[data-video="component"].is-settled {
-  position: absolute;
-  inset: 0;
-  width: auto;
-  height: auto;
-  transform: none;
-  z-index: 0;
-  will-change: auto;
-}
-
-/* Reduced motion: no travel, the video simply is the stage. */
+/* Reduced motion: no growth, the video simply is the section. */
 [data-video="component"].is-hero-video-static {
   position: absolute;
   inset: 0;
-}
-
-/* The statements sit over the video; while the pin holds they are its
-   children. */
-.home_video_wrap .home_video_contain {
-  position: relative;
-  z-index: 6;
-}
-
-/* left/right only: the vertical placement is measured off the stage and
-   written inline, since where the statements sit is the design. */
-[data-video="component"] > .home_video_contain {
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 2;
 }
 
 /* ===== INLINE HEADING PICTURES — .hero-h1__img ===== */
