@@ -1601,7 +1601,8 @@ html .work_smoothly_wrap {
    and .is-services-slider to the section. These undo the Designer's
    tablet rows — a 100vh row with the image as its background under a
    gradient — into a card: image, then the square and the name, then the
-   list, dark type on the rows' colour. */
+   list, dark type on the section's colour. The Designer preview is a
+   separate html.wf-design-mode embed in the section. */
 
 @media screen and (max-width: 991px) {
   .services_wrap.is-services-slider {
@@ -1615,9 +1616,14 @@ html .work_smoothly_wrap {
   }
 
   /* Swiper's offsets carry the inset, so the next card runs off the
-     screen's edge rather than stopping at the container's padding. */
+     screen's edge rather than stopping at the container's margin. */
   .services_hover_items.is-slider {
     height: auto;
+    width: auto;
+    max-width: none;
+    margin-top: var(--_sizes---space--9-64);
+    margin-left: 0;
+    margin-right: 0;
     padding-left: 0;
     padding-right: 0;
   }
@@ -1655,16 +1661,17 @@ html .work_smoothly_wrap {
   }
 
   /* Flex, not the Designer's grid: its cells are placed by ID, which no
-     class rule can move. The square and the name share the first line,
-     the list takes the next. */
+     class rule can move, and its tablet style runs them as a column. The
+     square and the name share the first line, the list takes the next. */
   .services_hover_items.is-slider .services_hover_inner {
     display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-start;
     column-gap: 0.75rem;
-    row-gap: 1.5rem;
+    row-gap: var(--_sizes---space--7-32);
     height: auto;
-    margin-top: 1.5rem;
+    margin-top: var(--_sizes---space--8-48);
     padding: 0;
     color: inherit;
   }
@@ -1690,6 +1697,16 @@ html .work_smoothly_wrap {
 
   .services_hover_items.is-slider .services_hover_types {
     flex: 0 0 100%;
+  }
+
+  /* The arrows sit space 9 below the cards. The spacer that came with
+     the copied arrow block would add its own on top. */
+  .is-services-slider [data-services-nav] {
+    margin-top: var(--_sizes---space--9-64);
+  }
+
+  .is-services-slider [data-services-nav] > .g_section_space {
+    display: none;
   }
 
   .is-services-slider .is-inactive {

@@ -1,0 +1,123 @@
+<!-- Paste into: the u-embed-css inside services_wrap (the Services
+     component). The arrow colours apply everywhere; the rest is the
+     Designer's preview of the tablet/mobile slider, below 992px only.
+     The live slider and its styling are page-transition.js/.css. -->
+<style>
+.services_wrap [data-services-nav] {
+  --_theme---swiper--bg: #191915;
+  --_theme---swiper--border: #191915;
+  --_theme---swiper--icon: #f1f1ef;
+  --_theme---swiper--bg-hover: #2e2e2a;
+  --_theme---swiper--border-hover: #2e2e2a;
+  --_theme---swiper--icon-hover: #f1f1ef;
+}
+
+@media screen and (max-width: 991px) {
+  html.wf-design-mode
+  .services_wrap[data-services-color="neon"] {
+    background-color: var(--_colour---color--color-neon);
+    color: #191915;
+  }
+
+  html.wf-design-mode
+  .services_wrap[data-services-color="purple"] {
+    background-color: var(--_colour---color--color-purple);
+    color: #191915;
+  }
+
+  html.wf-design-mode .services_wrap .g_heading {
+    color: inherit;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_items {
+    display: flex;
+    gap: var(--_sizes---space--7-32);
+    height: auto;
+    margin-top: var(--_sizes---space--9-64);
+    margin-right: 0;
+    overflow: hidden;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_item {
+    flex: 0 0 80%;
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    border: 0;
+    background: none;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_img_wrap {
+    order: -1;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    aspect-ratio: 1;
+    overflow: hidden;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_img_overlay {
+    display: none;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_inner {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    column-gap: 0.75rem;
+    row-gap: var(--_sizes---space--7-32);
+    height: auto;
+    margin-top: var(--_sizes---space--8-48);
+    padding: 0;
+    color: inherit;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_right {
+    flex: none;
+    width: auto;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_icon_wrap {
+    display: block;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_icon {
+    width: 1cap;
+    height: 1cap;
+    transform: none;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_service {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  html.wf-design-mode .services_wrap .services_hover_types {
+    flex: 0 0 100%;
+  }
+
+  html.wf-design-mode .services_wrap [data-services-nav] {
+    margin-top: var(--_sizes---space--9-64);
+  }
+
+  html.wf-design-mode
+  .services_wrap [data-services-nav] > .g_section_space {
+    display: none;
+  }
+}
+
+@media screen and (min-width: 768px) and (max-width: 991px) {
+  html.wf-design-mode .services_wrap .services_hover_item {
+    flex-basis: 53%;
+  }
+}
+</style>

@@ -832,24 +832,47 @@ line, then the list — reordered in CSS, so the markup is the desktop one.
 The Designer's tablet rows (100vh, image as the background under a
 gradient, light type) are undone in `page-transition.css`.
 
-The section takes the rows' colour (`.is-services-slider`,
-`--services-slider-bg`), read off the first row's background before the
-slider styles clear it — so it is green on Corporate and purple on Investor
-without a setting. `data-services-fill` on the section or the first row
-overrides, as a literal or a variable name. Type is `--services-slider-text`,
-`#191915` by default.
+**Colour:** `data-services-color="neon"` or `"purple"` (or `"green"`) on
+`services_wrap` picks the site colour (`SERVICES_SLIDER.colours`). Without
+it, `data-services-fill` on the section or the first row (a literal or a
+variable name), then whatever the Designer painted on the first row, read
+before the slider styles clear it. It lands on the section as
+`--services-slider-bg`; type is `--services-slider-text`, `#191915`.
 
-The container's inset becomes Swiper's `slidesOffsetBefore`/`After`, so the
-next card runs off the edge of the screen rather than stopping at the padding.
-A card is `perView` 1.2 wide below 768 and `perViewTablet` 1.8 at 768–991,
-`gap` 24px apart (`SERVICES_SLIDER`). Trackpad swipes work as on the other
-sliders (`forceToAxis`, `releaseOnEdges`).
+**Spacing**, all site variables, so they follow the scale:
 
-**Arrows:** two elements in the section with `data-services-prev` and
-`data-services-next` (the other sliders' `.c_slider_button_prev`/`_next`
-classes work too). At either end the arrow gets `.is-inactive` and dims.
-They are hidden at 992 and up; put `data-services-nav` on their wrapper to
-hide that too. Without arrows the slider still swipes.
+| Between | Variable |
+| --- | --- |
+| Heading and cards | `--_sizes---space--9-64` |
+| Cards | `--_sizes---space--7-32` (`SERVICES_SLIDER.gap`, measured to px for Swiper) |
+| Image and the name | `--_sizes---space--8-48` |
+| Name and list | `--_sizes---space--7-32` |
+| Cards and arrows | `--_sizes---space--9-64` |
+
+`u-container-full` insets with margin, not padding, and a Swiper clips at
+its own box, so the list goes full width and the inset becomes Swiper's
+`slidesOffsetBefore`/`After`: the first card lines up with the heading and
+the next runs off the edge of the screen. The gap is never less than that
+inset, or the card before the active one shows as a sliver on the left.
+Nothing is clipped, so cards travel fully off screen. A card is `perView`
+1.2 wide below 768 and `perViewTablet` 1.8 at 768–991. No loop, no rewind:
+the arrows go back and forth and stop at the ends. Trackpad swipes work as on
+the other sliders (`forceToAxis`, `releaseOnEdges`).
+
+**Arrows:** the customer slider's arrow block, copied in as the section's
+last child (`c_slider_contain` with `c_slider_button_prev`/`_next`), plus
+`data-services-nav` on it so it hides at 992 and up; `data-services-prev`/
+`-next` work as well. At either end the arrow gets `.is-inactive`. The copied
+spacer inside it is hidden, since the gap above is set here. Their colours
+come from `--_theme---swiper--*` variables in the customer slider's embed,
+so they are inverted by redefining those on `[data-services-nav]`, not by a
+class on the buttons.
+
+**In the Designer**, which runs none of this, `webflow-services-embed.html`
+is the embed inside the section: the arrow colours, and an
+`html.wf-design-mode` preview of the cards below 992px — laid side by side
+with flex, since there is no Swiper there. Copy it from the file: its long
+lines do not survive being copied out of a terminal.
 
 The sticky crossfade it replaced (a `700lvh` track and a pinned viewport) is
 in the history, before this commit.

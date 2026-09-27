@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-27-services-slider';
+  const BUILD = '2026-09-27-services-slider-final';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3813,8 +3813,15 @@
   const SERVICES_SLIDER = {
     perView: 1.2,        // below 768: one card and the edge of the next
     perViewTablet: 1.8,  // 768-991
-    gap: 24,             // px between cards
-    speed: 600
+    gap: 'var(--_sizes---space--7-32)',   // between cards, any CSS length
+    speed: 600,
+
+    // data-services-color on the section picks one of these.
+    colours: {
+      neon: 'var(--_colour---color--color-neon)',
+      purple: 'var(--_colour---color--color-purple)',
+      green: 'var(--_colour---color--color-green)'
+    }
   };
 
   function buildServicesSlider(root) {
@@ -3828,20 +3835,34 @@
       const items = list ? Array.from(list.querySelectorAll(':scope > .services_hover_item')) : [];
       if (!list || !items.length) return;
 
-      /* The colour is read before the slider styles take the rows' own
-         background away: the Designer paints it on the row. A
-         data-services-fill on the section or the first row wins. */
+      /* data-services-color="neon" | "purple" | "green" on the section
+         picks the site colour. Without it, data-services-fill (a literal
+         or a variable name), then whatever the Designer painted on the
+         first row — read before the slider styles take it away. */
+      const named = (section.getAttribute('data-services-color') || '').trim().toLowerCase();
       const fill = section.getAttribute('data-services-fill')
         || items[0].getAttribute('data-services-fill');
       const painted = getComputedStyle(items[0]).backgroundColor;
-      const colour = fill
-        ? (fill.trim().startsWith('--') ? `var(${fill.trim()})` : fill.trim())
-        : (painted && painted !== 'transparent' && painted !== 'rgba(0, 0, 0, 0)' ? painted : '');
+      const colour = SERVICES_SLIDER.colours[named]
+        || (fill ? (fill.trim().startsWith('--') ? `var(${fill.trim()})` : fill.trim()) : '')
+        || (painted && painted !== 'transparent' && painted !== 'rgba(0, 0, 0, 0)' ? painted : '');
       if (colour) section.style.setProperty('--services-slider-bg', colour);
 
-      // The container's inset becomes Swiper's offsets, so the cards run
-      // to the screen's edge rather than stopping at the padding.
-      const inset = Number.parseFloat(getComputedStyle(list).paddingLeft) || 0;
+      /* u-container-full insets with margin, not padding, and the slider
+         clips at its own box: the next card was cut off 16px short of the
+         screen's edge. The list goes full width and the inset becomes
+         Swiper's offsets, so the first card still lines up with the
+         heading. */
+      const listStyle = getComputedStyle(list);
+      const inset = (Number.parseFloat(listStyle.marginLeft) || 0)
+        + (Number.parseFloat(listStyle.paddingLeft) || 0);
+
+      // Swiper wants px; the gap is a site variable, so it is measured.
+      const probe = document.createElement('div');
+      probe.style.cssText = `position:absolute;visibility:hidden;width:${SERVICES_SLIDER.gap}`;
+      section.appendChild(probe);
+      const gap = probe.offsetWidth || 32;
+      probe.remove();
 
       const track = document.createElement('div');
       track.className = 'swiper-wrapper';
@@ -3860,8 +3881,15 @@
         if (dead || !window.Swiper) return;
         swiper = new Swiper(list, {
           slidesPerView: SERVICES_SLIDER.perView,
-          spaceBetween: SERVICES_SLIDER.gap,
+          /* Never less than the inset: the active card sits the inset in
+             from the edge, and a smaller gap leaves the one before it
+             showing as a sliver on the left. Nothing is clipped, so the
+             cards still travel fully off screen. */
+          spaceBetween: Math.max(gap, inset),
           speed: SERVICES_SLIDER.speed,
+          // Back and forth only: no wrapping round from the last card.
+          loop: false,
+          rewind: false,
           slidesOffsetBefore: inset,
           slidesOffsetAfter: inset,
           roundLengths: true,
