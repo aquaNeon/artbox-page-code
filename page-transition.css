@@ -1595,89 +1595,116 @@ html .work_smoothly_wrap {
   border-top: 0;
 }
 
-/* ===== SERVICES — pinned crossfade below 992px — README ### servicesHover ===== */
+/* ===== SERVICES — slider below 992px — README ### servicesHover ===== */
 
-/* The module lifts the rows into .services_stack_viewport and gives the
-   list the scroll height: the list is the tall track, the viewport the
-   screen that stays put, the rows stacked inside it. */
+/* The module wraps the rows in a Swiper and adds .is-slider to the list
+   and .is-services-slider to the section. These undo the Designer's
+   tablet rows — a 100vh row with the image as its background under a
+   gradient — into a card: image, then the square and the name, then the
+   list, dark type on the rows' colour. */
 
 @media screen and (max-width: 991px) {
-  /* Full bleed: the section container would inset a layout meant to run
-     edge to edge.
-
-     Sticky on the container, not on .services_heading_wrap: sticky only
-     holds while its own parent passes, and the wrap's parent is no taller
-     than the heading. The container's parent is the section, so the
-     heading arrives with the first row and lets go with the last.
-     Pointer-transparent — there is nothing in it to press.
-
-     The negative margin is its own measured height, so it takes no room in
-     the flow: the stack starts at the top of the section and the heading
-     is over the first row from the first pixel, rather than standing above
-     the images and sliding down onto them. */
-  .services_wrap .services_contain {
-    max-width: none;
-    padding-left: var(--services-stack-inline, 0px);
-    padding-right: var(--services-stack-inline, 0px);
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    pointer-events: none;
-    margin-top: 0;
-    margin-bottom: calc(-1 * var(--services-stack-heading, 0px));
-    color: var(--services-stack-heading-color, #fff);
-    /* One edge, both ends: this is the heading's distance from the top of
-       the screen, and the rows take the same number off the bottom. The
-       measured height carries it, so nothing has to be added twice. */
-    padding-top: var(--services-stack-edge, 1.5rem);
-    padding-bottom: 0;
+  .services_wrap.is-services-slider {
+    background-color: var(--services-slider-bg, var(--_colour---color--color-neon));
+    color: var(--services-slider-text, #191915);
   }
 
-  .services_hover_items.is-stacked {
-    position: relative;
+  .is-services-slider .services_contain,
+  .is-services-slider .g_heading {
+    color: inherit;
   }
 
-  .services_stack_viewport {
-    position: sticky;
-    top: 0;
-    /* dvh, not svh: svh is the viewport with the browser chrome showing,
-       so the moment iOS retracts its toolbar the row is shorter than the
-       screen. vh first for anything without dvh.
-
-       The bleed is the rest of the answer: dvh only lands on its new
-       number once the browser has finished animating its toolbar, so for
-       those frames the box is genuinely short. Running the rows past the
-       bottom of the screen means the strip that appears is more image,
-       and nobody sees it happen. */
-    height: calc(100vh + var(--services-stack-bleed, 10vh));
-    height: calc(100dvh + var(--services-stack-bleed, 10vh));
-    overflow: hidden;
+  /* Swiper's offsets carry the inset, so the next card runs off the
+     screen's edge rather than stopping at the container's padding. */
+  .services_hover_items.is-slider {
+    height: auto;
+    padding-left: 0;
+    padding-right: 0;
   }
 
-  .services_hover_items.is-stacked .services_hover_item {
-    position: absolute;
-    inset: 0;
+  .services_hover_items.is-slider .services_hover_item {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    /* The rows pass under the heading, so the centring is of what is left
-       below it. The module measures the heading container into the
-       variable — the same number the negative margin above uses, and it
-       already includes the edge the heading holds at the top. */
-    padding-top: var(--services-stack-heading, 0px);
-    /* The bleed hangs below the fold, so some of it is taken back as
-       padding or the text centres against a box taller than the screen.
-       Taking all of it back centres against the visible area exactly,
-       which reads high — the eye is centring against the image, and the
-       image runs past the fold. Half is the compromise; the knob is
-       there for the other two answers. */
-    padding-bottom: calc(
-      var(--services-stack-edge, 1.5rem)
-      + var(--services-stack-bleed, 10vh) * var(--services-stack-bleed-pull, 0.5)
-    );
-    /* Every row paints the full screen, so nothing shows through the one
-       fading in over it. */
-    background-color: var(--services-stack-bg, var(--_theme---background--background-primary, #191915));
+    height: auto;
+    border: 0;
+    background: none;
+  }
+
+  .services_hover_items.is-slider .services_hover_img_wrap {
+    order: -1;
+    position: relative;
+    inset: auto;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    aspect-ratio: 1;
+    overflow: hidden;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  .services_hover_items.is-slider .services_hover_img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .services_hover_items.is-slider .services_hover_img_overlay {
+    display: none;
+  }
+
+  /* Flex, not the Designer's grid: its cells are placed by ID, which no
+     class rule can move. The square and the name share the first line,
+     the list takes the next. */
+  .services_hover_items.is-slider .services_hover_inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    column-gap: 0.75rem;
+    row-gap: 1.5rem;
+    height: auto;
+    margin-top: 1.5rem;
+    padding: 0;
+    color: inherit;
+  }
+
+  .services_hover_items.is-slider .services_hover_right {
+    flex: none;
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .services_hover_items.is-slider .services_hover_icon_wrap {
+    display: block;
+  }
+
+  .services_hover_items.is-slider .services_hover_icon {
+    transform: scale(1);
+  }
+
+  .services_hover_items.is-slider .services_hover_service {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .services_hover_items.is-slider .services_hover_types {
+    flex: 0 0 100%;
+  }
+
+  .is-services-slider .is-inactive {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+}
+
+/* The arrows are the slider's; on desktop there is no slider. Put
+   data-services-nav on their wrapper to hide it with them. */
+@media screen and (min-width: 992px) {
+  .services_wrap [data-services-nav],
+  .services_wrap [data-services-prev],
+  .services_wrap [data-services-next] {
+    display: none;
   }
 }
 
@@ -1764,14 +1791,6 @@ html .work_smoothly_wrap {
 @media (hover: hover) and (min-width: 992px) {
   .services_hover_item:hover .services_hover_icon,
   .services_hover_item:focus-within .services_hover_icon {
-    transform: scale(1);
-  }
-}
-
-/* Stacked, there is nothing to hover: the icon belongs to whichever row
-   is showing. */
-@media screen and (max-width: 991px) {
-  .services_hover_items.is-stacked .services_hover_icon {
     transform: scale(1);
   }
 }

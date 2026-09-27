@@ -823,87 +823,48 @@ everything the module puts on a row is inline, where it outranks the
 Designer regardless of stylesheet order. It sits at `z-index: 90`, under
 the nav.
 
-**Below 992px it is a pinned crossfade instead.** There is no pointer to
-follow, so the rows are lifted into a `.services_stack_viewport` that sticks
-to the top of the screen, layered on top of each other, and the list itself
-is given the scroll height — one screen per row by default. A scrubbed
-Crossing a step boundary **triggers** the dissolve into the next row at its
-own pace; it is not scrubbed. Tying the fade to the wheel means a trackpad
-flick blinks the rows past half-drawn. Nothing moves, only opacity, and the
-container padding is dropped so the rows run edge to edge.
+**Below 992px it is a Swiper slider.** The same rows, so the content exists
+once: the module wraps them in a `.swiper-wrapper`, tags each as a
+`.swiper-slide` and builds a Swiper on the list (`.is-slider`), loaded
+through the same `Assets.swiper()` as the other sliders. Each card is the
+image as a square on top, then the square icon and the service name on one
+line, then the list — reordered in CSS, so the markup is the desktop one.
+The Designer's tablet rows (100vh, image as the background under a
+gradient, light type) are undone in `page-transition.css`.
 
-**The track is in `lvh`, never `dvh`.** It is the height of everything above
-the rest of the page, and `dvh` moves with the iOS toolbar, which shows and
-hides on every change of scroll direction. Six screens of it shifted the CTA
-and the FAQ by about half a screen each time — Chrome's scroll anchoring hid
-that on Android, and Safari has no scroll anchoring. `lvh` is the tallest the
-viewport gets, so the track is never short of the screens it holds. The
-sticky `.services_stack_viewport` keeps `dvh`: it is out of the flow's height
-and should match the visible screen.
+The section takes the rows' colour (`.is-services-slider`,
+`--services-slider-bg`), read off the first row's background before the
+slider styles clear it — so it is green on Corporate and purple on Investor
+without a setting. `data-services-fill` on the section or the first row
+overrides, as a literal or a variable name. Type is `--services-slider-text`,
+`#191915` by default.
 
-One boundary per gap, a step apart — the track's height divided by its
-screens, not `innerHeight`, which on iOS moves with the toolbar while the
-track does not.
-Scrolling back fires `onLeaveBack`, not `onEnterBack`: the trigger element is
-the whole track, so the boundary is crossed by leaving through its start
-rather than re-entering from beyond its end.
+The container's inset becomes Swiper's `slidesOffsetBefore`/`After`, so the
+next card runs off the edge of the screen rather than stopping at the padding.
+A card is `perView` 1.2 wide below 768 and `perViewTablet` 1.8 at 768–991,
+`gap` 24px apart (`SERVICES_SLIDER`). Trackpad swipes work as on the other
+sliders (`forceToAxis`, `releaseOnEdges`).
 
-The section heading rides over the stack rather than standing above it:
-`.services_contain` is made sticky — not `.services_heading_wrap`, whose
-parent is no taller than the heading itself, and a sticky child only holds
-while its own parent is passing. The container's parent is the section, so
-the heading arrives with the first row and lets go with the last. It sits
-above the viewport in paint order and is pointer-transparent, and takes
-`--services-stack-heading-color`, white by default, since it reads against
-the rows rather than the section.
+**Arrows:** two elements in the section with `data-services-prev` and
+`data-services-next` (the other sliders' `.c_slider_button_prev`/`_next`
+classes work too). At either end the arrow gets `.is-inactive` and dims.
+They are hidden at 992 and up; put `data-services-nav` on their wrapper to
+hide that too. Without arrows the slider still swipes.
 
-The module measures the container into `--services-stack-heading`, and the
-CSS spends that number twice: as a negative `margin-bottom`, so the heading
-holds no room in the flow and the stack begins at the top of the section —
-otherwise the heading is a block of its own above the first image, sliding
-down onto it — and as the rows' top padding, so their text centres in the
-screen left under it, plus `--services-stack-edge` (1.5rem) off the bottom.
-That edge is one number at both ends: it is the container's top padding, so
-the measurement carries it, and the rows take the same off the bottom — the
-heading sits as far from the top of the screen as the last line sits from
-the bottom. Re-measured through a `ResizeObserver`, because the heading is
-two lines on one phone and four on the next. Under 480px the
-heading drops any width cap and takes the screen.
-
-The type lists are rich text, which gives its paragraphs typography of their
-own — the line height of the style on `.services_hover_item_text` never
-reached them, so the rows read tighter on the page than in the Designer.
-`line-height: inherit` on the children hands it back. Tablet and down they
-stack on `--services-types-gap` (8px) and their paragraph margins are
-dropped, so one number sets the spacing; on desktop the margins are the
-Designer's.
-
-A viewport element is created rather than making each row sticky in flow:
-sticky rows stack, with the next sliding up over the last, and this is meant
-to be a dissolve with nothing in motion. Every row paints an opaque
-background (`--services-stack-bg`) so the one underneath cannot show through
-the one fading in over it.
-
-Knobs in `SERVICES_STACK`: `screens` (scroll between one row and the next),
-`hold` (screens the last row keeps the screen to itself before the pin
-releases), `duration` and `ease`. The track is sized from those — a step per
-gap, then the hold, then the screen the viewport itself occupies — because a
-sticky child holds only while its container is passing. Without the hold the
-final dissolve lands exactly as the section lets go, so the last row is never
-seen still.
+The sticky crossfade it replaced (a `700lvh` track and a pinned viewport) is
+in the history, before this commit.
 
 The shape is chosen on **width alone**, not on hover capability. The CSS half
-of the stack is a `max-width: 991px` block, so keying the script on
-`hover: none` meant a touchscreen laptop — or a device-emulation window at
-desktop width — built the stack while the CSS left the rows in flow: a screen
-of white per row and a very long scroll. A wide touch device now gets the
+of the slider is a `max-width: 991px` block, so keying the script on
+`hover: none` would have a touchscreen laptop build the slider while the CSS
+left the rows as desktop rows. A wide touch device now gets the
 hover build and simply never fires a hover, which is inert rather than broken.
 
 The row icon grows out of its own middle on hover — the move the preview
 images make, not the sideways open the link icons use. It keeps its square
 whether or not it is showing, so the text beside it holds still: a transform
-never reflows. `--services-icon-size` (1.25rem) sets the box; in the stacked
-view the icon is always at full size, since there is no pointer to earn it.
+never reflows. `--services-icon-size` (1.25rem) sets the box; in the slider the icon
+is always at full size, since there is no pointer to earn it.
 
 The icon sits in its own column, `.services_hover_right`, beside the heading.
 That column is made exactly one heading line tall (`height: 1lh` on the h4
@@ -926,13 +887,8 @@ The preview itself is square, `--services-follower-ratio` (1 / 1).
 
 The section swaps shape when the viewport crosses the breakpoint: the build
 in place is torn down and the other one made, so dragging a window past 992
-never leaves a follower with nothing to follow or a stack nobody can
-scrub. A rebuild creates its triggers immediately rather than through the
-intro queue — that queue has already been played and dropped for this
-container, so a callback added then would never run.
-
-The triggers are built from the intro queue, and teardown puts the rows back
-in the list and removes the viewport.
+never leaves a follower with nothing to follow or a slider with rows that are
+desktop rows. Teardown destroys the Swiper and puts the rows back in the list.
 
 
 Desktop pointers only (`(hover: hover) and (min-width: 992px)`) — below

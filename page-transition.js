@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-25-hero-video-trigger';
+  const BUILD = '2026-09-27-services-slider';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -3805,21 +3805,19 @@
   };
 
   /* ------------------------------------------------------------
-     Tablet and down: the rows are lifted into one sticky viewport and
-     crossfaded, the list carrying the scroll height. A viewport rather
-     than sticky rows in flow, which would slide up over each other —
-     this is meant to be a crossfade with nothing moving.
+     Tablet and down: the same rows as a Swiper slider — image, then the
+     square and the name, then the list, on the rows' own colour. The
+     content is the desktop markup, so there is one copy of it to edit.
      ------------------------------------------------------------ */
 
-  const SERVICES_STACK = {
-    screens: 1,          // screens of scroll between one row and the next
-    hold: 1,             // screens the last row holds before the release,
-                         // or the final dissolve lands as it lets go
-    duration: 0.9,       // the dissolve, once it is triggered
-    ease: E.travel
+  const SERVICES_SLIDER = {
+    perView: 1.2,        // below 768: one card and the edge of the next
+    perViewTablet: 1.8,  // 768-991
+    gap: 24,             // px between cards
+    speed: 600
   };
 
-  function buildServicesStack(root, immediate) {
+  function buildServicesSlider(root) {
     const sections = root.querySelectorAll('.services_wrap');
     if (!sections.length) return;
 
@@ -3827,118 +3825,84 @@
 
     sections.forEach((section) => {
       const list = section.querySelector('.services_hover_items');
-      const items = list ? Array.from(list.querySelectorAll('.services_hover_item')) : [];
-      if (!list || items.length < 2) return;
+      const items = list ? Array.from(list.querySelectorAll(':scope > .services_hover_item')) : [];
+      if (!list || !items.length) return;
 
-      /* The heading sticks over the rows. Its container is measured, not
-         the wrap: the CSS spends the number twice — once as a negative
-         margin that takes the heading out of the flow, once as the top
-         padding the rows centre inside — and both want the box that is
-         actually stuck, padding and all. Measured rather than guessed,
-         since it is two lines on one phone and four on the next, and it
-         reflows when the device turns. */
-      const heading = section.querySelector('.services_contain');
-      if (heading) {
-        const measure = () => {
-          const h = Math.round(heading.getBoundingClientRect().height);
-          section.style.setProperty('--services-stack-heading', `${h}px`);
-        };
-        measure();
-        const observer = typeof ResizeObserver === 'function'
-          ? new ResizeObserver(measure)
-          : null;
-        observer?.observe(heading);
-        cleanups.push(() => {
-          observer?.disconnect();
-          section.style.removeProperty('--services-stack-heading');
-        });
-      }
+      /* The colour is read before the slider styles take the rows' own
+         background away: the Designer paints it on the row. A
+         data-services-fill on the section or the first row wins. */
+      const fill = section.getAttribute('data-services-fill')
+        || items[0].getAttribute('data-services-fill');
+      const painted = getComputedStyle(items[0]).backgroundColor;
+      const colour = fill
+        ? (fill.trim().startsWith('--') ? `var(${fill.trim()})` : fill.trim())
+        : (painted && painted !== 'transparent' && painted !== 'rgba(0, 0, 0, 0)' ? painted : '');
+      if (colour) section.style.setProperty('--services-slider-bg', colour);
 
-      const viewport = document.createElement('div');
-      viewport.className = 'services_stack_viewport';
-      list.appendChild(viewport);
-      items.forEach((item) => viewport.appendChild(item));
-      list.classList.add('is-stacked');
-      // A sticky child holds while its container passes, so the track is
-      // a step per gap, plus the hold, plus its own screen.
-      const screens = (items.length - 1) * SERVICES_STACK.screens
-        + SERVICES_STACK.hold + 1;
-      /* lvh, never dvh: this track is everything above the rest of the
-         page, and dvh moves with the iOS toolbar — which shows and hides on
-         every change of scroll direction. Times six screens, that shifted
-         the CTA and the FAQ by half a screen each time. Chrome's scroll
-         anchoring hid it on Android; Safari has none. lvh is the tallest
-         the viewport gets, so the track is never short of the screens it
-         holds either. */
-      const unit = CSS.supports?.('height', '1lvh') ? 'lvh' : 'vh';
-      list.style.height = `${screens * 100}${unit}`;
-      const step = () => list.offsetHeight / screens;
+      // The container's inset becomes Swiper's offsets, so the cards run
+      // to the screen's edge rather than stopping at the padding.
+      const inset = Number.parseFloat(getComputedStyle(list).paddingLeft) || 0;
 
-      // The rest wait at zero rather than hidden, so their images are
-      // decoded before they are needed.
-      gsap.set(items, { opacity: 0 });
-      gsap.set(items[0], { opacity: 1 });
+      const track = document.createElement('div');
+      track.className = 'swiper-wrapper';
+      items.forEach((item) => {
+        item.classList.add('swiper-slide');
+        track.appendChild(item);
+      });
+      list.appendChild(track);
+      list.classList.add('swiper', 'is-slider');
+      section.classList.add('is-services-slider');
 
-      /* Triggered, not scrubbed: the dissolve plays at its own pace, so
-         it reads the same eased or flicked. Scrubbed, a trackpad flick
-         blinks the rows past half-drawn. */
-      let active = 0;
+      let swiper = null;
+      let dead = false;
 
-      const show = (index) => {
-        if (index === active || index < 0 || index >= items.length) return;
-        active = index;
-        items.forEach((item, i) => {
-          gsap.to(item, {
-            opacity: i === index ? 1 : 0,
-            duration: reducedMotion ? 0 : SERVICES_STACK.duration,
-            ease: SERVICES_STACK.ease,
-            overwrite: 'auto'
-          });
-        });
-      };
-
-      if (!hasScrollTrigger) {
-        gsap.set(items, { opacity: 1 });
-      } else {
-        /* From the intro queue on first mount, since a trigger measured
-           against the transition rectangle starts at the wrong scroll
-           position. A resize rebuild is direct: the queue for this
-           container has already been played and dropped. */
-        const createTriggers = () => {
-          /* One boundary per gap between rows, measured off the track
-             rather than innerHeight, which on iOS moves with the toolbar
-             while the track does not. */
-          for (let i = 1; i < items.length; i += 1) {
-            const boundary = ScrollTrigger.create({
-              trigger: list,
-              start: () => `top top-=${i * step() * SERVICES_STACK.screens}`,
-              invalidateOnRefresh: true,
-              onEnter: () => show(i),
-              // Leave, not enter: the trigger is the whole track, so the
-              // boundary is crossed on the way back out of its start.
-              onLeaveBack: () => show(i - 1)
-            });
-            cleanups.push(() => boundary.kill());
+      Assets.swiper().then(() => {
+        if (dead || !window.Swiper) return;
+        swiper = new Swiper(list, {
+          slidesPerView: SERVICES_SLIDER.perView,
+          spaceBetween: SERVICES_SLIDER.gap,
+          speed: SERVICES_SLIDER.speed,
+          slidesOffsetBefore: inset,
+          slidesOffsetAfter: inset,
+          roundLengths: true,
+          watchOverflow: true,
+          observer: true,
+          observeParents: true,
+          resizeObserver: true,
+          breakpoints: {
+            768: { slidesPerView: SERVICES_SLIDER.perViewTablet }
+          },
+          mousewheel: {
+            forceToAxis: true,
+            releaseOnEdges: true,
+            thresholdDelta: SLIDER_WHEEL.threshold
+          },
+          navigation: {
+            prevEl: section.querySelector('[data-services-prev], .c_slider_button_prev'),
+            nextEl: section.querySelector('[data-services-next], .c_slider_button_next'),
+            disabledClass: 'is-inactive'
           }
-        };
-
-        if (immediate) createTriggers();
-        else Intro.add(root, createTriggers);
-      }
+        });
+      });
 
       cleanups.push(() => {
-        gsap.killTweensOf(items);
-        gsap.set(items, { clearProps: 'opacity' });
-        list.classList.remove('is-stacked');
-        list.style.removeProperty('height');
-        items.forEach((item) => list.appendChild(item));
-        viewport.remove();
+        dead = true;
+        swiper?.destroy(true, true);
+        items.forEach((item) => {
+          item.classList.remove('swiper-slide');
+          list.insertBefore(item, track);
+        });
+        track.remove();
+        list.classList.remove('swiper', 'is-slider');
+        section.classList.remove('is-services-slider');
+        section.style.removeProperty('--services-slider-bg');
       });
     });
 
     if (!cleanups.length) return;
     return () => cleanups.forEach((fn) => fn());
   }
+
 
   function buildServicesHover(root) {
     const sections = root.querySelectorAll('.services_wrap');
@@ -4243,21 +4207,21 @@
   }
 
   /* Two shapes, chosen by viewport: pointer-following on desktop, a
-     pinned dissolve below. Rebuilt on the way across. */
+     slider below. Rebuilt on the way across. */
   Modules.add('servicesHover', function (root) {
     if (!root.querySelector('.services_wrap')) return;
 
     /* Width, not hover capability: the CSS half lives in a max-width
-       block, and a touchscreen laptop keyed on hover:none built the stack
-       while the CSS left the rows in flow. */
+       block, and a touchscreen laptop keyed on hover:none built the
+       slider while the CSS left the rows in flow. */
     const pointer = window.matchMedia('(min-width: 992px)');
     let teardown = null;
     let built = false;
 
-    const build = (immediate) => {
+    const build = () => {
       teardown = pointer.matches
         ? buildServicesHover(root)
-        : buildServicesStack(root, immediate);
+        : buildServicesSlider(root);
       built = true;
     };
 
@@ -4265,13 +4229,13 @@
       if (!built) return;
       teardown?.();
       teardown = null;
-      build(true);
-      // The stack adds a few screens of height, or gives them back.
+      build();
+      // The two shapes are different heights.
       if (hasScrollTrigger) ScrollTrigger.refresh();
       refreshScrollHeight();
     };
 
-    build(false);
+    build();
     pointer.addEventListener('change', rebuild);
 
     return () => {
