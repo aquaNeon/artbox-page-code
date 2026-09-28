@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-28-services-name-h3-fix';
+  const BUILD = '2026-09-28-404-full-load';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -7454,6 +7454,12 @@
     prevent: ({ el }) => {
       if (!el) return false;
       const href = el.getAttribute('href') || '';
+
+      /* Webflow's 404 is a utility page whose container is the whole
+         page_wrap, global style embeds and nav included. Swapping it for
+         another page's <main> left none of that behind: wrong fonts, no
+         video. Leaving the 404 is a full load. */
+      if (document.querySelector('[data-barba="container"][data-barba-namespace="404"]')) return true;
 
       /* Finsweet pages a list by clicking Webflow's own pagination
          anchor, which is a real same-origin link — so Load more ran a
