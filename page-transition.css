@@ -1709,6 +1709,24 @@ html .work_smoothly_wrap {
     min-width: 0;
   }
 
+  /* The name is h3 in the slider, h4 on desktop. The utility classes set
+     their size variables on the element itself, so those are redefined
+     there too; the square beside it reads the same size for its 1cap. */
+  .services_hover_items.is-slider :is(
+    .services_hover_right,
+    .services_hover_service,
+    .services_hover_service :is(.u-text-style-h4, .u-text-style-h4-secondary)
+  ) {
+    --_heading-primary---font-size: var(--_typography---font-size--h3-primary);
+    --_heading-secondary---font-size: var(--_typography---font-size--h3-secondary);
+    --_heading-primary---line-height: var(--_typography---line-height--1-3);
+    --_heading-secondary---line-height: var(--_typography---line-height--1-3);
+    --_heading-primary---letter-spacing: var(--_typography---letter-spacing--negative-l);
+    --_heading-secondary---letter-spacing: var(--_typography---letter-spacing--negative-l);
+    font-size: var(--_typography---font-size--h3-secondary);
+    line-height: var(--_typography---line-height--1-3);
+  }
+
   .services_hover_items.is-slider .services_hover_types {
     flex: 0 0 100%;
   }
