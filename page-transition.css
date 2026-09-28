@@ -1614,6 +1614,16 @@ html .work_smoothly_wrap {
     --services-slider-text: var(--_colour---color--color-paper, #f7f7f5);
   }
 
+  /* The square may be a filled div or an SVG; both routes are covered. */
+  .is-services-slider[data-services-color="green"] .services_hover_icon {
+    background-color: var(--services-slider-text);
+    color: var(--services-slider-text);
+  }
+
+  .is-services-slider[data-services-color="green"] .services_hover_icon * {
+    fill: currentColor;
+  }
+
   .is-services-slider .services_contain,
   .is-services-slider .g_heading {
     color: inherit;
