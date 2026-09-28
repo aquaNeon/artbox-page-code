@@ -837,7 +837,9 @@ gradient, light type) are undone in `page-transition.css`.
 it, `data-services-fill` on the section or the first row (a literal or a
 variable name), then whatever the Designer painted on the first row, read
 before the slider styles clear it. It lands on the section as
-`--services-slider-bg`; type is `--services-slider-text`, `#191915`.
+`--services-slider-bg`; type is `--services-slider-text`, `#191915`, except
+on green, where it is `--_colour---color--color-paper` and the arrows turn
+light with a dark icon (in the embed).
 
 **Spacing**, all site variables, so they follow the scale:
 

@@ -12,6 +12,15 @@
   --_theme---swiper--icon-hover: #f1f1ef;
 }
 
+.services_wrap[data-services-color="green"] [data-services-nav] {
+  --_theme---swiper--bg: #f7f7f5;
+  --_theme---swiper--border: #f7f7f5;
+  --_theme---swiper--icon: #191915;
+  --_theme---swiper--bg-hover: #e4e4df;
+  --_theme---swiper--border-hover: #e4e4df;
+  --_theme---swiper--icon-hover: #191915;
+}
+
 @media screen and (max-width: 991px) {
   html.wf-design-mode
   .services_wrap[data-services-color="neon"] {
@@ -23,6 +32,12 @@
   .services_wrap[data-services-color="purple"] {
     background-color: var(--_colour---color--color-purple);
     color: #191915;
+  }
+
+  html.wf-design-mode
+  .services_wrap[data-services-color="green"] {
+    background-color: var(--_colour---color--color-green);
+    color: var(--_colour---color--color-paper, #f7f7f5);
   }
 
   html.wf-design-mode .services_wrap .g_heading {

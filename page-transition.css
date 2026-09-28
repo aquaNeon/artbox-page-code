@@ -1610,6 +1610,10 @@ html .work_smoothly_wrap {
     color: var(--services-slider-text, #191915);
   }
 
+  .services_wrap.is-services-slider[data-services-color="green"] {
+    --services-slider-text: var(--_colour---color--color-paper, #f7f7f5);
+  }
+
   .is-services-slider .services_contain,
   .is-services-slider .g_heading {
     color: inherit;
