@@ -5821,6 +5821,9 @@
     // px of scroll into the section before the growth fires. Pixels, not
     // a fraction: what fires it is the gesture, the same on any screen.
     growAfter: 120,
+    // px the section's top has come back down the screen, scrolling up,
+    // before the video hands the hero back.
+    releaseAfter: 120,
     growDuration: 1,
     growEase: E.travel,
 
@@ -5921,12 +5924,14 @@
 
     /* Triggered, not scrubbed: growAfter px after the section starts to
        come up, the growth runs on its own clock and finishes whatever the
-       scroll does. Latched, edges far apart — it only lets go back at the
-       very start of that range, so a scroll parked on the threshold cannot
-       flip it back and forth. */
+       scroll does. Latched by direction: it grows only going down and
+       shrinks only going up, so a scroll parked on a threshold cannot flip
+       it back and forth. */
     const growth = { p: 0 };
     const bump = { x: 0, y: 0 };
     let wants = 0;
+    let lastTop = null;
+    let goingUp = false;
     let scrollTween = null;
 
     // Carried rather than blocked: a page that stops answering reads as
@@ -5978,9 +5983,20 @@
       const s = stage.getBoundingClientRect();
       const c = cell.getBoundingClientRect();
 
+      /* Which way the page is going decides the latch. Let go only once the
+         section had left the screen, and on the way back up the grown video
+         covered the hero for a whole screen of scrolling that showed nothing
+         moving — several swipes on a phone before it gave the page back. */
+      const moved = lastTop == null ? 0 : s.top - lastTop;
+      if (Math.abs(moved) >= 1 || lastTop == null) {
+        if (moved > 0) goingUp = true;
+        else if (moved < 0) goingUp = false;
+        lastTop = s.top;
+      }
+
       const distance = s.height - s.top;
-      if (distance >= HERO_VIDEO.growAfter) growTo(1, s);
-      else if (distance <= 0) growTo(0, s);
+      if (distance <= 0 || (goingUp && s.top >= HERO_VIDEO.releaseAfter)) growTo(0, s);
+      else if (!goingUp && distance >= HERO_VIDEO.growAfter) growTo(1, s);
       const q = growth.p;
 
       /* Grown means the screen until the section arrives, then the

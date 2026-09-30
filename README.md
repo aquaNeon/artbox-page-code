@@ -1804,17 +1804,19 @@ it. No pin and no text — the pinned version with statements is tagged
 
 **Triggered, not scrubbed.** `growAfter` px (120) after the section starts to
 come up, the growth runs on its own clock (`growDuration`, `growEase`) and
-finishes whatever the scroll does. The threshold is latched: it fires at
-`growAfter` and only lets go back at the very start of that range, so a scroll
-parked on it cannot flip it back and forth. **The takeover** carries the page to
+finishes whatever the scroll does. The threshold is latched by direction: it
+grows only going down and shrinks only going up, so a scroll parked on it cannot
+flip it back and forth. **The takeover** carries the page to
 the section's top in the same second, locked while it goes
 (`lenis.scrollTo(..., { lock: true })`), so a flick cannot skip the whole
 thing. Never under `prefers-reduced-motion`.
 
 Grown means the screen until the section arrives, then the section: the two
 are the same box the moment its top reaches the top, so the video is handed
-from one to the other without a seam. Scrolled back up, it holds the screen
-until the growth lets go at the top of the range, then shrinks back to its cell.
+from one to the other without a seam. Scrolled back up, it lets go once the
+section's top is `releaseAfter` px (120) down the screen and shrinks back to its
+cell. It used to hold the screen until the section had left it entirely, which
+was a whole screen of scrolling with the hero hidden and nothing moving.
 
 **Nothing is moved mid-scroll.** At mount the component moves once into the
 section, and the empty cell keeps the video's ratio so the grid holds its
@@ -1852,6 +1854,7 @@ page. Reduced motion: the video is placed in the section and does not grow.
 | Key in `HERO_VIDEO` | Default | Meaning |
 | --- | --- | --- |
 | `growAfter` | `120` | px into the section before the growth fires |
+| `releaseAfter` | `120` | scrolling up, px the section's top comes down the screen before it shrinks back |
 | `growDuration` | `1` | seconds to full size, its own clock |
 | `growEase` | `power2.inOut` (`E.travel`) | |
 | `takeover` | `true` | carry the page to the section's top while it grows |
