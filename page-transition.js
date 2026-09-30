@@ -5925,6 +5925,7 @@
        very start of that range, so a scroll parked on the threshold cannot
        flip it back and forth. */
     const growth = { p: 0 };
+    const bump = { x: 0, y: 0 };
     let wants = 0;
     let scrollTween = null;
 
@@ -5992,8 +5993,13 @@
 
       const w = lerp(c.width, t.width + bleed * 2, q);
       const h = lerp(c.height, t.height + bleed * 2, q);
-      const dx = lerp(c.left + c.width / 2, t.left + t.width / 2, q) - (s.left + s.width / 2);
-      const dy = lerp(c.top + c.height / 2, t.top + t.height / 2, q) - (s.top + s.height / 2);
+      /* The hover lean is folded in here rather than tweened onto comp:
+         this line owns the transform and rewrites it every frame. Faded
+         out with the growth — leaning towards the pointer is a thing a
+         cell in a grid does, not a video filling the screen. */
+      const lean = 1 - q;
+      const dx = lerp(c.left + c.width / 2, t.left + t.width / 2, q) - (s.left + s.width / 2) + bump.x * lean;
+      const dy = lerp(c.top + c.height / 2, t.top + t.height / 2, q) - (s.top + s.height / 2) + bump.y * lean;
 
       // Scaled to cover the rectangle, then cropped to it.
       const k = Math.max(w / frame.w, h / frame.h);
@@ -6010,6 +6016,35 @@
     };
 
     gsap.ticker.add(draw);
+
+    /* Same knobs as the pictures' bump, so the cell and the video answer
+       a hand alike. Listened for on comp: the cell it sits over is empty. */
+    let dropBump = () => {};
+    if (HERO.bump && window.matchMedia('(hover: hover)').matches) {
+      const toX = gsap.quickTo(bump, 'x', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
+      const toY = gsap.quickTo(bump, 'y', { duration: HERO.bumpDuration, ease: HERO.bumpEase });
+      let rect = null;
+
+      const onEnter = () => { rect = cell.getBoundingClientRect(); };
+      const onMove = (e) => {
+        if (growth.p > 0) return;
+        if (!rect) rect = cell.getBoundingClientRect();
+        toX((e.clientX - (rect.left + rect.width / 2)) * HERO.bumpStrength);
+        toY((e.clientY - (rect.top + rect.height / 2)) * HERO.bumpStrength);
+      };
+      const onLeave = () => { toX(0); toY(0); rect = null; };
+
+      comp.addEventListener('mouseenter', onEnter);
+      comp.addEventListener('mousemove', onMove);
+      comp.addEventListener('mouseleave', onLeave);
+
+      dropBump = () => {
+        gsap.killTweensOf(bump);
+        comp.removeEventListener('mouseenter', onEnter);
+        comp.removeEventListener('mousemove', onMove);
+        comp.removeEventListener('mouseleave', onLeave);
+      };
+    }
 
     const onResize = () => {
       size();
@@ -6064,6 +6099,7 @@
     return function cleanup() {
       dead = true;
       gsap.ticker.remove(draw);
+      dropBump();
       window.removeEventListener('resize', onResize);
       document.removeEventListener('page:leaving', freeze);
       gsap.killTweensOf([comp, growth]);
