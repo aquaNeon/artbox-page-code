@@ -2299,10 +2299,13 @@ html:not(.wf-design-mode) [data-hero-in-group] > [data-hero-in] {
 .home_wrap h1 {
   position: relative;
   z-index: 2;
+}
+
+.home_wrap :is(h1, .home_heading_wrap) {
   pointer-events: none;
 }
 
-.home_wrap h1 a {
+.home_wrap :is(h1, .home_heading_wrap) a {
   pointer-events: auto;
 }
 
