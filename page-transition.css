@@ -837,61 +837,6 @@ a[x-apple-data-detectors],
   }
 }
 
-/* ===== CASE ROW OVERLAP — README ### case row overlap ===== */
-
-/* Was an embed in one image section; deleting that section took the
-   overlap off every page. The .c_cases_row_contain prefix outranks the
-   4rem mobile gap above, which would push the pictures apart. */
-.c_cases_row_contain {
-  container-type: inline-size;
-  container-name: cases;
-}
-
-@container cases (max-width: 900px) {
-  .c_cases_row_contain .c_cases_row_grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    row-gap: 0;
-  }
-
-  .c_cases_row_grid > .c_cases_row_grid_item {
-    grid-column: 1 / -1 !important;
-    width: var(--overlap-width, 68%);
-    position: relative;
-    z-index: 1;
-  }
-
-  /* One left, one right: at 68% each, 36% of the width sits under both. */
-  .c_cases_row_grid > .c_cases_row_grid_item:nth-child(1) {
-    justify-self: start;
-  }
-
-  .c_cases_row_grid > .c_cases_row_grid_item:nth-child(2) {
-    justify-self: end;
-    margin-top: calc(var(--overlap-pull, 18%) * -1);
-  }
-
-  .c_cases_row_grid[data-overlap="flip"] > .c_cases_row_grid_item:nth-child(1) {
-    order: 2;
-    margin-top: calc(var(--overlap-pull, 18%) * -1);
-  }
-
-  .c_cases_row_grid[data-overlap="flip"] > .c_cases_row_grid_item:nth-child(2) {
-    order: 1;
-    margin-top: 0;
-  }
-
-  /* The shorter picture goes on top; at equal widths the wider ratio is
-     the shorter one. */
-  .c_cases_row_grid > .c_cases_row_grid_item:is(
-    [data-ratio="3/2"],
-    [data-ratio="16/9"],
-    [data-ratio="21/9"]
-  ) {
-    z-index: 2;
-  }
-}
-
 /* ===== FAQ — README ### faq ===== */
 
 /* The answer is set in the large paragraph style, which on a phone is a
@@ -2561,4 +2506,19 @@ html .cta_wrap {
    .is-purple and its siblings are what has to be scoped away. */
 .c_title_text_eyebrow_color:not([class*="w-variant"]):not([class*="is-"]) {
   background-color: var(--icon-color, currentColor);
+}
+
+/* ===== CONSENT — Finsweet's internal component ===== */
+
+/* An empty holder Finsweet keeps for its own use, sitting in flow after
+   the footer: at opacity 0 it still left a blank strip under the footer,
+   taller wherever its placeholder was. The banner is not in it. */
+[fs-consent-element="internal-component"] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }

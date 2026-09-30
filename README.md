@@ -1055,17 +1055,6 @@ from the line box's middle to the caps' in Suisse Intl.
 
 The Designer's `-8px` and `-1px` can be cleared; the CSS overrides both.
 
-### Case row overlap
-
-Below a 900px container, a two-picture `c_cases_row_grid` stops being two
-columns: each picture is 68% wide, the first on the left, the second on the
-right and pulled up 18% of the width over the first's foot. The shorter
-picture (3/2, 16/9, 21/9) sits on top. `data-overlap="flip"` on the grid
-swaps which one comes first; `--overlap-width` and `--overlap-pull` tune it.
-
-It used to be an embed in one image section, and deleting that section took
-it off every page, so it lives in `page-transition.css` now.
-
 ### Service tags — `data-accent`
 
 A case can be Corporate design, Investor design or both. Cases carry a
