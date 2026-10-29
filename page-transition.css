@@ -1084,6 +1084,13 @@ html .work_smoothly_wrap {
   display: block;
 }
 
+/* smooothy moves each slide with a 2D translateX every frame. Without a
+   layer of its own Safari repaints the row instead, and after a page
+   swap those repaints leave a trace of every picture behind it. */
+html .work_smoothly_wrap > * {
+  will-change: transform;
+}
+
 /* ===== HOVER SCALE — [data-scale] — README ### data-scale ===== */
 
 /* The picture leans in under the pointer. Mark the wrapper or the
