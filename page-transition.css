@@ -1077,6 +1077,13 @@ html .work_smoothly_wrap {
   overflow-clip-margin: var(--smoothly-spill, 120px);
 }
 
+/* The 16x9 variant sizes its cell from the picture. Inline, the picture
+   sits in a line box and its bottom edge lands between pixels, which
+   Safari smears into a line under the moving row. */
+.work_smoothly_img {
+  display: block;
+}
+
 /* ===== HOVER SCALE — [data-scale] — README ### data-scale ===== */
 
 /* The picture leans in under the pointer. Mark the wrapper or the

@@ -7,7 +7,7 @@
 
   /* Bump on every push: jsDelivr serves a week-old copy on a plain
      reload, and this line is the only way to tell which build is live. */
-  const BUILD = '2026-09-28-404-full-load';
+  const BUILD = '2026-10-29-smoothly-safari-trail';
   console.info(`[page-transition] build ${BUILD}`);
 
   gsap.registerPlugin(CustomEase);
@@ -2541,7 +2541,10 @@
             p: 1,
             duration: item.duration,
             ease: item.ease,
-            onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); }
+            onUpdate: () => { item.el.style.clipPath = item.clipAt(wipe.p); },
+            // A finished inset(0%) still clips. Left on a picture that
+            // drifts, Safari leaves its bottom row behind as a trail.
+            onComplete: () => { item.el.style.removeProperty('clip-path'); }
           }, cue);
         }
 
@@ -2570,7 +2573,8 @@
             scale: 1,
             duration: item.scaleDuration,
             ease: item.ease,
-            transformOrigin: 'center center'
+            transformOrigin: 'center center',
+            clearProps: 'transform,transformOrigin'
           }, cue);
         }
       });
